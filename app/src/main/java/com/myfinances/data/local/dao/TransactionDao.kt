@@ -1,0 +1,159 @@
+package com.myfinances.data.local.dao
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Update
+import com.myfinances.data.local.entity.TransactionEntity
+import kotlinx.coroutines.flow.Flow
+
+data class TransactionWithDetails(
+    val id: String,
+    val userUid: String,
+    val accountId: String,
+    val accountName: String,
+    val categoryId: String,
+    val categoryName: String,
+    val kind: String,
+    val amountCents: Long,
+    val occurredAtEpochSec: Long,
+    val note: String?
+)
+
+data class MonthlyCategoryTotal(
+    val rootCategoryId: String,
+    val rootCategoryName: String,
+    val month: Int,
+    val totalAmountCents: Long
+)
+
+data class MonthlyCategoryDetailTotal(
+    val rootCategoryId: String,
+    val categoryId: String,
+    val categoryName: String,
+    val month: Int,
+    val totalAmountCents: Long
+)
+
+@Dao
+interface TransactionDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(transaction: TransactionEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(transactions: List<TransactionEntity>)
+
+    @Update
+    suspend fun update(transaction: TransactionEntity)
+
+    @Query("""
+        SELECT t.id, t.user_uid AS userUid, t.account_id AS accountId, a.name AS accountName,
+               t.category_id AS categoryId, c.name AS categoryName,
+               t.kind, t.amount_cents AS amountCents, t.occurred_at_epoch_sec AS occurredAtEpochSec, t.note
+        FROM transactions t
+        INNER JOIN accounts a ON a.id = t.account_id
+        INNER JOIN categories c ON c.id = t.category_id
+        WHERE t.user_uid = :userUid
+        ORDER BY t.occurred_at_epoch_sec DESC, t.created_at_epoch_sec DESC
+        LIMIT :limit
+    """)
+    fun observeRecent(userUid: String, limit: Int = 50): Flow<List<TransactionWithDetails>>
+
+    @Query("""
+        SELECT t.id, t.user_uid AS userUid, t.account_id AS accountId, a.name AS accountName,
+               t.category_id AS categoryId, c.name AS categoryName,
+               t.kind, t.amount_cents AS amountCents, t.occurred_at_epoch_sec AS occurredAtEpochSec, t.note
+        FROM transactions t
+        INNER JOIN accounts a ON a.id = t.account_id
+        INNER JOIN categories c ON c.id = t.category_id
+        WHERE t.user_uid = :userUid
+        ORDER BY t.occurred_at_epoch_sec DESC, t.created_at_epoch_sec DESC
+        LIMIT :limit
+    """)
+    suspend fun getRecent(userUid: String, limit: Int = 50): List<TransactionWithDetails>
+
+    @Query("SELECT * FROM transactions WHERE id = :id")
+    suspend fun getById(id: String): TransactionEntity?
+
+    @Query("DELETE FROM transactions WHERE id = :id")
+    suspend fun delete(id: String)
+
+    @Query("DELETE FROM transactions WHERE user_uid = :userUid")
+    suspend fun deleteAllByUser(userUid: String)
+
+    @Query("""
+        SELECT t.id, t.user_uid AS userUid, t.account_id AS accountId, a.name AS accountName,
+               t.category_id AS categoryId, c.name AS categoryName,
+               t.kind, t.amount_cents AS amountCents, t.occurred_at_epoch_sec AS occurredAtEpochSec, t.note
+        FROM transactions t
+        INNER JOIN accounts a ON a.id = t.account_id
+        INNER JOIN categories c ON c.id = t.category_id
+        WHERE t.user_uid = :userUid
+          AND (:accountId IS NULL OR t.account_id = :accountId)
+          AND (:categoryId IS NULL OR t.category_id = :categoryId)
+          AND (:fromEpochSec IS NULL OR t.occurred_at_epoch_sec >= :fromEpochSec)
+          AND (:toEpochSec IS NULL OR t.occurred_at_epoch_sec <= :toEpochSec)
+        ORDER BY t.occurred_at_epoch_sec DESC, t.created_at_epoch_sec DESC
+        LIMIT :limit
+    """)
+    suspend fun getFiltered(
+        userUid: String,
+        accountId: String?,
+        categoryId: String?,
+        fromEpochSec: Long?,
+        toEpochSec: Long?,
+        limit: Int = 100
+    ): List<TransactionWithDetails>
+
+    @Query(
+        """
+        SELECT
+            r.id AS rootCategoryId,
+            r.name AS rootCategoryName,
+            CAST(strftime('%m', datetime(t.occurred_at_epoch_sec, 'unixepoch')) AS INTEGER) AS month,
+            SUM(ABS(t.amount_cents)) AS totalAmountCents
+        FROM transactions t
+        INNER JOIN categories c ON c.id = t.category_id
+        INNER JOIN categories r ON r.id = CASE WHEN c.parent_id IS NULL THEN c.id ELSE c.parent_id END
+        WHERE t.user_uid = :userUid
+          AND (:accountId IS NULL OR t.account_id = :accountId)
+          AND t.kind = :kind
+          AND CAST(strftime('%Y', datetime(t.occurred_at_epoch_sec, 'unixepoch')) AS INTEGER) = :year
+        GROUP BY r.id, r.name, month
+        ORDER BY month ASC
+        """
+    )
+    suspend fun getMonthlyTotalsByRootCategory(
+        userUid: String,
+        accountId: String?,
+        year: Int,
+        kind: String
+    ): List<MonthlyCategoryTotal>
+
+    @Query(
+        """
+        SELECT
+            r.id AS rootCategoryId,
+            c.id AS categoryId,
+            c.name AS categoryName,
+            CAST(strftime('%m', datetime(t.occurred_at_epoch_sec, 'unixepoch')) AS INTEGER) AS month,
+            SUM(ABS(t.amount_cents)) AS totalAmountCents
+        FROM transactions t
+        INNER JOIN categories c ON c.id = t.category_id
+        INNER JOIN categories r ON r.id = CASE WHEN c.parent_id IS NULL THEN c.id ELSE c.parent_id END
+        WHERE t.user_uid = :userUid
+          AND (:accountId IS NULL OR t.account_id = :accountId)
+          AND t.kind = :kind
+          AND CAST(strftime('%Y', datetime(t.occurred_at_epoch_sec, 'unixepoch')) AS INTEGER) = :year
+        GROUP BY r.id, c.id, c.name, month
+        ORDER BY month ASC
+        """
+    )
+    suspend fun getMonthlyTotalsBySubcategory(
+        userUid: String,
+        accountId: String?,
+        year: Int,
+        kind: String
+    ): List<MonthlyCategoryDetailTotal>
+}
