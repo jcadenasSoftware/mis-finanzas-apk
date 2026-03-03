@@ -19,6 +19,36 @@ class CategoryRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val deviceIdProvider: DeviceIdProvider
 ) {
+    suspend fun ensureSystemLoanCategories(userUid: String): Pair<String, String> {
+        val loanCategoryId = "system-loan-$userUid"
+        val repaymentCategoryId = "system-loan-repayment-$userUid"
+
+        ensureSystemCategory(userUid, loanCategoryId, "Préstamos")
+        ensureSystemCategory(userUid, repaymentCategoryId, "Devoluciones")
+
+        return loanCategoryId to repaymentCategoryId
+    }
+
+    private suspend fun ensureSystemCategory(userUid: String, id: String, name: String): CategoryEntity {
+        val existing = categoryDao.getById(id)
+        if (existing != null) {
+            return existing
+        }
+        val now = System.currentTimeMillis() / 1000
+        val category = CategoryEntity(
+            id = id,
+            userUid = userUid,
+            name = name,
+            parentId = null,
+            createdAtEpochSec = now,
+            updatedAtEpochSec = now,
+            updatedBy = deviceIdProvider.get()
+        )
+        categoryDao.insert(category)
+        syncToFirestore(userUid, category)
+        return category
+    }
+
     fun observeCategories(userUid: String): Flow<List<CategoryEntity>> {
         return categoryDao.observeByUser(userUid)
     }

@@ -36,6 +36,12 @@ data class MonthlyCategoryDetailTotal(
     val totalAmountCents: Long
 )
 
+data class RootCategorySpentTotal(
+    val rootCategoryId: String,
+    val rootCategoryName: String,
+    val totalSpentCents: Long
+)
+
 @Dao
 interface TransactionDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -156,4 +162,30 @@ interface TransactionDao {
         year: Int,
         kind: String
     ): List<MonthlyCategoryDetailTotal>
+
+    @Query(
+        """
+        SELECT
+            r.id AS rootCategoryId,
+            r.name AS rootCategoryName,
+            SUM(ABS(t.amount_cents)) AS totalSpentCents
+        FROM transactions t
+        INNER JOIN accounts a ON a.id = t.account_id
+        INNER JOIN categories c ON c.id = t.category_id
+        INNER JOIN categories r ON r.id = CASE WHEN c.parent_id IS NULL THEN c.id ELSE c.parent_id END
+        WHERE t.user_uid = :userUid
+          AND t.kind = 'EXPENSE'
+          AND a.currency = :currency
+          AND t.occurred_at_epoch_sec >= :fromEpochSec
+          AND t.occurred_at_epoch_sec <= :toEpochSec
+        GROUP BY r.id, r.name
+        ORDER BY r.name ASC
+        """
+    )
+    suspend fun getExpenseTotalsByRootCategoryInRange(
+        userUid: String,
+        currency: String,
+        fromEpochSec: Long,
+        toEpochSec: Long
+    ): List<RootCategorySpentTotal>
 }

@@ -12,7 +12,10 @@ import androidx.navigation.navArgument
 import com.myfinances.ui.screens.categories.CategoriesScreen
 import com.myfinances.ui.screens.charts.ChartsScreen
 import com.myfinances.ui.screens.dashboard.DashboardScreen
+import com.myfinances.ui.screens.budget.BudgetScreen
+import com.myfinances.ui.screens.loans.LoansScreen
 import com.myfinances.ui.screens.login.LoginScreen
+import com.myfinances.ui.screens.settings.SettingsScreen
 import com.myfinances.ui.screens.transactions.AddTransactionScreen
 import com.myfinances.ui.screens.transactions.TransactionsScreen
 import com.myfinances.ui.screens.transfers.AddTransferScreen
@@ -60,12 +63,36 @@ fun AppNavHost(
                 onNavigateToCharts = {
                     navController.navigate(NavRoutes.Charts.route)
                 },
+                onNavigateToLoans = {
+                    navController.navigate(NavRoutes.Loans.route)
+                },
+                onNavigateToBudget = {
+                    navController.navigate(NavRoutes.Budget.route)
+                },
                 onLogout = {
                     authViewModel.signOut()
                     navController.navigate(NavRoutes.Login.route) {
                         popUpTo(NavRoutes.Dashboard.route) { inclusive = true }
                     }
                 }
+            )
+        }
+
+        composable(NavRoutes.Budget.route) {
+            BudgetScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(NavRoutes.Settings.route) {
+            SettingsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(NavRoutes.Loans.route) {
+            LoansScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 

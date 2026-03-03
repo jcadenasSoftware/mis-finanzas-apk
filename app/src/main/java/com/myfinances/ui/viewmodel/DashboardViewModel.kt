@@ -8,9 +8,15 @@ import com.myfinances.data.local.entity.UserEntity
 import com.myfinances.data.local.entity.AccountEntity
 import com.myfinances.data.repository.AccountRepository
 import com.myfinances.data.repository.AuthRepository
+import com.myfinances.data.repository.BudgetRepository
 import com.myfinances.data.repository.CategoryRepository
+import com.myfinances.data.repository.ExchangeRateRepository
+import com.myfinances.data.repository.GoalRepository
+import com.myfinances.data.repository.LoanPaymentRepository
+import com.myfinances.data.repository.LoanRepository
 import com.myfinances.data.repository.TransactionRepository
 import com.myfinances.data.repository.TransferRepository
+import com.myfinances.data.repository.UserSettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -40,7 +46,13 @@ class DashboardViewModel @Inject constructor(
     private val accountRepository: AccountRepository,
     private val categoryRepository: CategoryRepository,
     private val transactionRepository: TransactionRepository,
-    private val transferRepository: TransferRepository
+    private val transferRepository: TransferRepository,
+    private val userSettingsRepository: UserSettingsRepository,
+    private val exchangeRateRepository: ExchangeRateRepository,
+    private val loanRepository: LoanRepository,
+    private val loanPaymentRepository: LoanPaymentRepository,
+    private val budgetRepository: BudgetRepository,
+    private val goalRepository: GoalRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(DashboardState())
@@ -90,6 +102,13 @@ class DashboardViewModel @Inject constructor(
                 Log.d("DashboardViewModel", "Transactions synced")
                 transferRepository.syncFromFirestore(uid)
                 Log.d("DashboardViewModel", "Transfers synced")
+
+                userSettingsRepository.syncFromFirestore(uid)
+                exchangeRateRepository.syncFromFirestore(uid)
+                loanRepository.syncFromFirestore(uid)
+                loanPaymentRepository.syncFromFirestore(uid)
+                budgetRepository.syncFromFirestore(uid)
+                goalRepository.syncFromFirestore(uid)
 
                 loadAccountsWithBalances(uid)
             } catch (e: Exception) {
@@ -227,6 +246,13 @@ class DashboardViewModel @Inject constructor(
                 Log.d("DashboardViewModel", "About to call transferRepository.syncFromFirestore")
                 transferRepository.syncFromFirestore(uid)
                 Log.d("DashboardViewModel", "Transfers synced")
+
+                userSettingsRepository.syncFromFirestore(uid)
+                exchangeRateRepository.syncFromFirestore(uid)
+                loanRepository.syncFromFirestore(uid)
+                loanPaymentRepository.syncFromFirestore(uid)
+                budgetRepository.syncFromFirestore(uid)
+                goalRepository.syncFromFirestore(uid)
 
                 // Reload data
                 loadAccountsWithBalances(uid)

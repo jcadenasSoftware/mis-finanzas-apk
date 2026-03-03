@@ -36,8 +36,17 @@ interface AccountDao {
 
     @Query("""
         SELECT (
-            COALESCE((SELECT SUM(CASE WHEN kind = 'INCOME' THEN amount_cents ELSE -amount_cents END)
-                      FROM transactions WHERE user_uid = :userUid AND account_id = :accountId), 0)
+            COALESCE((
+                SELECT SUM(
+                    CASE
+                        WHEN kind IN ('INCOME', 'LOAN_BORROWED_IN', 'LOAN_REPAYMENT_PRINCIPAL_IN') THEN amount_cents
+                        WHEN kind IN ('EXPENSE', 'LOAN_LENT_OUT', 'LOAN_REPAYMENT_PRINCIPAL_OUT') THEN -amount_cents
+                        ELSE 0
+                    END
+                )
+                FROM transactions
+                WHERE user_uid = :userUid AND account_id = :accountId
+            ), 0)
             + COALESCE((SELECT SUM(amount_cents) FROM transfers WHERE user_uid = :userUid AND to_account_id = :accountId), 0)
             - COALESCE((SELECT SUM(amount_cents) FROM transfers WHERE user_uid = :userUid AND from_account_id = :accountId), 0)
         ) AS balance

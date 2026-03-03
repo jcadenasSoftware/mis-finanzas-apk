@@ -45,6 +45,8 @@ fun DashboardScreen(
     onNavigateToTransfers: () -> Unit,
     onNavigateToCategories: () -> Unit,
     onNavigateToCharts: () -> Unit,
+    onNavigateToLoans: () -> Unit,
+    onNavigateToBudget: () -> Unit,
     onLogout: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
@@ -83,18 +85,10 @@ fun DashboardScreen(
                                 color = GoldAccent
                             )
                         }
-                        if (state.userEmail.isNotBlank()) {
-                            Text(
-                                state.userEmail,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
                         Text(
                             "JCadenas Software · www.jcadenas.com",
                             style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -148,7 +142,7 @@ fun DashboardScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
             ) {
                 val gradient = Brush.linearGradient(
@@ -168,7 +162,7 @@ fun DashboardScreen(
                         )
                         .padding(0.dp)
                         .background(gradient)
-                        .padding(20.dp),
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
@@ -187,10 +181,10 @@ fun DashboardScreen(
                             contentDescription = if (showTotalBalance) "Ocultar saldo" else "Mostrar saldo"
                         )
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         if (showTotalBalance) currencyFormat.format(state.totalBalanceCents / 100.0) else "••••••",
-                        style = MaterialTheme.typography.headlineLarge,
+                        style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimary
                     )
@@ -236,6 +230,28 @@ fun DashboardScreen(
                     icon = Icons.Default.PieChart,
                     label = "Gráficos",
                     onClick = onNavigateToCharts,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                ActionButton(
+                    icon = Icons.Default.Handshake,
+                    label = "Préstamos",
+                    onClick = onNavigateToLoans,
+                    modifier = Modifier.weight(1f)
+                )
+                ActionButton(
+                    icon = Icons.Default.Savings,
+                    label = "Presupuesto",
+                    onClick = onNavigateToBudget,
                     modifier = Modifier.weight(1f)
                 )
             }

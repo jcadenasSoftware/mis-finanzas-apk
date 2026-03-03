@@ -7,6 +7,7 @@ import com.google.firebase.firestore.SetOptions
 import com.myfinances.data.local.dao.TransactionDao
 import com.myfinances.data.local.dao.MonthlyCategoryDetailTotal
 import com.myfinances.data.local.dao.MonthlyCategoryTotal
+import com.myfinances.data.local.dao.RootCategorySpentTotal
 import com.myfinances.data.local.dao.TransactionWithDetails
 import com.myfinances.data.local.entity.TransactionEntity
 import com.myfinances.sync.DeviceIdProvider
@@ -57,6 +58,15 @@ class TransactionRepository @Inject constructor(
         kind: String
     ): List<MonthlyCategoryDetailTotal> {
         return transactionDao.getMonthlyTotalsBySubcategory(userUid, accountId, year, kind)
+    }
+
+    suspend fun getExpenseTotalsByRootCategoryInRange(
+        userUid: String,
+        currency: String,
+        fromEpochSec: Long,
+        toEpochSec: Long
+    ): List<RootCategorySpentTotal> {
+        return transactionDao.getExpenseTotalsByRootCategoryInRange(userUid, currency, fromEpochSec, toEpochSec)
     }
 
     suspend fun getById(id: String): TransactionEntity? {

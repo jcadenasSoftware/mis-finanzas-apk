@@ -4,9 +4,15 @@ import android.content.Context
 import androidx.room.Room
 import com.myfinances.data.local.AppDatabase
 import com.myfinances.data.local.dao.AccountDao
+import com.myfinances.data.local.dao.BudgetDao
 import com.myfinances.data.local.dao.CategoryDao
+import com.myfinances.data.local.dao.ExchangeRateDao
+import com.myfinances.data.local.dao.GoalDao
+import com.myfinances.data.local.dao.LoanDao
+import com.myfinances.data.local.dao.LoanPaymentDao
 import com.myfinances.data.local.dao.TransactionDao
 import com.myfinances.data.local.dao.TransferDao
+import com.myfinances.data.local.dao.UserSettingsDao
 import com.myfinances.data.local.dao.UserDao
 import dagger.Module
 import dagger.Provides
@@ -26,7 +32,12 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "myfinances.db"
-        ).addMigrations(AppDatabase.MIGRATION_1_2)
+        ).addMigrations(
+            AppDatabase.MIGRATION_1_2,
+            AppDatabase.MIGRATION_2_3,
+            AppDatabase.MIGRATION_3_4,
+            AppDatabase.MIGRATION_4_5
+        )
             .build()
     }
 
@@ -44,4 +55,22 @@ object DatabaseModule {
 
     @Provides
     fun provideTransferDao(database: AppDatabase): TransferDao = database.transferDao()
+
+    @Provides
+    fun provideBudgetDao(database: AppDatabase): BudgetDao = database.budgetDao()
+
+    @Provides
+    fun provideGoalDao(database: AppDatabase): GoalDao = database.goalDao()
+
+    @Provides
+    fun provideLoanDao(database: AppDatabase): LoanDao = database.loanDao()
+
+    @Provides
+    fun provideLoanPaymentDao(database: AppDatabase): LoanPaymentDao = database.loanPaymentDao()
+
+    @Provides
+    fun provideExchangeRateDao(database: AppDatabase): ExchangeRateDao = database.exchangeRateDao()
+
+    @Provides
+    fun provideUserSettingsDao(database: AppDatabase): UserSettingsDao = database.userSettingsDao()
 }
