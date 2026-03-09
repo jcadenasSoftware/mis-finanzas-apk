@@ -9,7 +9,6 @@ sealed class NavRoutes(val route: String) {
     object Charts : NavRoutes("charts")
     object Loans : NavRoutes("loans")
     object Budget : NavRoutes("budget")
-    object Settings : NavRoutes("settings")
     object AddTransaction : NavRoutes("add_transaction")
     object EditTransaction : NavRoutes("edit_transaction/{transactionId}") {
         fun createRoute(transactionId: String) = "edit_transaction/$transactionId"
