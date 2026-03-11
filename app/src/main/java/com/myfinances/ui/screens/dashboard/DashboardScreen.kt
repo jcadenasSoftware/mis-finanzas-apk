@@ -53,7 +53,7 @@ fun DashboardScreen(
     val state by viewModel.state.collectAsState()
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("es", "CO")) }
     val uriHandler = LocalUriHandler.current
-    var showTotalBalance by rememberSaveable { mutableStateOf(true) }
+    var showTotalBalance by rememberSaveable { mutableStateOf(false) }
 
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -142,7 +142,7 @@ fun DashboardScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
             ) {
                 val gradient = Brush.linearGradient(
@@ -162,12 +162,12 @@ fun DashboardScreen(
                         )
                         .padding(0.dp)
                         .background(gradient)
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
                         "Saldo Total",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.95f)
                     )
                     IconButton(
@@ -181,10 +181,10 @@ fun DashboardScreen(
                             contentDescription = if (showTotalBalance) "Ocultar saldo" else "Mostrar saldo"
                         )
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         if (showTotalBalance) currencyFormat.format(state.totalBalanceCents / 100.0) else "••••••",
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimary
                     )
@@ -212,7 +212,7 @@ fun DashboardScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Row(
                 modifier = Modifier
@@ -234,7 +234,7 @@ fun DashboardScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Row(
                 modifier = Modifier
@@ -256,7 +256,7 @@ fun DashboardScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Accounts Section
             Row(
@@ -390,7 +390,7 @@ private fun ActionButton(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 10.dp, horizontal = 10.dp)
+                .padding(vertical = 8.dp, horizontal = 10.dp)
         ) {
             Image(
                 painter = painterResource(id = com.myfinances.R.drawable.ic_launcher),
@@ -408,7 +408,7 @@ private fun ActionButton(
                 Icon(
                     icon,
                     contentDescription = null,
-                    modifier = Modifier.size(24.dp),
+                    modifier = Modifier.size(22.dp),
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.height(6.dp))

@@ -64,6 +64,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
@@ -423,6 +424,8 @@ fun BudgetScreen(
                             val progress = if (limit <= 0) 0f else (spent.toFloat() / limit.toFloat()).coerceIn(0f, 1f)
                             val over = spent > limit && limit > 0
 
+                            val subItems = state.monthlySubcategoryItemsByRootId[item.categoryId].orEmpty()
+
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -478,6 +481,60 @@ fun BudgetScreen(
                                         modifier = Modifier.fillMaxWidth(),
                                         color = if (over) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                                     )
+
+                                    if (subItems.isNotEmpty()) {
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        Text(
+                                            "Subcategorías",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+
+                                        subItems.forEach { sub ->
+                                            val subLimit = sub.limitCents
+                                            val subSpent = sub.spentCents
+                                            val subProgress = if (subLimit <= 0) 0f else (subSpent.toFloat() / subLimit.toFloat()).coerceIn(0f, 1f)
+                                            val subOver = subSpent > subLimit && subLimit > 0
+
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(MaterialTheme.shapes.medium)
+                                                    .clickable {
+                                                        editMonthlyCategoryId = sub.categoryId
+                                                        showEditMonthlyLimit = true
+                                                    }
+                                                    .padding(vertical = 6.dp)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        sub.categoryName,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                    Text(
+                                                        "${currencyFormat.format(subSpent / 100.0)} / ${if (subLimit > 0) currencyFormat.format(subLimit / 100.0) else "Sin límite"}",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = if (subOver) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+
+                                                Spacer(modifier = Modifier.height(6.dp))
+                                                LinearProgressIndicator(
+                                                    progress = { subProgress },
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    color = if (subOver) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -485,21 +542,21 @@ fun BudgetScreen(
                         item {
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                "Configurar límites por categoría",
+                                "Configurar límites por categoría y subcategoría",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
 
-                        items(state.monthlyRootCategories.sortedBy { it.name }, key = { "config_${it.id}" }) { cat ->
-                            val existing = state.monthlyItems.firstOrNull { it.categoryId == cat.id }
-                            val currentLimit = existing?.limitCents ?: 0L
+                        val rootCats = state.monthlyRootCategories.sortedBy { it.name }
+                        items(rootCats, key = { "config_root_${it.id}" }) { root ->
+                            val currentLimit = state.monthlyLimitsByCategoryId[root.id] ?: 0L
 
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        editMonthlyCategoryId = cat.id
+                                        editMonthlyCategoryId = root.id
                                         showEditMonthlyLimit = true
                                     },
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -516,7 +573,7 @@ fun BudgetScreen(
                                     verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        cat.name,
+                                        root.name,
                                         style = MaterialTheme.typography.bodyLarge,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
@@ -528,6 +585,46 @@ fun BudgetScreen(
                                     )
                                 }
                             }
+
+                            val children = state.monthlyChildrenMap[root.id].orEmpty().sortedBy { it.name }
+                            children.forEach { child ->
+                                val childLimit = state.monthlyLimitsByCategoryId[child.id] ?: 0L
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 16.dp)
+                                        .clickable {
+                                            editMonthlyCategoryId = child.id
+                                            showEditMonthlyLimit = true
+                                        },
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        1.dp,
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f)
+                                    )
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            child.name,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            if (childLimit > 0) currencyFormat.format(childLimit / 100.0) else "Sin límite",
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -536,9 +633,23 @@ fun BudgetScreen(
     }
 
     if (showEditMonthlyLimit) {
-        val cat = state.monthlyRootCategories.firstOrNull { it.id == editMonthlyCategoryId }
-        val existing = state.monthlyItems.firstOrNull { it.categoryId == editMonthlyCategoryId }
-        var limitText by remember { mutableStateOf(if (existing?.limitCents != null && existing.limitCents > 0) (existing.limitCents / 100.0).toString() else "") }
+        val catName = remember(state.monthlyRootCategories, state.monthlyChildrenMap, editMonthlyCategoryId) {
+            val root = state.monthlyRootCategories.firstOrNull { it.id == editMonthlyCategoryId }
+            if (root != null) {
+                root.name
+            } else {
+                state.monthlyChildrenMap.values
+                    .asSequence()
+                    .flatten()
+                    .firstOrNull { it.id == editMonthlyCategoryId }
+                    ?.name
+            }
+        }
+
+        val currentLimitCents = state.monthlyLimitsByCategoryId[editMonthlyCategoryId] ?: 0L
+        var limitText by remember {
+            mutableStateOf(if (currentLimitCents > 0) (currentLimitCents / 100.0).toString() else "")
+        }
 
         AlertDialog(
             onDismissRequest = { showEditMonthlyLimit = false },
@@ -551,7 +662,7 @@ fun BudgetScreen(
                         .imePadding(),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(cat?.name ?: "")
+                    Text(catName ?: "")
                     OutlinedTextField(
                         value = limitText,
                         onValueChange = { limitText = it },

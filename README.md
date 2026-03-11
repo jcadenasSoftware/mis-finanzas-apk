@@ -11,6 +11,9 @@
 - **Transferencias**: movimientos entre cuentas.
 - **Dashboard**: balance total y acceso rápido a módulos.
 - **Reportes/consultas**: agregados por mes/categoría (base para gráficas).
+- **Préstamos**: registro y gestión básica de préstamos.
+- **Presupuesto**: presupuesto mensual por categoría y subcategoría, con detalle por subcategoría.
+- **Metas**: creación de metas y movimientos entre cuentas y metas.
 - **Sync**: sincronización **bidireccional** con Firestore (trabajo offline + reconciliación al volver a conectar).
 
 ## Stack
@@ -58,8 +61,7 @@ Este proyecto requiere configuración propia de Firebase:
 
 ## Notas
 - La sincronización con Firestore está diseñada para permitir uso offline y sincronizar cambios al reconectar.
-- Próximos módulos planificados: **Presupuestos** y **Préstamos/Créditos**.
+- Los presupuestos se guardan por mes, moneda y categoría (incluye subcategorías).
 
 ## Licencia
 Define aquí la licencia que prefieras (MIT, Apache-2.0, etc.).
-

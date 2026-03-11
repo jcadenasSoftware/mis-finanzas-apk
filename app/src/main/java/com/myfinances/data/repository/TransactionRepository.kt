@@ -5,6 +5,7 @@ import android.database.sqlite.SQLiteConstraintException
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.myfinances.data.local.dao.TransactionDao
+import com.myfinances.data.local.dao.CategorySpentTotal
 import com.myfinances.data.local.dao.MonthlyCategoryDetailTotal
 import com.myfinances.data.local.dao.MonthlyCategoryTotal
 import com.myfinances.data.local.dao.RootCategorySpentTotal
@@ -67,6 +68,15 @@ class TransactionRepository @Inject constructor(
         toEpochSec: Long
     ): List<RootCategorySpentTotal> {
         return transactionDao.getExpenseTotalsByRootCategoryInRange(userUid, currency, fromEpochSec, toEpochSec)
+    }
+
+    suspend fun getExpenseTotalsByCategoryInRange(
+        userUid: String,
+        currency: String,
+        fromEpochSec: Long,
+        toEpochSec: Long
+    ): List<CategorySpentTotal> {
+        return transactionDao.getExpenseTotalsByCategoryInRange(userUid, currency, fromEpochSec, toEpochSec)
     }
 
     suspend fun getById(id: String): TransactionEntity? {

@@ -42,6 +42,12 @@ data class RootCategorySpentTotal(
     val totalSpentCents: Long
 )
 
+data class CategorySpentTotal(
+    val categoryId: String,
+    val categoryName: String,
+    val totalSpentCents: Long
+)
+
 @Dao
 interface TransactionDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -188,4 +194,29 @@ interface TransactionDao {
         fromEpochSec: Long,
         toEpochSec: Long
     ): List<RootCategorySpentTotal>
+
+    @Query(
+        """
+        SELECT
+            c.id AS categoryId,
+            c.name AS categoryName,
+            SUM(ABS(t.amount_cents)) AS totalSpentCents
+        FROM transactions t
+        INNER JOIN accounts a ON a.id = t.account_id
+        INNER JOIN categories c ON c.id = t.category_id
+        WHERE t.user_uid = :userUid
+          AND t.kind = 'EXPENSE'
+          AND a.currency = :currency
+          AND t.occurred_at_epoch_sec >= :fromEpochSec
+          AND t.occurred_at_epoch_sec <= :toEpochSec
+        GROUP BY c.id, c.name
+        ORDER BY c.name ASC
+        """
+    )
+    suspend fun getExpenseTotalsByCategoryInRange(
+        userUid: String,
+        currency: String,
+        fromEpochSec: Long,
+        toEpochSec: Long
+    ): List<CategorySpentTotal>
 }
