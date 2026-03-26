@@ -82,7 +82,10 @@ class TransferRepository @Inject constructor(
         require(fromAccountId != toAccountId) { "Las cuentas deben ser diferentes" }
         
         val existing = transferDao.getById(transferId) ?: return null
-        val now = System.currentTimeMillis() / 1000
+        var now = System.currentTimeMillis() / 1000
+        if (now <= existing.updatedAtEpochSec) {
+            now = existing.updatedAtEpochSec + 1
+        }
         val updated = existing.copy(
             fromAccountId = fromAccountId,
             toAccountId = toAccountId,
@@ -179,8 +182,19 @@ class TransferRepository @Inject constructor(
                         inserted++
                     } else {
                         // last-write-wins
-                        if (tr.updatedAtEpochSec <= existing.updatedAtEpochSec) {
+                        if (tr.updatedAtEpochSec < existing.updatedAtEpochSec) {
                             continue
+                        }
+                        if (tr.updatedAtEpochSec == existing.updatedAtEpochSec) {
+                            val same =
+                                tr.fromAccountId == existing.fromAccountId &&
+                                    tr.toAccountId == existing.toAccountId &&
+                                    tr.amountCents == existing.amountCents &&
+                                    tr.occurredAtEpochSec == existing.occurredAtEpochSec &&
+                                    tr.note == existing.note
+                            if (same) {
+                                continue
+                            }
                         }
                         transferDao.update(tr)
                         updated++

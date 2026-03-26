@@ -122,7 +122,10 @@ class TransactionRepository @Inject constructor(
         note: String?
     ): TransactionEntity? {
         val existing = transactionDao.getById(transactionId) ?: return null
-        val now = System.currentTimeMillis() / 1000
+        var now = System.currentTimeMillis() / 1000
+        if (now <= existing.updatedAtEpochSec) {
+            now = existing.updatedAtEpochSec + 1
+        }
         val updated = existing.copy(
             accountId = accountId,
             categoryId = categoryId,
@@ -212,22 +215,48 @@ class TransactionRepository @Inject constructor(
             }
 
             var inserted = 0
+            var updated = 0
             var skipped = 0
             for (t in transactions) {
                 try {
-                    transactionDao.insert(t)
-                    inserted++
+                    val existing = transactionDao.getById(t.id)
+                    if (existing == null) {
+                        transactionDao.insert(t)
+                        inserted++
+                    } else {
+                        // last-write-wins
+                        if (t.updatedAtEpochSec < existing.updatedAtEpochSec) {
+                            continue
+                        }
+                        if (t.updatedAtEpochSec == existing.updatedAtEpochSec) {
+                            val same =
+                                t.accountId == existing.accountId &&
+                                    t.categoryId == existing.categoryId &&
+                                    t.kind == existing.kind &&
+                                    t.amountCents == existing.amountCents &&
+                                    t.occurredAtEpochSec == existing.occurredAtEpochSec &&
+                                    t.note == existing.note
+                            if (same) {
+                                continue
+                            }
+                        }
+                        transactionDao.update(t)
+                        updated++
+                    }
                 } catch (e: SQLiteConstraintException) {
                     skipped++
                     Log.e(
                         "TransactionRepository",
-                        "FK error inserting transaction ${t.id} accountId=${t.accountId} categoryId=${t.categoryId}",
+                        "FK error upserting transaction ${t.id} accountId=${t.accountId} categoryId=${t.categoryId}",
                         e
                     )
+                } catch (e: Exception) {
+                    skipped++
+                    Log.e("TransactionRepository", "Error upserting transaction ${t.id}", e)
                 }
             }
 
-            Log.d("TransactionRepository", "Transactions inserted=$inserted skipped=$skipped")
+            Log.d("TransactionRepository", "Transactions upserted inserted=$inserted updated=$updated skipped=$skipped")
         } catch (e: Exception) {
             Log.e("TransactionRepository", "Error syncing transactions from Firestore", e)
         }
