@@ -4,6 +4,7 @@ import android.util.Log
 import android.database.sqlite.SQLiteConstraintException
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import com.myfinances.data.local.dao.AccountDao
 import com.myfinances.data.local.dao.TransferDao
 import com.myfinances.data.local.dao.TransferWithDetails
 import com.myfinances.data.local.entity.TransferEntity
@@ -17,11 +18,16 @@ import javax.inject.Singleton
 @Singleton
 class TransferRepository @Inject constructor(
     private val transferDao: TransferDao,
+    private val accountDao: AccountDao,
     private val firestore: FirebaseFirestore,
     private val deviceIdProvider: DeviceIdProvider
 ) {
     fun observeRecent(userUid: String, limit: Int = 50): Flow<List<TransferWithDetails>> {
         return transferDao.observeRecent(userUid, limit)
+    }
+
+    fun observeMaxUpdatedAtEpochSec(userUid: String): Flow<Long?> {
+        return transferDao.observeMaxUpdatedAtEpochSec(userUid)
     }
 
     suspend fun getRecent(userUid: String, limit: Int = 50): List<TransferWithDetails> {
@@ -51,6 +57,9 @@ class TransferRepository @Inject constructor(
         note: String?
     ): TransferEntity {
         require(fromAccountId != toAccountId) { "Las cuentas deben ser diferentes" }
+
+        val fromBalance = accountDao.computeBalanceCents(userUid, fromAccountId)
+        require(fromBalance - amountCents >= 0L) { "Saldo insuficiente" }
         
         val now = System.currentTimeMillis() / 1000
         val transfer = TransferEntity(
@@ -82,6 +91,20 @@ class TransferRepository @Inject constructor(
         require(fromAccountId != toAccountId) { "Las cuentas deben ser diferentes" }
         
         val existing = transferDao.getById(transferId) ?: return null
+
+        // Enforce non-negative balances by simulating: (current balance) + revert(old) + apply(new)
+        // Balance is computed including the existing transfer.
+        run {
+            val affectedFromIds = linkedSetOf(existing.fromAccountId, fromAccountId)
+            for (accId in affectedFromIds) {
+                val currentBalance = accountDao.computeBalanceCents(userUid, accId)
+                val revertOld = if (accId == existing.fromAccountId) existing.amountCents else 0L
+                val applyNew = if (accId == fromAccountId) -amountCents else 0L
+                val projected = currentBalance + revertOld + applyNew
+                require(projected >= 0L) { "Saldo insuficiente" }
+            }
+        }
+
         var now = System.currentTimeMillis() / 1000
         if (now <= existing.updatedAtEpochSec) {
             now = existing.updatedAtEpochSec + 1
@@ -105,18 +128,46 @@ class TransferRepository @Inject constructor(
         deleteFromFirestore(userUid, transferId)
     }
 
+    suspend fun deleteAllByUser(userUid: String) {
+        transferDao.deleteAllByUser(userUid)
+        deleteAllFromFirestore(userUid)
+    }
+
+    private suspend fun deleteAllFromFirestore(userUid: String) {
+        try {
+            val batch = firestore.batch()
+            val collectionRef = firestore.collection("users")
+                .document(userUid)
+                .collection("transfers")
+            val snapshot = collectionRef.get().await()
+            snapshot.documents.forEach { doc ->
+                batch.delete(doc.reference)
+            }
+            batch.commit().await()
+        } catch (e: Exception) {
+            Log.e("TransferRepository", "Error deleting all from Firestore", e)
+        }
+    }
+
     suspend fun syncFromFirestore(userUid: String) {
         try {
             Log.d("TransferRepository", "Syncing transfers from Firestore for user: $userUid")
-            val snapshot = firestore.collection("users")
+            val lastUpdatedAt = transferDao.getMaxUpdatedAtEpochSec(userUid)
+            val collectionRef = firestore.collection("users")
                 .document(userUid)
                 .collection("transfers")
-                .get()
-                .await()
+            val snapshot = if (lastUpdatedAt != null && lastUpdatedAt > 0L) {
+                collectionRef
+                    .whereGreaterThan("updatedAtEpochSec", lastUpdatedAt)
+                    .get()
+                    .await()
+            } else {
+                collectionRef
+                    .get()
+                    .await()
+            }
 
             Log.d("TransferRepository", "Snapshot size: ${snapshot.size()}")
-
-            val remoteIds = snapshot.documents.map { it.id }.toSet()
 
             val transfers = snapshot.documents.mapNotNull { doc ->
                 try {
@@ -213,22 +264,6 @@ class TransferRepository @Inject constructor(
             }
 
             Log.d("TransferRepository", "Transfers upserted inserted=$inserted updated=$updated skipped=$skipped")
-
-            // Delete local transfers that no longer exist in Firestore
-            val localAll = transferDao.getByUser(userUid)
-            var deleted = 0
-            for (l in localAll) {
-                if (remoteIds.contains(l.id)) {
-                    continue
-                }
-                try {
-                    transferDao.delete(l.id)
-                    deleted++
-                } catch (e: Exception) {
-                    Log.e("TransferRepository", "Failed to delete missing local transfer=${l.id}", e)
-                }
-            }
-            Log.d("TransferRepository", "Transfers deletedMissing=$deleted")
         } catch (e: Exception) {
             Log.e("TransferRepository", "Error syncing transfers from Firestore", e)
         }
@@ -241,13 +276,6 @@ class TransferRepository @Inject constructor(
                 .collection("transfers")
                 .document(transfer.id)
                 .set(transfer, SetOptions.merge())
-                .await()
-
-            firestore.collection("users")
-                .document(userUid)
-                .collection("transfers")
-                .document(transfer.id)
-                .set(mapOf("updatedBy" to deviceIdProvider.get()), SetOptions.merge())
                 .await()
         } catch (e: Exception) {
             // Log error

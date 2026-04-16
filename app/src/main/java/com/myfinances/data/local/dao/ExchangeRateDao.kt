@@ -41,4 +41,7 @@ interface ExchangeRateDao {
 
     @Query("DELETE FROM exchange_rates WHERE id = :id")
     suspend fun delete(id: String)
+
+    @Query("DELETE FROM exchange_rates WHERE user_uid = :userUid")
+    suspend fun deleteAllByUser(userUid: String)
 }

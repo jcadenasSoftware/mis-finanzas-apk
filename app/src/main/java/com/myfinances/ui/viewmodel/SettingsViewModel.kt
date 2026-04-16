@@ -82,8 +82,7 @@ class SettingsViewModel @Inject constructor(
         val userUid = uid ?: return
         viewModelScope.launch {
             val suggested = CountryCurrency.suggestedCurrency(countryCode)
-            val baseCurrency = _state.value.baseCurrency.ifBlank { suggested }
-            userSettingsRepository.upsert(userUid, countryCode, baseCurrency)
+            userSettingsRepository.upsert(userUid, countryCode, suggested)
         }
     }
 
@@ -123,4 +122,5 @@ class SettingsViewModel @Inject constructor(
             }
         }
     }
+
 }

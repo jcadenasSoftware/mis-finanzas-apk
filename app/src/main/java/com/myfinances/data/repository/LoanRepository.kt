@@ -96,14 +96,44 @@ class LoanRepository @Inject constructor(
         return updated
     }
 
+    suspend fun deleteAllByUser(userUid: String) {
+        loanDao.deleteAllByUser(userUid)
+        deleteAllFromFirestore(userUid)
+    }
+
+    private suspend fun deleteAllFromFirestore(userUid: String) {
+        try {
+            val batch = firestore.batch()
+            val collectionRef = firestore.collection("users")
+                .document(userUid)
+                .collection("loans")
+            val snapshot = collectionRef.get().await()
+            snapshot.documents.forEach { doc ->
+                batch.delete(doc.reference)
+            }
+            batch.commit().await()
+        } catch (e: Exception) {
+            Log.e("LoanRepository", "Error deleting all from Firestore", e)
+        }
+    }
+
     suspend fun syncFromFirestore(userUid: String) {
         try {
             Log.d("LoanRepository", "Syncing loans from Firestore user=$userUid")
-            val snapshot = firestore.collection("users")
+            val lastUpdatedAt = loanDao.getMaxUpdatedAtEpochSec(userUid)
+            val collectionRef = firestore.collection("users")
                 .document(userUid)
                 .collection("loans")
-                .get()
-                .await()
+            val snapshot = if (lastUpdatedAt != null && lastUpdatedAt > 0L) {
+                collectionRef
+                    .whereGreaterThan("updatedAtEpochSec", lastUpdatedAt)
+                    .get()
+                    .await()
+            } else {
+                collectionRef
+                    .get()
+                    .await()
+            }
 
             val loans = snapshot.documents.mapNotNull { doc ->
                 try {
@@ -159,7 +189,14 @@ class LoanRepository @Inject constructor(
                 }
             }
 
-            loanDao.insertAll(loans)
+            for (loan in loans) {
+                val existing = loanDao.getById(loan.id)
+                if (existing == null) {
+                    loanDao.insert(loan)
+                } else if (loan.updatedAtEpochSec > existing.updatedAtEpochSec) {
+                    loanDao.update(loan)
+                }
+            }
         } catch (e: Exception) {
             Log.e("LoanRepository", "Error syncing loans", e)
         }
@@ -172,13 +209,6 @@ class LoanRepository @Inject constructor(
                 .collection("loans")
                 .document(loan.id)
                 .set(loan, SetOptions.merge())
-                .await()
-
-            firestore.collection("users")
-                .document(userUid)
-                .collection("loans")
-                .document(loan.id)
-                .set(mapOf("updatedBy" to deviceIdProvider.get()), SetOptions.merge())
                 .await()
         } catch (_: Exception) {
         }

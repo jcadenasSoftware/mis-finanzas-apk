@@ -35,7 +35,9 @@ class AccountRepository @Inject constructor(
         userUid: String,
         name: String,
         type: String = "BANK",
-        currency: String = "COP"
+        currency: String = "COP",
+        iconKey: String? = null,
+        colorHex: String? = null
     ): AccountEntity {
         val now = System.currentTimeMillis() / 1000
         val account = AccountEntity(
@@ -44,6 +46,8 @@ class AccountRepository @Inject constructor(
             name = name,
             type = type,
             currency = currency,
+            iconKey = iconKey,
+            colorHex = colorHex,
             createdAtEpochSec = now,
             updatedAtEpochSec = now,
             updatedBy = deviceIdProvider.get()
@@ -62,6 +66,29 @@ class AccountRepository @Inject constructor(
         return updated
     }
 
+    suspend fun updateDetails(
+        userUid: String,
+        accountId: String,
+        name: String,
+        type: String,
+        iconKey: String?,
+        colorHex: String?
+    ): AccountEntity? {
+        val account = accountDao.getById(accountId) ?: return null
+        val now = System.currentTimeMillis() / 1000
+        val updated = account.copy(
+            name = name,
+            type = type,
+            iconKey = iconKey,
+            colorHex = colorHex,
+            updatedAtEpochSec = now,
+            updatedBy = deviceIdProvider.get()
+        )
+        accountDao.update(updated)
+        syncToFirestore(userUid, updated)
+        return updated
+    }
+
     suspend fun delete(userUid: String, accountId: String): Boolean {
         if (accountDao.hasMovements(userUid, accountId)) {
             return false
@@ -69,6 +96,27 @@ class AccountRepository @Inject constructor(
         accountDao.delete(accountId)
         deleteFromFirestore(userUid, accountId)
         return true
+    }
+
+    suspend fun deleteAllByUser(userUid: String) {
+        accountDao.deleteAllByUser(userUid)
+        deleteAllFromFirestore(userUid)
+    }
+
+    private suspend fun deleteAllFromFirestore(userUid: String) {
+        try {
+            val batch = firestore.batch()
+            val collectionRef = firestore.collection("users")
+                .document(userUid)
+                .collection("accounts")
+            val snapshot = collectionRef.get().await()
+            snapshot.documents.forEach { doc ->
+                batch.delete(doc.reference)
+            }
+            batch.commit().await()
+        } catch (e: Exception) {
+            Log.e("AccountRepository", "Error deleting all from Firestore", e)
+        }
     }
 
     suspend fun computeBalance(userUid: String, accountId: String): Long {
@@ -84,15 +132,21 @@ class AccountRepository @Inject constructor(
             Log.d("AccountRepository", "=== SYNC FROM FIRESTORE STARTED ===")
             Log.d("AccountRepository", "Syncing accounts from Firestore for user: $userUid")
 
+            val lastUpdatedAt = accountDao.getMaxUpdatedAtEpochSec(userUid)
             val collectionRef = firestore.collection("users")
                 .document(userUid)
                 .collection("accounts")
             Log.d("AccountRepository", "Querying collection: users/$userUid/accounts")
 
-            val snapshot = collectionRef.get(Source.SERVER).await()
+            val snapshot = if (lastUpdatedAt != null && lastUpdatedAt > 0L) {
+                collectionRef
+                    .whereGreaterThan("updatedAtEpochSec", lastUpdatedAt)
+                    .get(Source.SERVER)
+                    .await()
+            } else {
+                collectionRef.get(Source.SERVER).await()
+            }
             Log.d("AccountRepository", "Snapshot size: ${snapshot.size()}")
-
-            val remoteIds = snapshot.documents.map { it.id }.toSet()
 
             val accounts = snapshot.documents.mapNotNull { doc ->
                 try {
@@ -110,6 +164,10 @@ class AccountRepository @Inject constructor(
 
                     val type = (data["type"] as? String)?.trim().takeUnless { it.isNullOrBlank() } ?: "BANK"
                     val currency = (data["currency"] as? String)?.trim().takeUnless { it.isNullOrBlank() } ?: "COP"
+                    val iconKey = (data["iconKey"] as? String)?.trim().takeUnless { it.isNullOrBlank() }
+                        ?: (data["icon_key"] as? String)?.trim().takeUnless { it.isNullOrBlank() }
+                    val colorHex = (data["colorHex"] as? String)?.trim().takeUnless { it.isNullOrBlank() }
+                        ?: (data["color_hex"] as? String)?.trim().takeUnless { it.isNullOrBlank() }
 
                     fun anyLong(vararg keys: String): Long? {
                         for (k in keys) {
@@ -136,6 +194,8 @@ class AccountRepository @Inject constructor(
                         name = name,
                         type = type,
                         currency = currency,
+                        iconKey = iconKey,
+                        colorHex = colorHex,
                         createdAtEpochSec = createdAt,
                         updatedAtEpochSec = updatedAt,
                         updatedBy = updatedBy
@@ -173,29 +233,9 @@ class AccountRepository @Inject constructor(
                 }
             }
             Log.d("AccountRepository", "Accounts upserted inserted=$inserted updated=$updated")
-
-            // Delete local accounts that no longer exist in Firestore.
-            // Only delete if the account has no movements.
-            val localAll = accountDao.getByUser(userUid)
-            var deleted = 0
-            for (l in localAll) {
-                if (remoteIds.contains(l.id)) {
-                    continue
-                }
-                try {
-                    if (accountDao.hasMovements(userUid, l.id)) {
-                        Log.w("AccountRepository", "Skip delete local account=${l.id} (has movements)")
-                        continue
-                    }
-                    accountDao.delete(l.id)
-                    deleted++
-                } catch (e: Exception) {
-                    Log.e("AccountRepository", "Failed to delete missing local account=${l.id}", e)
-                }
-            }
-            Log.d("AccountRepository", "Accounts deletedMissing=$deleted")
         } catch (e: Exception) {
             Log.e("AccountRepository", "Error syncing accounts from Firestore", e)
+            throw e
         }
     }
 
@@ -206,13 +246,6 @@ class AccountRepository @Inject constructor(
                 .collection("accounts")
                 .document(account.id)
                 .set(account, SetOptions.merge())
-                .await()
-
-            firestore.collection("users")
-                .document(userUid)
-                .collection("accounts")
-                .document(account.id)
-                .set(mapOf("updatedBy" to deviceIdProvider.get()), SetOptions.merge())
                 .await()
         } catch (e: Exception) {
             // Log error, data saved locally

@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.util.Calendar
 import javax.inject.Inject
 
 data class AccountWithBalance(
@@ -30,13 +31,43 @@ data class AccountWithBalance(
     val balanceCents: Long
 )
 
+data class DashboardBalancePoint(
+    val dayOfMonth: Int,
+    val balanceCents: Long
+)
+
+data class DashboardMonthlyHistoryItem(
+    val label: String,
+    val incomeCents: Long = 0,
+    val expenseCents: Long = 0,
+    val balanceCents: Long = 0
+)
+
+data class DashboardMonthlySummary(
+    val incomeCents: Long = 0,
+    val expenseCents: Long = 0,
+    val balanceCents: Long = 0,
+    val trendDeltaCents: Long = 0,
+    val points: List<DashboardBalancePoint> = emptyList(),
+    val previousMonths: List<DashboardMonthlyHistoryItem> = emptyList(),
+    val periodTotalIncomeCents: Long = 0,
+    val periodTotalExpenseCents: Long = 0,
+    val periodTotalBalanceCents: Long = 0
+)
+
 data class DashboardState(
+    val userDisplayName: String = "",
     val userEmail: String = "",
     val accounts: List<AccountWithBalance> = emptyList(),
     val totalBalanceCents: Long = 0,
+    val monthlySummary: DashboardMonthlySummary = DashboardMonthlySummary(),
     val isLoading: Boolean = false,
     val error: String? = null,
-    val showAddAccountDialog: Boolean = false
+    val showAddAccountDialog: Boolean = false,
+    val hasAccounts: Boolean = false,
+    val hasTwoAccounts: Boolean = false,
+    val hasRootCategories: Boolean = false,
+    val hasSubCategories: Boolean = false
 )
 
 @HiltViewModel
@@ -83,39 +114,22 @@ class DashboardViewModel @Inject constructor(
 
     fun loadData() {
         val uid = userUid ?: return
-        
+
         viewModelScope.launch {
             _state.value = _state.value.copy(
                 isLoading = true,
+                userDisplayName = authRepository.currentUser?.displayName.orEmpty(),
                 userEmail = authRepository.currentUser?.email ?: ""
             )
 
             try {
                 ensureUserExists(uid)
-
-                Log.d("DashboardViewModel", "Starting sync from Firestore for user: $uid")
-                accountRepository.syncFromFirestore(uid)
-                Log.d("DashboardViewModel", "Accounts synced")
-                categoryRepository.syncFromFirestore(uid)
-                Log.d("DashboardViewModel", "Categories synced")
-                transactionRepository.syncFromFirestore(uid)
-                Log.d("DashboardViewModel", "Transactions synced")
-                transferRepository.syncFromFirestore(uid)
-                Log.d("DashboardViewModel", "Transfers synced")
-
-                userSettingsRepository.syncFromFirestore(uid)
-                exchangeRateRepository.syncFromFirestore(uid)
-                loanRepository.syncFromFirestore(uid)
-                loanPaymentRepository.syncFromFirestore(uid)
-                budgetRepository.syncFromFirestore(uid)
-                goalRepository.syncFromFirestore(uid)
-
                 loadAccountsWithBalances(uid)
             } catch (e: Exception) {
                 Log.e("DashboardViewModel", "Error during load", e)
                 _state.value = _state.value.copy(
                     isLoading = false,
-                    error = e.message
+                    error = e.message ?: e.toString()
                 )
             }
         }
@@ -145,20 +159,199 @@ class DashboardViewModel @Inject constructor(
             AccountWithBalance(account, balance)
         }
         val total = accountsWithBalance.sumOf { it.balanceCents }
+        val monthlySummary = buildMonthlySummary(uid)
         Log.d("DashboardViewModel", "Total balance: $total")
+
+        val rootCategories = runCatching { categoryRepository.getRoots(uid) }.getOrNull().orEmpty()
+        val allCategories = runCatching { categoryRepository.getCategories(uid) }.getOrNull().orEmpty()
+        val hasRoots = rootCategories.isNotEmpty()
+        val hasSubs = allCategories.any { it.parentId != null }
 
         _state.value = _state.value.copy(
             accounts = accountsWithBalance,
             totalBalanceCents = total,
-            isLoading = false
+            monthlySummary = monthlySummary,
+            userDisplayName = authRepository.currentUser?.displayName.orEmpty(),
+            userEmail = authRepository.currentUser?.email ?: "",
+            isLoading = false,
+            hasAccounts = accountsWithBalance.isNotEmpty(),
+            hasTwoAccounts = accountsWithBalance.size >= 2,
+            hasRootCategories = hasRoots,
+            hasSubCategories = hasSubs
         )
         Log.d("DashboardViewModel", "State updated with ${accountsWithBalance.size} accounts")
+    }
+
+    private suspend fun buildMonthlySummary(uid: String): DashboardMonthlySummary {
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.DAY_OF_MONTH, 1)
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        val monthStartEpochSec = calendar.timeInMillis / 1000
+
+        val endCalendar = calendar.clone() as Calendar
+        endCalendar.add(Calendar.MONTH, 1)
+        endCalendar.add(Calendar.SECOND, -1)
+        val monthEndEpochSec = endCalendar.timeInMillis / 1000
+
+        val previousStartCalendar = calendar.clone() as Calendar
+        previousStartCalendar.add(Calendar.MONTH, -1)
+        val previousMonthStartEpochSec = previousStartCalendar.timeInMillis / 1000
+
+        val previousEndCalendar = calendar.clone() as Calendar
+        previousEndCalendar.add(Calendar.SECOND, -1)
+        val previousMonthEndEpochSec = previousEndCalendar.timeInMillis / 1000
+
+        val currentMonthTransactions = transactionRepository.getFiltered(
+            userUid = uid,
+            fromEpochSec = monthStartEpochSec,
+            toEpochSec = monthEndEpochSec,
+            limit = 1000
+        )
+        val previousMonthTransactions = transactionRepository.getFiltered(
+            userUid = uid,
+            fromEpochSec = previousMonthStartEpochSec,
+            toEpochSec = previousMonthEndEpochSec,
+            limit = 1000
+        )
+        val currentYear = calendar.get(Calendar.YEAR)
+
+        val incomeKinds = setOf("INCOME", "LOAN_BORROWED_IN", "LOAN_REPAYMENT_PRINCIPAL_IN")
+        val expenseKinds = setOf("EXPENSE", "LOAN_LENT_OUT", "LOAN_REPAYMENT_PRINCIPAL_OUT")
+
+        val previousMonths = buildList {
+            var monthOffset = 1
+            while (true) {
+                val item = buildMonthlyHistoryItem(
+                    uid = uid,
+                    monthOffset = monthOffset,
+                    currentYear = currentYear,
+                    incomeKinds = incomeKinds,
+                    expenseKinds = expenseKinds
+                ) ?: break
+                add(item)
+                monthOffset += 1
+            }
+        }
+
+        val incomeCents = currentMonthTransactions
+            .filter { it.kind in incomeKinds }
+            .sumOf { kotlin.math.abs(it.amountCents) }
+        val expenseCents = currentMonthTransactions
+            .filter { it.kind in expenseKinds }
+            .sumOf { kotlin.math.abs(it.amountCents) }
+        val balanceCents = incomeCents - expenseCents
+
+        val previousIncomeCents = previousMonthTransactions
+            .filter { it.kind in incomeKinds }
+            .sumOf { kotlin.math.abs(it.amountCents) }
+        val previousExpenseCents = previousMonthTransactions
+            .filter { it.kind in expenseKinds }
+            .sumOf { kotlin.math.abs(it.amountCents) }
+        val previousBalanceCents = previousIncomeCents - previousExpenseCents
+
+        val dayNetMap = linkedMapOf<Int, Long>()
+        val currentDay = Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
+        for (day in 1..currentDay) {
+            dayNetMap[day] = 0L
+        }
+
+        for (transaction in currentMonthTransactions) {
+            val txCalendar = Calendar.getInstance().apply {
+                timeInMillis = transaction.occurredAtEpochSec * 1000
+            }
+            val day = txCalendar.get(Calendar.DAY_OF_MONTH)
+            val delta = when (transaction.kind) {
+                in incomeKinds -> kotlin.math.abs(transaction.amountCents)
+                in expenseKinds -> -kotlin.math.abs(transaction.amountCents)
+                else -> 0L
+            }
+            dayNetMap[day] = (dayNetMap[day] ?: 0L) + delta
+        }
+
+        var runningBalance = 0L
+        val points = dayNetMap.map { (day, delta) ->
+            runningBalance += delta
+            DashboardBalancePoint(dayOfMonth = day, balanceCents = runningBalance)
+        }
+
+        val periodTotalIncomeCents = incomeCents + previousMonths.sumOf { it.incomeCents }
+        val periodTotalExpenseCents = expenseCents + previousMonths.sumOf { it.expenseCents }
+        val periodTotalBalanceCents = balanceCents + previousMonths.sumOf { it.balanceCents }
+
+        return DashboardMonthlySummary(
+            incomeCents = incomeCents,
+            expenseCents = expenseCents,
+            balanceCents = balanceCents,
+            trendDeltaCents = balanceCents - previousBalanceCents,
+            points = points,
+            previousMonths = previousMonths,
+            periodTotalIncomeCents = periodTotalIncomeCents,
+            periodTotalExpenseCents = periodTotalExpenseCents,
+            periodTotalBalanceCents = periodTotalBalanceCents
+        )
+    }
+
+    private suspend fun buildMonthlyHistoryItem(
+        uid: String,
+        monthOffset: Int,
+        currentYear: Int,
+        incomeKinds: Set<String>,
+        expenseKinds: Set<String>
+    ): DashboardMonthlyHistoryItem? {
+        val startCalendar = Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+            add(Calendar.MONTH, -monthOffset)
+        }
+        if (startCalendar.get(Calendar.YEAR) != currentYear) {
+            return null
+        }
+        val endCalendar = (startCalendar.clone() as Calendar).apply {
+            add(Calendar.MONTH, 1)
+            add(Calendar.SECOND, -1)
+        }
+
+        val transactions = transactionRepository.getFiltered(
+            userUid = uid,
+            fromEpochSec = startCalendar.timeInMillis / 1000,
+            toEpochSec = endCalendar.timeInMillis / 1000,
+            limit = 1000
+        )
+
+        val incomeCents = transactions
+            .filter { it.kind in incomeKinds }
+            .sumOf { kotlin.math.abs(it.amountCents) }
+        val expenseCents = transactions
+            .filter { it.kind in expenseKinds }
+            .sumOf { kotlin.math.abs(it.amountCents) }
+
+        val label = startCalendar.getDisplayName(Calendar.MONTH, Calendar.LONG, java.util.Locale("es", "CO"))
+            ?.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale("es", "CO")) else it.toString() }
+            ?: "Mes"
+
+        return DashboardMonthlyHistoryItem(
+            label = label,
+            incomeCents = incomeCents,
+            expenseCents = expenseCents,
+            balanceCents = incomeCents - expenseCents
+        )
     }
 
     fun refreshBalances() {
         val uid = userUid ?: return
         viewModelScope.launch {
-            loadAccountsWithBalances(uid)
+            try {
+                loadAccountsWithBalances(uid)
+            } catch (e: Exception) {
+                Log.e("DashboardViewModel", "Error during refreshBalances", e)
+                _state.value = _state.value.copy(error = e.message ?: e.toString(), isLoading = false)
+            }
         }
     }
 
@@ -170,11 +363,11 @@ class DashboardViewModel @Inject constructor(
         _state.value = _state.value.copy(showAddAccountDialog = false)
     }
 
-    fun createAccount(name: String, type: String, currency: String) {
+    fun createAccount(name: String, type: String, currency: String, iconKey: String?, colorHex: String?) {
         val uid = userUid ?: return
         viewModelScope.launch {
             try {
-                accountRepository.create(uid, name, type, currency)
+                accountRepository.create(uid, name, type, currency, iconKey, colorHex)
                 hideAddAccountDialog()
                 loadAccountsWithBalances(uid)
             } catch (e: Exception) {
@@ -188,6 +381,18 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 accountRepository.updateName(uid, accountId, newName)
+                loadAccountsWithBalances(uid)
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(error = e.message)
+            }
+        }
+    }
+
+    fun updateAccountDetails(accountId: String, name: String, type: String, iconKey: String?, colorHex: String?) {
+        val uid = userUid ?: return
+        viewModelScope.launch {
+            try {
+                accountRepository.updateDetails(uid, accountId, name, type, iconKey, colorHex)
                 loadAccountsWithBalances(uid)
             } catch (e: Exception) {
                 _state.value = _state.value.copy(error = e.message)
@@ -209,62 +414,6 @@ class DashboardViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 _state.value = _state.value.copy(error = e.message)
-            }
-        }
-    }
-
-    fun syncFromFirestore() {
-        Log.d("DashboardViewModel", "Sync button clicked!")
-        val uid = userUid ?: return
-        Log.d("DashboardViewModel", "User UID: $uid")
-        
-        viewModelScope.launch {
-            try {
-                _state.value = _state.value.copy(isLoading = true)
-                
-                Log.d("DashboardViewModel", "Starting manual sync from Firestore for user: $uid")
-                
-                // Test Firestore connection first
-                Log.d("DashboardViewModel", "Testing Firestore connection...")
-                val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                val testDoc = firestore.collection("test").document("connection")
-                testDoc.set(mapOf("timestamp" to System.currentTimeMillis())).await()
-                Log.d("DashboardViewModel", "Firestore connection successful!")
-                
-                Log.d("DashboardViewModel", "About to call accountRepository.syncFromFirestore")
-                accountRepository.syncFromFirestore(uid)
-                Log.d("DashboardViewModel", "Accounts synced")
-                
-                Log.d("DashboardViewModel", "About to call categoryRepository.syncFromFirestore")
-                categoryRepository.syncFromFirestore(uid)
-                Log.d("DashboardViewModel", "Categories synced")
-                
-                Log.d("DashboardViewModel", "About to call transactionRepository.syncFromFirestore")
-                transactionRepository.syncFromFirestore(uid)
-                Log.d("DashboardViewModel", "Transactions synced")
-                
-                Log.d("DashboardViewModel", "About to call transferRepository.syncFromFirestore")
-                transferRepository.syncFromFirestore(uid)
-                Log.d("DashboardViewModel", "Transfers synced")
-
-                userSettingsRepository.syncFromFirestore(uid)
-                exchangeRateRepository.syncFromFirestore(uid)
-                loanRepository.syncFromFirestore(uid)
-                loanPaymentRepository.syncFromFirestore(uid)
-                budgetRepository.syncFromFirestore(uid)
-                goalRepository.syncFromFirestore(uid)
-
-                // Reload data
-                loadAccountsWithBalances(uid)
-            } catch (e: Exception) {
-                Log.e("DashboardViewModel", "=== ERROR DURING SYNC ===", e)
-                Log.e("DashboardViewModel", "Error type: ${e.javaClass.simpleName}")
-                Log.e("DashboardViewModel", "Error message: ${e.message}")
-                e.printStackTrace()
-                _state.value = _state.value.copy(
-                    isLoading = false,
-                    error = "Error al sincronizar: ${e.message}"
-                )
             }
         }
     }

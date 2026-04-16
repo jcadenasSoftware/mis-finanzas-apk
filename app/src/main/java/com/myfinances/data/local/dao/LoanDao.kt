@@ -22,6 +22,9 @@ interface LoanDao {
     @Query("SELECT * FROM loans WHERE id = :id")
     suspend fun getById(id: String): LoanEntity?
 
+    @Query("SELECT MAX(updated_at_epoch_sec) FROM loans WHERE user_uid = :userUid")
+    suspend fun getMaxUpdatedAtEpochSec(userUid: String): Long?
+
     @Query(
         """
         SELECT * FROM loans
@@ -51,4 +54,7 @@ interface LoanDao {
 
     @Query("DELETE FROM loans WHERE id = :id")
     suspend fun delete(id: String)
+
+    @Query("DELETE FROM loans WHERE user_uid = :userUid")
+    suspend fun deleteAllByUser(userUid: String)
 }

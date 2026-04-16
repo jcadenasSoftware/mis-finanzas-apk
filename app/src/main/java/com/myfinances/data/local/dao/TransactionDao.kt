@@ -48,6 +48,14 @@ data class CategorySpentTotal(
     val totalSpentCents: Long
 )
 
+data class HierarchyCategoryTotal(
+    val rootCategoryId: String,
+    val rootCategoryName: String,
+    val subCategoryId: String,
+    val subCategoryName: String,
+    val totalCents: Long
+)
+
 @Dao
 interface TransactionDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -88,6 +96,12 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE id = :id")
     suspend fun getById(id: String): TransactionEntity?
 
+    @Query("SELECT MAX(updated_at_epoch_sec) FROM transactions WHERE user_uid = :userUid")
+    suspend fun getMaxUpdatedAtEpochSec(userUid: String): Long?
+
+    @Query("SELECT MAX(updated_at_epoch_sec) FROM transactions WHERE user_uid = :userUid")
+    fun observeMaxUpdatedAtEpochSec(userUid: String): Flow<Long?>
+
     @Query("DELETE FROM transactions WHERE id = :id")
     suspend fun delete(id: String)
 
@@ -117,6 +131,21 @@ interface TransactionDao {
         toEpochSec: Long?,
         limit: Int = 100
     ): List<TransactionWithDetails>
+
+    @Query(
+        """
+        SELECT strftime('%Y-%m', datetime(t.occurred_at_epoch_sec, 'unixepoch')) AS monthKey
+        FROM transactions t
+        INNER JOIN accounts a ON a.id = t.account_id
+        WHERE t.user_uid = :userUid
+          AND a.currency = :currency
+          AND t.kind = 'EXPENSE'
+        GROUP BY monthKey
+        ORDER BY monthKey DESC
+        LIMIT :limit
+        """
+    )
+    suspend fun getExpenseMonths(userUid: String, currency: String, limit: Int = 24): List<String>
 
     @Query(
         """
@@ -219,4 +248,59 @@ interface TransactionDao {
         fromEpochSec: Long,
         toEpochSec: Long
     ): List<CategorySpentTotal>
+
+    @Query(
+        """
+        SELECT
+            r.id AS rootCategoryId,
+            r.name AS rootCategoryName,
+            SUM(ABS(t.amount_cents)) AS totalSpentCents
+        FROM transactions t
+        INNER JOIN accounts a ON a.id = t.account_id
+        INNER JOIN categories c ON c.id = t.category_id
+        INNER JOIN categories r ON r.id = CASE WHEN c.parent_id IS NULL THEN c.id ELSE c.parent_id END
+        WHERE t.user_uid = :userUid
+          AND t.kind = 'INCOME'
+          AND a.currency = :currency
+          AND t.occurred_at_epoch_sec >= :fromEpochSec
+          AND t.occurred_at_epoch_sec <= :toEpochSec
+        GROUP BY r.id, r.name
+        ORDER BY totalSpentCents DESC
+        """
+    )
+    suspend fun getIncomeTotalsByRootCategoryInRange(
+        userUid: String,
+        currency: String,
+        fromEpochSec: Long,
+        toEpochSec: Long
+    ): List<RootCategorySpentTotal>
+
+    @Query(
+        """
+        SELECT
+            r.id   AS rootCategoryId,
+            r.name AS rootCategoryName,
+            c.id   AS subCategoryId,
+            c.name AS subCategoryName,
+            SUM(ABS(t.amount_cents)) AS totalCents
+        FROM transactions t
+        INNER JOIN accounts a  ON a.id = t.account_id
+        INNER JOIN categories c ON c.id = t.category_id
+        INNER JOIN categories r ON r.id = CASE WHEN c.parent_id IS NULL THEN c.id ELSE c.parent_id END
+        WHERE t.user_uid = :userUid
+          AND t.kind = :kind
+          AND a.currency = :currency
+          AND t.occurred_at_epoch_sec >= :fromEpochSec
+          AND t.occurred_at_epoch_sec <= :toEpochSec
+        GROUP BY r.id, r.name, c.id, c.name
+        ORDER BY r.name ASC, totalCents DESC
+        """
+    )
+    suspend fun getHierarchyTotalsInRange(
+        userUid: String,
+        kind: String,
+        currency: String,
+        fromEpochSec: Long,
+        toEpochSec: Long
+    ): List<HierarchyCategoryTotal>
 }

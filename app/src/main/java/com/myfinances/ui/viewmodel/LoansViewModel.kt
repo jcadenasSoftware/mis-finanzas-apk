@@ -23,7 +23,11 @@ data class LoansState(
     val accounts: List<AccountEntity> = emptyList(),
     val accountBalancesCents: Map<String, Long> = emptyMap(),
     val loanPaidCents: Map<String, Long> = emptyMap(),
+    val lentLoans: List<LoanEntity> = emptyList(),
+    val borrowedLoans: List<LoanEntity> = emptyList(),
     val loans: List<LoanEntity> = emptyList(),
+    val totalLentRemainingCents: Long = 0L,
+    val totalBorrowedRemainingCents: Long = 0L,
     val error: String? = null
 )
 
@@ -67,7 +71,7 @@ class LoansViewModel @Inject constructor(
 
     fun refresh() {
         val userUid = uid ?: return
-        val tab = _state.value.selectedTab
+        val selectedTab = _state.value.selectedTab
 
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
@@ -82,19 +86,46 @@ class LoansViewModel @Inject constructor(
                 val accounts = accountsUnsorted
                     .sortedWith(compareByDescending<com.myfinances.data.local.entity.AccountEntity> { balances[it.id] ?: Long.MIN_VALUE }
                         .thenBy { it.name.lowercase() })
-                val loans = loanRepository.getFiltered(userUid, tab, "OPEN", null)
 
-                val paidByLoan = loans
+                val lentLoansDeferred = async { loanRepository.getFiltered(userUid, "LENT", "OPEN", null) }
+                val borrowedLoansDeferred = async { loanRepository.getFiltered(userUid, "BORROWED", "OPEN", null) }
+                val lentLoans = lentLoansDeferred.await()
+                val borrowedLoans = borrowedLoansDeferred.await()
+
+                val allLoans = lentLoans + borrowedLoans
+                val paidByLoan = allLoans
                     .map { loan ->
                         async { loan.id to loanPaymentRepository.sumPrincipalByLoan(userUid, loan.id) }
                     }
                     .map { it.await() }
                     .toMap()
+
+                val totalLentRemaining = lentLoans.sumOf { loan ->
+                    val paid = paidByLoan[loan.id] ?: 0L
+                    (loan.principalCents - paid).coerceAtLeast(0L)
+                }
+                val totalBorrowedRemaining = borrowedLoans.sumOf { loan ->
+                    val paid = paidByLoan[loan.id] ?: 0L
+                    (loan.principalCents - paid).coerceAtLeast(0L)
+                }
+
+                val loans = when (selectedTab) {
+                    "BORROWED" -> borrowedLoans
+                    else -> lentLoans
+                }.sortedByDescending { loan ->
+                    val paid = paidByLoan[loan.id] ?: 0L
+                    (loan.principalCents - paid).coerceAtLeast(0L)
+                }
+
                 _state.value = _state.value.copy(
                     accounts = accounts,
                     accountBalancesCents = balances,
                     loanPaidCents = paidByLoan,
+                    lentLoans = lentLoans,
+                    borrowedLoans = borrowedLoans,
                     loans = loans,
+                    totalLentRemainingCents = totalLentRemaining,
+                    totalBorrowedRemainingCents = totalBorrowedRemaining,
                     isLoading = false
                 )
             } catch (e: Exception) {

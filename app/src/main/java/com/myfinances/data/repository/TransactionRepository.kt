@@ -5,7 +5,9 @@ import android.database.sqlite.SQLiteConstraintException
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.myfinances.data.local.dao.TransactionDao
+import com.myfinances.data.local.dao.AccountDao
 import com.myfinances.data.local.dao.CategorySpentTotal
+import com.myfinances.data.local.dao.HierarchyCategoryTotal
 import com.myfinances.data.local.dao.MonthlyCategoryDetailTotal
 import com.myfinances.data.local.dao.MonthlyCategoryTotal
 import com.myfinances.data.local.dao.RootCategorySpentTotal
@@ -21,11 +23,35 @@ import javax.inject.Singleton
 @Singleton
 class TransactionRepository @Inject constructor(
     private val transactionDao: TransactionDao,
+    private val accountDao: AccountDao,
     private val firestore: FirebaseFirestore,
     private val deviceIdProvider: DeviceIdProvider
 ) {
+    private fun signedAmountDeltaCents(kind: String, amountCents: Long): Long {
+        val k = kind.trim().uppercase()
+        return when (k) {
+            "INCOME", "LOAN_BORROWED_IN", "LOAN_REPAYMENT_PRINCIPAL_IN" -> amountCents
+            "EXPENSE", "LOAN_LENT_OUT", "LOAN_REPAYMENT_PRINCIPAL_OUT" -> -amountCents
+            else -> 0L
+        }
+    }
+
+    private suspend fun requireNonNegativeBalanceAfter(
+        userUid: String,
+        accountId: String,
+        currentBalanceCents: Long,
+        deltaCents: Long
+    ) {
+        val projected = currentBalanceCents + deltaCents
+        require(projected >= 0L) { "Saldo insuficiente" }
+    }
+
     fun observeRecent(userUid: String, limit: Int = 50): Flow<List<TransactionWithDetails>> {
         return transactionDao.observeRecent(userUid, limit)
+    }
+
+    fun observeMaxUpdatedAtEpochSec(userUid: String): Flow<Long?> {
+        return transactionDao.observeMaxUpdatedAtEpochSec(userUid)
     }
 
     suspend fun getRecent(userUid: String, limit: Int = 50): List<TransactionWithDetails> {
@@ -79,6 +105,29 @@ class TransactionRepository @Inject constructor(
         return transactionDao.getExpenseTotalsByCategoryInRange(userUid, currency, fromEpochSec, toEpochSec)
     }
 
+    suspend fun getIncomeTotalsByRootCategoryInRange(
+        userUid: String,
+        currency: String,
+        fromEpochSec: Long,
+        toEpochSec: Long
+    ): List<RootCategorySpentTotal> {
+        return transactionDao.getIncomeTotalsByRootCategoryInRange(userUid, currency, fromEpochSec, toEpochSec)
+    }
+
+    suspend fun getHierarchyTotalsInRange(
+        userUid: String,
+        kind: String,
+        currency: String,
+        fromEpochSec: Long,
+        toEpochSec: Long
+    ): List<HierarchyCategoryTotal> {
+        return transactionDao.getHierarchyTotalsInRange(userUid, kind, currency, fromEpochSec, toEpochSec)
+    }
+
+    suspend fun getExpenseMonths(userUid: String, currency: String, limit: Int = 24): List<String> {
+        return transactionDao.getExpenseMonths(userUid, currency, limit)
+    }
+
     suspend fun getById(id: String): TransactionEntity? {
         return transactionDao.getById(id)
     }
@@ -92,6 +141,17 @@ class TransactionRepository @Inject constructor(
         occurredAtEpochSec: Long,
         note: String?
     ): TransactionEntity {
+        val currentBalance = accountDao.computeBalanceCents(userUid, accountId)
+        val delta = signedAmountDeltaCents(kind, amountCents)
+        if (delta < 0L) {
+            requireNonNegativeBalanceAfter(
+                userUid = userUid,
+                accountId = accountId,
+                currentBalanceCents = currentBalance,
+                deltaCents = delta
+            )
+        }
+
         val now = System.currentTimeMillis() / 1000
         val transaction = TransactionEntity(
             id = UUID.randomUUID().toString(),
@@ -122,6 +182,20 @@ class TransactionRepository @Inject constructor(
         note: String?
     ): TransactionEntity? {
         val existing = transactionDao.getById(transactionId) ?: return null
+
+        // Enforce non-negative balance by simulating: (current balance) + revert(old) + apply(new)
+        // Balance is computed including the existing transaction.
+        run {
+            val affectedAccountIds = linkedSetOf(existing.accountId, accountId)
+            for (accId in affectedAccountIds) {
+                val currentBalance = accountDao.computeBalanceCents(userUid, accId)
+                val revertOld = if (accId == existing.accountId) -signedAmountDeltaCents(existing.kind, existing.amountCents) else 0L
+                val applyNew = if (accId == accountId) signedAmountDeltaCents(kind, amountCents) else 0L
+                val projected = currentBalance + revertOld + applyNew
+                require(projected >= 0L) { "Saldo insuficiente" }
+            }
+        }
+
         var now = System.currentTimeMillis() / 1000
         if (now <= existing.updatedAtEpochSec) {
             now = existing.updatedAtEpochSec + 1
@@ -146,14 +220,44 @@ class TransactionRepository @Inject constructor(
         deleteFromFirestore(userUid, transactionId)
     }
 
+    suspend fun deleteAllByUser(userUid: String) {
+        transactionDao.deleteAllByUser(userUid)
+        deleteAllFromFirestore(userUid)
+    }
+
+    private suspend fun deleteAllFromFirestore(userUid: String) {
+        try {
+            val batch = firestore.batch()
+            val collectionRef = firestore.collection("users")
+                .document(userUid)
+                .collection("transactions")
+            val snapshot = collectionRef.get().await()
+            snapshot.documents.forEach { doc ->
+                batch.delete(doc.reference)
+            }
+            batch.commit().await()
+        } catch (e: Exception) {
+            Log.e("TransactionRepository", "Error deleting all from Firestore", e)
+        }
+    }
+
     suspend fun syncFromFirestore(userUid: String) {
         try {
             Log.d("TransactionRepository", "Syncing transactions from Firestore for user: $userUid")
-            val snapshot = firestore.collection("users")
+            val lastUpdatedAt = transactionDao.getMaxUpdatedAtEpochSec(userUid)
+            val collectionRef = firestore.collection("users")
                 .document(userUid)
                 .collection("transactions")
-                .get()
-                .await()
+            val snapshot = if (lastUpdatedAt != null && lastUpdatedAt > 0L) {
+                collectionRef
+                    .whereGreaterThan("updatedAtEpochSec", lastUpdatedAt)
+                    .get()
+                    .await()
+            } else {
+                collectionRef
+                    .get()
+                    .await()
+            }
 
             Log.d("TransactionRepository", "Snapshot size: ${snapshot.size()}")
 
@@ -269,13 +373,6 @@ class TransactionRepository @Inject constructor(
                 .collection("transactions")
                 .document(transaction.id)
                 .set(transaction, SetOptions.merge())
-                .await()
-
-            firestore.collection("users")
-                .document(userUid)
-                .collection("transactions")
-                .document(transaction.id)
-                .set(mapOf("updatedBy" to deviceIdProvider.get()), SetOptions.merge())
                 .await()
         } catch (e: Exception) {
             // Log error

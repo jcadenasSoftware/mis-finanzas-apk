@@ -39,6 +39,24 @@ class UserSettingsRepository @Inject constructor(
         return entity
     }
 
+    suspend fun deleteAllByUser(userUid: String) {
+        userSettingsDao.deleteAllByUser(userUid)
+        deleteAllFromFirestore(userUid)
+    }
+
+    private suspend fun deleteAllFromFirestore(userUid: String) {
+        try {
+            firestore.collection("users")
+                .document(userUid)
+                .collection("settings")
+                .document("user")
+                .delete()
+                .await()
+        } catch (e: Exception) {
+            Log.e("UserSettingsRepository", "Error deleting settings from Firestore", e)
+        }
+    }
+
     suspend fun syncFromFirestore(userUid: String) {
         try {
             Log.d("UserSettingsRepository", "Syncing settings from Firestore user=$userUid")
@@ -101,13 +119,6 @@ class UserSettingsRepository @Inject constructor(
                 .collection("settings")
                 .document("user")
                 .set(settings, SetOptions.merge())
-                .await()
-
-            firestore.collection("users")
-                .document(userUid)
-                .collection("settings")
-                .document("user")
-                .set(mapOf("updatedBy" to deviceIdProvider.get()), SetOptions.merge())
                 .await()
         } catch (_: Exception) {
         }

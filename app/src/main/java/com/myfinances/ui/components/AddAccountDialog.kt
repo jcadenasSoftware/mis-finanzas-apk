@@ -1,28 +1,61 @@
 package com.myfinances.ui.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.myfinances.ui.util.CountryCurrency
 import java.util.Currency
 import java.util.Locale
 
+private fun defaultIconKeyForType(accountType: String): String {
+    return when (accountType) {
+        "BANK" -> "bank"
+        "CASH" -> "cash"
+        "CREDIT" -> "card"
+        "SAVINGS" -> "savings"
+        "VIRTUAL_WALLET" -> "wallet"
+        "DIGITAL_ACCOUNT" -> "digital"
+        else -> "bank"
+    }
+}
+
+private fun accountIconForKey(key: String): androidx.compose.ui.graphics.vector.ImageVector {
+    return when (key.lowercase()) {
+        "bank" -> Icons.Default.AccountBalance
+        "wallet" -> Icons.Default.AccountBalanceWallet
+        "cash" -> Icons.Default.Money
+        "card" -> Icons.Default.CreditCard
+        "savings" -> Icons.Default.Savings
+        "digital" -> Icons.Default.PhoneAndroid
+        else -> Icons.Default.AccountBalance
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddAccountDialog(
     onDismiss: () -> Unit,
-    onConfirm: (name: String, type: String, currency: String) -> Unit
+    onConfirm: (name: String, type: String, currency: String, iconKey: String?, colorHex: String?) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var selectedType by remember { mutableStateOf("BANK") }
@@ -34,10 +67,19 @@ fun AddAccountDialog(
     var typeExpanded by remember { mutableStateOf(false) }
     var currencyExpanded by remember { mutableStateOf(false) }
     var currencyQuery by remember { mutableStateOf("") }
+    var selectedIconKey by remember { mutableStateOf("bank") }
+    var selectedColorHex by remember { mutableStateOf("#2463EB") }
     val currencySearchFocusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    val accountTypes = listOf("BANK" to "Banco", "CASH" to "Efectivo", "CREDIT" to "Crédito", "SAVINGS" to "Ahorros")
+    val accountTypes = listOf(
+        "BANK" to "Banco",
+        "CASH" to "Efectivo",
+        "CREDIT" to "Crédito",
+        "SAVINGS" to "Ahorros",
+        "VIRTUAL_WALLET" to "Billetera virtual",
+        "DIGITAL_ACCOUNT" to "Cuenta digital"
+    )
     val displayLocale = remember { Locale("es", "ES") }
     val allCurrencies = remember {
         Currency.getAvailableCurrencies()
@@ -96,6 +138,7 @@ fun AddAccountDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Nueva cuenta") },
+        containerColor = MaterialTheme.colorScheme.surface,
         text = {
             Column(
                 modifier = Modifier
@@ -129,13 +172,15 @@ fun AddAccountDialog(
                     )
                     ExposedDropdownMenu(
                         expanded = typeExpanded,
-                        onDismissRequest = { typeExpanded = false }
+                        onDismissRequest = { typeExpanded = false },
+                        containerColor = MaterialTheme.colorScheme.surface
                     ) {
                         accountTypes.forEach { (value, label) ->
                             DropdownMenuItem(
                                 text = { Text(label) },
                                 onClick = {
                                     selectedType = value
+                                    selectedIconKey = defaultIconKeyForType(value)
                                     typeExpanded = false
                                 }
                             )
@@ -169,7 +214,10 @@ fun AddAccountDialog(
                     }
 
                     ElevatedCard(
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.elevatedCardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        )
                     ) {
                         Column(
                             modifier = Modifier.fillMaxWidth()
@@ -220,13 +268,84 @@ fun AddAccountDialog(
                         }
                     }
                 }
+
+                Text(text = "Icono", style = MaterialTheme.typography.labelLarge)
+                Surface(
+                    modifier = Modifier.size(56.dp),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                ) {
+                    Box(contentAlignment = androidx.compose.ui.Alignment.Center) {
+                        Icon(
+                            imageVector = accountIconForKey(selectedIconKey),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                }
+
+                Text(text = "Color", style = MaterialTheme.typography.labelLarge)
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    val colors = listOf(
+                        "#8A05BE",
+                        "#FF6B6B",
+                        "#D32F2F",
+                        "#2463EB",
+                        "#10B981",
+                        "#0EA5E9",
+                        "#14B8A6",
+                        "#FACC15",
+                        "#EAB308",
+                        "#F59E0B",
+                        "#F97316",
+                        "#EC4899",
+                        "#6366F1",
+                        "#A855F7",
+                        "#22C55E",
+                        "#111827",
+                        "#6B7280"
+                    )
+
+                    items(colors) { hex ->
+                        val c = runCatching { Color(android.graphics.Color.parseColor(hex)) }
+                            .getOrNull() ?: MaterialTheme.colorScheme.primary
+                        val selected = selectedColorHex.equals(hex, ignoreCase = true)
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(c)
+                                .border(
+                                    width = if (selected) 3.dp else 1.dp,
+                                    color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f),
+                                    shape = CircleShape
+                                )
+                                .clickable { selectedColorHex = hex },
+                            contentAlignment = androidx.compose.ui.Alignment.Center
+                        ) {
+                            if (selected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
             TextButton(
                 onClick = {
                     if (name.isNotBlank()) {
-                        onConfirm(name, selectedType, selectedCurrency)
+                        onConfirm(name, selectedType, selectedCurrency, selectedIconKey, selectedColorHex)
                     }
                 },
                 enabled = name.isNotBlank()

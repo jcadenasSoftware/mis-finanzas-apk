@@ -79,14 +79,44 @@ class LoanPaymentRepository @Inject constructor(
         return payment
     }
 
+    suspend fun deleteAllByUser(userUid: String) {
+        loanPaymentDao.deleteAllByUser(userUid)
+        deleteAllFromFirestore(userUid)
+    }
+
+    private suspend fun deleteAllFromFirestore(userUid: String) {
+        try {
+            val batch = firestore.batch()
+            val collectionRef = firestore.collection("users")
+                .document(userUid)
+                .collection("loanPayments")
+            val snapshot = collectionRef.get().await()
+            snapshot.documents.forEach { doc ->
+                batch.delete(doc.reference)
+            }
+            batch.commit().await()
+        } catch (e: Exception) {
+            Log.e("LoanPaymentRepository", "Error deleting all from Firestore", e)
+        }
+    }
+
     suspend fun syncFromFirestore(userUid: String) {
         try {
             Log.d("LoanPaymentRepository", "Syncing loanPayments from Firestore user=$userUid")
-            val snapshot = firestore.collection("users")
+            val lastUpdatedAt = loanPaymentDao.getMaxUpdatedAtEpochSec(userUid)
+            val collectionRef = firestore.collection("users")
                 .document(userUid)
                 .collection("loanPayments")
-                .get()
-                .await()
+            val snapshot = if (lastUpdatedAt != null && lastUpdatedAt > 0L) {
+                collectionRef
+                    .whereGreaterThan("updatedAtEpochSec", lastUpdatedAt)
+                    .get()
+                    .await()
+            } else {
+                collectionRef
+                    .get()
+                    .await()
+            }
 
             val payments = snapshot.documents.mapNotNull { doc ->
                 try {
@@ -139,11 +169,18 @@ class LoanPaymentRepository @Inject constructor(
             }
 
             var inserted = 0
+            var updated = 0
             var skipped = 0
             for (p in payments) {
                 try {
-                    loanPaymentDao.insert(p)
-                    inserted++
+                    val existing = loanPaymentDao.getById(p.id)
+                    if (existing == null) {
+                        loanPaymentDao.insert(p)
+                        inserted++
+                    } else if (p.updatedAtEpochSec > existing.updatedAtEpochSec) {
+                        loanPaymentDao.update(p)
+                        updated++
+                    }
                 } catch (e: SQLiteConstraintException) {
                     skipped++
                     Log.e(
@@ -154,7 +191,7 @@ class LoanPaymentRepository @Inject constructor(
                 }
             }
 
-            Log.d("LoanPaymentRepository", "LoanPayments inserted=$inserted skipped=$skipped")
+            Log.d("LoanPaymentRepository", "LoanPayments inserted=$inserted updated=$updated skipped=$skipped")
         } catch (e: Exception) {
             Log.e("LoanPaymentRepository", "Error syncing loanPayments", e)
         }
@@ -167,13 +204,6 @@ class LoanPaymentRepository @Inject constructor(
                 .collection("loanPayments")
                 .document(payment.id)
                 .set(payment, SetOptions.merge())
-                .await()
-
-            firestore.collection("users")
-                .document(userUid)
-                .collection("loanPayments")
-                .document(payment.id)
-                .set(mapOf("updatedBy" to deviceIdProvider.get()), SetOptions.merge())
                 .await()
         } catch (_: Exception) {
         }

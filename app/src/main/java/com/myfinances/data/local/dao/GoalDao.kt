@@ -22,6 +22,9 @@ interface GoalDao {
     @Query("SELECT * FROM goals WHERE id = :id")
     suspend fun getById(id: String): GoalEntity?
 
+    @Query("SELECT MAX(updated_at_epoch_sec) FROM goals WHERE user_uid = :userUid")
+    suspend fun getMaxUpdatedAtEpochSec(userUid: String): Long?
+
     @Query(
         """
         SELECT * FROM goals
@@ -42,4 +45,7 @@ interface GoalDao {
 
     @Query("DELETE FROM goals WHERE id = :id")
     suspend fun delete(id: String)
+
+    @Query("DELETE FROM goals WHERE user_uid = :userUid")
+    suspend fun deleteAllByUser(userUid: String)
 }

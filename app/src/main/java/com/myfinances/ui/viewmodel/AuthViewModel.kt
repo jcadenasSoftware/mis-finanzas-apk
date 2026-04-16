@@ -109,6 +109,25 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    fun sendPasswordReset(email: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            _authState.value = _authState.value.copy(isLoading = true, error = null)
+            val result = authRepository.sendPasswordResetEmail(email)
+            result.fold(
+                onSuccess = {
+                    _authState.value = _authState.value.copy(isLoading = false)
+                    onSuccess()
+                },
+                onFailure = { e ->
+                    _authState.value = _authState.value.copy(
+                        isLoading = false,
+                        error = e.message ?: "No se pudo enviar el correo de recuperación"
+                    )
+                }
+            )
+        }
+    }
+
     fun signOut() {
         authRepository.signOut()
         _authState.value = AuthState()

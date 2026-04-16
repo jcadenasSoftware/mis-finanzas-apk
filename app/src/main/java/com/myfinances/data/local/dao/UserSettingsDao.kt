@@ -21,4 +21,7 @@ interface UserSettingsDao {
 
     @Query("SELECT * FROM user_settings WHERE user_uid = :userUid LIMIT 1")
     fun observe(userUid: String): Flow<UserSettingsEntity?>
+
+    @Query("DELETE FROM user_settings WHERE user_uid = :userUid")
+    suspend fun deleteAllByUser(userUid: String)
 }

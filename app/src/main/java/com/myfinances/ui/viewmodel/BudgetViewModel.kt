@@ -36,6 +36,7 @@ data class BudgetState(
     val goalAccountBalancesCents: Map<String, Long> = emptyMap(),
     val monthlyMonth: String = "",
     val monthlyCurrency: String = "",
+    val monthlyExpenseMonths: List<String> = emptyList(),
     val monthlyRootCategories: List<CategoryEntity> = emptyList(),
     val monthlyChildrenMap: Map<String, List<CategoryEntity>> = emptyMap(),
     val monthlyLimitsByCategoryId: Map<String, Long> = emptyMap(),
@@ -56,6 +57,10 @@ class BudgetViewModel @Inject constructor(
     private val budgetRepository: BudgetRepository,
     private val transactionRepository: TransactionRepository
 ) : ViewModel() {
+
+    private companion object {
+        const val BASE_BUDGET_MONTH = "__BASE__"
+    }
 
     private val _state = MutableStateFlow(BudgetState())
     val state: StateFlow<BudgetState> = _state.asStateFlow()
@@ -104,6 +109,7 @@ class BudgetViewModel @Inject constructor(
                     goalAccountBalancesCents = balances,
                     monthlyMonth = monthKey,
                     monthlyCurrency = currency,
+                    monthlyExpenseMonths = monthly.expenseMonths,
                     monthlyRootCategories = monthly.rootCategories,
                     monthlyChildrenMap = monthly.childrenMap,
                     monthlyLimitsByCategoryId = monthly.limitsByCategoryId,
@@ -119,6 +125,7 @@ class BudgetViewModel @Inject constructor(
     }
 
     private data class MonthlyLoadResult(
+        val expenseMonths: List<String>,
         val rootCategories: List<CategoryEntity>,
         val childrenMap: Map<String, List<CategoryEntity>>,
         val limitsByCategoryId: Map<String, Long>,
@@ -130,7 +137,15 @@ class BudgetViewModel @Inject constructor(
 
     private suspend fun loadMonthly(userUid: String, monthKey: String, currency: String): MonthlyLoadResult {
         val (fromEpochSec, toEpochSec) = monthRangeEpochSec(monthKey)
-        val budgets = budgetRepository.getByMonth(userUid, monthKey, currency)
+        val baseBudgets = budgetRepository.getByMonth(userUid, BASE_BUDGET_MONTH, currency)
+        budgetRepository.getByMonth(userUid, monthKey, currency)
+
+        val expenseMonths = runCatching { transactionRepository.getExpenseMonths(userUid, currency, limit = 24) }
+            .getOrDefault(emptyList())
+        val expenseMonthsWithCurrent = (listOf(monthKey) + expenseMonths)
+            .distinct()
+            .sortedDescending()
+
         val spentTotals = transactionRepository.getExpenseTotalsByRootCategoryInRange(
             userUid = userUid,
             currency = currency,
@@ -147,7 +162,8 @@ class BudgetViewModel @Inject constructor(
 
         val spentMap = spentTotals.associate { it.rootCategoryId to it.totalSpentCents }
         val spentByCategoryMap = spentByCategoryTotals.associate { it.categoryId to it.totalSpentCents }
-        val limitMap = budgets.associate { it.categoryId to it.limitCents }
+        val baseLimitMap = baseBudgets.associate { it.categoryId to it.limitCents }
+        val limitMap = baseLimitMap
 
         val roots = categoryRepository.getRoots(userUid)
         val rootMap = roots.associateBy { it.id }
@@ -163,12 +179,16 @@ class BudgetViewModel @Inject constructor(
 
         val summedLimitByRoot = mutableMapOf<String, Long>()
         for (r in roots) {
-            var sum = limitMap[r.id] ?: 0L
             val children = childrenMap[r.id].orEmpty()
-            for (c in children) {
-                sum += (limitMap[c.id] ?: 0L)
+            if (children.isEmpty()) {
+                summedLimitByRoot[r.id] = limitMap[r.id] ?: 0L
+            } else {
+                var sum = 0L
+                for (c in children) {
+                    sum += (limitMap[c.id] ?: 0L)
+                }
+                summedLimitByRoot[r.id] = sum
             }
-            summedLimitByRoot[r.id] = sum
         }
 
         val subcategoryItemsByRootId = linkedMapOf<String, List<MonthlyBudgetItem>>()
@@ -176,10 +196,9 @@ class BudgetViewModel @Inject constructor(
             val children = childrenMap[r.id].orEmpty()
             if (children.isEmpty()) continue
 
-            val childItems = children.mapNotNull { child ->
+            val childItems = children.map { child ->
                 val limit = limitMap[child.id] ?: 0L
                 val spent = spentByCategoryMap[child.id] ?: 0L
-                if (limit <= 0L && spent <= 0L) return@mapNotNull null
                 MonthlyBudgetItem(
                     categoryId = child.id,
                     categoryName = child.name,
@@ -188,9 +207,7 @@ class BudgetViewModel @Inject constructor(
                 )
             }.sortedBy { it.categoryName }
 
-            if (childItems.isNotEmpty()) {
-                subcategoryItemsByRootId[r.id] = childItems
-            }
+            subcategoryItemsByRootId[r.id] = childItems
         }
 
         val rootsWithLimits = summedLimitByRoot.filterValues { it > 0 }.keys
@@ -208,7 +225,7 @@ class BudgetViewModel @Inject constructor(
 
         val totalLimit = items.sumOf { it.limitCents }
         val totalSpent = items.sumOf { it.spentCents }
-        return MonthlyLoadResult(roots, childrenMap, limitMap, subcategoryItemsByRootId, items, totalLimit, totalSpent)
+        return MonthlyLoadResult(expenseMonthsWithCurrent, roots, childrenMap, limitMap, subcategoryItemsByRootId, items, totalLimit, totalSpent)
     }
 
     fun setMonthlyCurrency(currency: String) {
@@ -221,6 +238,7 @@ class BudgetViewModel @Inject constructor(
                 _state.value = _state.value.copy(
                     isLoading = false,
                     monthlyCurrency = currency,
+                    monthlyExpenseMonths = monthly.expenseMonths,
                     monthlyRootCategories = monthly.rootCategories,
                     monthlyChildrenMap = monthly.childrenMap,
                     monthlyLimitsByCategoryId = monthly.limitsByCategoryId,
@@ -247,6 +265,7 @@ class BudgetViewModel @Inject constructor(
                 _state.value = _state.value.copy(
                     isLoading = false,
                     monthlyMonth = next,
+                    monthlyExpenseMonths = monthly.expenseMonths,
                     monthlyRootCategories = monthly.rootCategories,
                     monthlyChildrenMap = monthly.childrenMap,
                     monthlyLimitsByCategoryId = monthly.limitsByCategoryId,
@@ -263,14 +282,14 @@ class BudgetViewModel @Inject constructor(
 
     fun upsertMonthlyLimit(categoryId: String, limitCents: Long) {
         val uid = userUid ?: return
-        val monthKey = _state.value.monthlyMonth.ifBlank { currentMonthKey() }
         val currency = _state.value.monthlyCurrency.ifBlank { _state.value.accounts.firstOrNull()?.currency ?: "COP" }
+        val monthKey = _state.value.monthlyMonth.ifBlank { currentMonthKey() }
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             try {
                 budgetRepository.upsert(
                     userUid = uid,
-                    month = monthKey,
+                    month = BASE_BUDGET_MONTH,
                     categoryId = categoryId,
                     currency = currency,
                     limitCents = limitCents
@@ -278,6 +297,7 @@ class BudgetViewModel @Inject constructor(
                 val monthly = loadMonthly(uid, monthKey, currency)
                 _state.value = _state.value.copy(
                     isLoading = false,
+                    monthlyExpenseMonths = monthly.expenseMonths,
                     monthlyRootCategories = monthly.rootCategories,
                     monthlyChildrenMap = monthly.childrenMap,
                     monthlyLimitsByCategoryId = monthly.limitsByCategoryId,
@@ -304,7 +324,7 @@ class BudgetViewModel @Inject constructor(
                 for (b in prevBudgets) {
                     budgetRepository.upsert(
                         userUid = uid,
-                        month = monthKey,
+                        month = BASE_BUDGET_MONTH,
                         categoryId = b.categoryId,
                         currency = currency,
                         limitCents = b.limitCents
@@ -313,6 +333,7 @@ class BudgetViewModel @Inject constructor(
                 val monthly = loadMonthly(uid, monthKey, currency)
                 _state.value = _state.value.copy(
                     isLoading = false,
+                    monthlyExpenseMonths = monthly.expenseMonths,
                     monthlyRootCategories = monthly.rootCategories,
                     monthlyChildrenMap = monthly.childrenMap,
                     monthlyLimitsByCategoryId = monthly.limitsByCategoryId,

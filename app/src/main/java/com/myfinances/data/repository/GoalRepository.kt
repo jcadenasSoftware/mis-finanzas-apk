@@ -76,16 +76,44 @@ class GoalRepository @Inject constructor(
         deleteFromFirestore(userUid, goalId)
     }
 
+    suspend fun deleteAllByUser(userUid: String) {
+        goalDao.deleteAllByUser(userUid)
+        deleteAllFromFirestore(userUid)
+    }
+
+    private suspend fun deleteAllFromFirestore(userUid: String) {
+        try {
+            val batch = firestore.batch()
+            val collectionRef = firestore.collection("users")
+                .document(userUid)
+                .collection("goals")
+            val snapshot = collectionRef.get().await()
+            snapshot.documents.forEach { doc ->
+                batch.delete(doc.reference)
+            }
+            batch.commit().await()
+        } catch (e: Exception) {
+            Log.e("GoalRepository", "Error deleting all from Firestore", e)
+        }
+    }
+
     suspend fun syncFromFirestore(userUid: String) {
         try {
             Log.d("GoalRepository", "Syncing goals from Firestore user=$userUid")
-            val snapshot = firestore.collection("users")
+            val lastUpdatedAt = goalDao.getMaxUpdatedAtEpochSec(userUid)
+            val collectionRef = firestore.collection("users")
                 .document(userUid)
                 .collection("goals")
-                .get()
-                .await()
-
-            val remoteIds = snapshot.documents.map { it.id }.toSet()
+            val snapshot = if (lastUpdatedAt != null && lastUpdatedAt > 0L) {
+                collectionRef
+                    .whereGreaterThan("updatedAtEpochSec", lastUpdatedAt)
+                    .get()
+                    .await()
+            } else {
+                collectionRef
+                    .get()
+                    .await()
+            }
 
             val goals = snapshot.documents.mapNotNull { doc ->
                 try {
@@ -166,21 +194,6 @@ class GoalRepository @Inject constructor(
             }
 
             Log.d("GoalRepository", "Goals upserted inserted=$inserted updated=$updated skipped=$skipped")
-
-            val localAll = goalDao.getByUser(userUid)
-            var deleted = 0
-            for (l in localAll) {
-                if (remoteIds.contains(l.id)) {
-                    continue
-                }
-                try {
-                    goalDao.delete(l.id)
-                    deleted++
-                } catch (e: Exception) {
-                    Log.e("GoalRepository", "Failed to delete missing local goal=${l.id}", e)
-                }
-            }
-            Log.d("GoalRepository", "Goals deletedMissing=$deleted")
         } catch (e: Exception) {
             Log.e("GoalRepository", "Error syncing goals", e)
         }
@@ -193,13 +206,6 @@ class GoalRepository @Inject constructor(
                 .collection("goals")
                 .document(goal.id)
                 .set(goal, SetOptions.merge())
-                .await()
-
-            firestore.collection("users")
-                .document(userUid)
-                .collection("goals")
-                .document(goal.id)
-                .set(mapOf("updatedBy" to deviceIdProvider.get()), SetOptions.merge())
                 .await()
         } catch (_: Exception) {
         }

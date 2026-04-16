@@ -2,26 +2,42 @@ package com.myfinances.ui.screens.categories
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.myfinances.data.local.entity.CategoryEntity
+import com.myfinances.ui.components.CompactHeader
 import com.myfinances.ui.components.SyncSwipeRefresh
 import com.myfinances.ui.theme.Expense
 import com.myfinances.ui.theme.Income
+import com.myfinances.ui.viewmodel.CategoryMonthlyInsight
 import com.myfinances.ui.viewmodel.CategoriesViewModel
 import com.myfinances.ui.viewmodel.SyncViewModel
+import kotlinx.coroutines.launch
+import java.text.NumberFormat
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,11 +46,38 @@ fun CategoriesScreen(
     viewModel: CategoriesViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val currencyFormat = remember(state.baseCurrency) {
+        NumberFormat.getCurrencyInstance(Locale("es", "CO")).apply {
+            currency = java.util.Currency.getInstance(state.baseCurrency)
+        }
+    }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var showSearch by rememberSaveable { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     val syncViewModel: SyncViewModel = hiltViewModel()
     val syncVersion by syncViewModel.syncVersion.collectAsState()
+
+    val filteredRoots = remember(state.rootCategories, searchQuery) {
+        val query = searchQuery.trim()
+        if (query.isBlank()) {
+            state.rootCategories
+        } else {
+            state.rootCategories.filter { it.name.contains(query, ignoreCase = true) }
+        }
+    }
+    val incomeRoots = remember(filteredRoots) {
+        filteredRoots.filter { resolveCategoryKind(it) == CategoryKind.Income }
+    }
+    val expenseRoots = remember(filteredRoots) {
+        filteredRoots.filter { resolveCategoryKind(it) == CategoryKind.Expense }
+    }
+    val otherRoots = remember(filteredRoots) {
+        filteredRoots.filter { resolveCategoryKind(it) == CategoryKind.Other }
+    }
+    val hasResults = incomeRoots.isNotEmpty() || expenseRoots.isNotEmpty() || otherRoots.isNotEmpty()
 
     LaunchedEffect(syncVersion) {
         viewModel.loadCategories()
@@ -42,19 +85,40 @@ fun CategoriesScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Categorías") },
+            CompactHeader(
+                title = {
+                    Text(
+                        text = "Categorías",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = {
+                        showSearch = !showSearch
+                        if (!showSearch) {
+                            searchQuery = ""
+                        }
+                    }) {
+                        Icon(Icons.Default.Search, contentDescription = "Buscar")
                     }
                 }
             )
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
-            FloatingActionButton(onClick = { viewModel.showAddDialog(null) }) {
-                Icon(Icons.Default.Add, contentDescription = "Nueva categoría")
+            FloatingActionButton(
+                onClick = { viewModel.showAddDialog(null) }
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = "Nueva categoría"
+                )
             }
         }
     ) { paddingValues ->
@@ -100,20 +164,116 @@ fun CategoriesScreen(
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        items(state.rootCategories) { category ->
-                            CategoryItem(
-                                category = category,
-                                children = state.childrenMap[category.id] ?: emptyList(),
-                                isExpanded = state.expandedCategories.contains(category.id),
-                                onToggleExpand = { viewModel.toggleExpanded(category.id) },
-                                onAddSubcategory = { viewModel.showAddDialog(category.id) },
-                                onRename = { newName -> viewModel.renameCategory(category.id, newName) },
-                                onDelete = { viewModel.deleteCategory(category.id) },
-                                onRenameChild = { childId, newName -> viewModel.renameCategory(childId, newName) },
-                                onDeleteChild = { childId -> viewModel.deleteCategory(childId) }
-                            )
+                        if (showSearch) {
+                            item {
+                                OutlinedTextField(
+                                    value = searchQuery,
+                                    onValueChange = { searchQuery = it },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true,
+                                    shape = MaterialTheme.shapes.extraLarge,
+                                    placeholder = { Text("Buscar categorías o subcategorías") },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Search, contentDescription = null)
+                                    },
+                                    trailingIcon = {
+                                        if (searchQuery.isNotBlank()) {
+                                            IconButton(onClick = { searchQuery = "" }) {
+                                                Icon(Icons.Default.Close, contentDescription = "Limpiar")
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+                        }
+
+                        if (!hasResults) {
+                            item {
+                                EmptySearchState(searchQuery = searchQuery)
+                            }
+                        } else {
+                            if (incomeRoots.isNotEmpty()) {
+                                item {
+                                    CategorySectionHeader(
+                                        title = "INGRESOS",
+                                        subtitle = "${incomeRoots.size} categorías",
+                                        accentColor = Income,
+                                        icon = Icons.Default.TrendingUp
+                                    )
+                                }
+                                items(incomeRoots, key = { it.id }) { category ->
+                                    CategoryItem(
+                                        category = category,
+                                        children = state.childrenMap[category.id] ?: emptyList(),
+                                        isExpanded = state.expandedCategories.contains(category.id),
+                                        onToggleExpand = { viewModel.toggleExpanded(category.id) },
+                                        onAddSubcategory = { viewModel.showAddDialog(category.id) },
+                                        onRename = { newName, iconKey -> viewModel.renameCategory(category.id, newName, iconKey) },
+                                        onDelete = { viewModel.deleteCategory(category.id) },
+                                        onRenameChild = { childId, newName, iconKey -> viewModel.renameCategory(childId, newName, iconKey) },
+                                        onDeleteChild = { childId -> viewModel.deleteCategory(childId) }
+                                    )
+                                }
+                            }
+
+                            if (expenseRoots.isNotEmpty()) {
+                                item {
+                                    CategorySectionHeader(
+                                        title = "GASTOS",
+                                        subtitle = "${expenseRoots.size} categorías",
+                                        accentColor = Expense,
+                                        icon = Icons.Default.TrendingDown
+                                    )
+                                }
+                                items(expenseRoots, key = { it.id }) { category ->
+                                    CategoryItem(
+                                        category = category,
+                                        children = state.childrenMap[category.id] ?: emptyList(),
+                                        isExpanded = state.expandedCategories.contains(category.id),
+                                        onToggleExpand = { viewModel.toggleExpanded(category.id) },
+                                        onAddSubcategory = { viewModel.showAddDialog(category.id) },
+                                        onRename = { newName, iconKey -> viewModel.renameCategory(category.id, newName, iconKey) },
+                                        onDelete = { viewModel.deleteCategory(category.id) },
+                                        onRenameChild = { childId, newName, iconKey -> viewModel.renameCategory(childId, newName, iconKey) },
+                                        onDeleteChild = { childId -> viewModel.deleteCategory(childId) }
+                                    )
+                                }
+                            }
+
+                            if (otherRoots.isNotEmpty()) {
+                                item {
+                                    CategorySectionHeader(
+                                        title = "OTRAS",
+                                        subtitle = "${otherRoots.size} categorías",
+                                        accentColor = MaterialTheme.colorScheme.primary,
+                                        icon = Icons.Default.Category
+                                    )
+                                }
+                                items(otherRoots, key = { it.id }) { category ->
+                                    CategoryItem(
+                                        category = category,
+                                        children = state.childrenMap[category.id] ?: emptyList(),
+                                        isExpanded = state.expandedCategories.contains(category.id),
+                                        onToggleExpand = { viewModel.toggleExpanded(category.id) },
+                                        onAddSubcategory = { viewModel.showAddDialog(category.id) },
+                                        onRename = { newName, iconKey -> viewModel.renameCategory(category.id, newName, iconKey) },
+                                        onDelete = { viewModel.deleteCategory(category.id) },
+                                        onRenameChild = { childId, newName, iconKey -> viewModel.renameCategory(childId, newName, iconKey) },
+                                        onDeleteChild = { childId -> viewModel.deleteCategory(childId) }
+                                    )
+                                }
+                            }
+                        }
+
+                        state.monthlyInsight?.let { insight ->
+                            item {
+                                MonthlyInsightCard(
+                                    insight = insight,
+                                    formattedAmount = currencyFormat.format(insight.totalSpentCents / 100.0)
+                                )
+                            }
                         }
                     }
                 }
@@ -125,7 +285,7 @@ fun CategoriesScreen(
             AddCategoryDialog(
                 isSubcategory = state.addDialogParentId != null,
                 onDismiss = { viewModel.hideAddDialog() },
-                onConfirm = { name -> viewModel.createCategory(name) }
+                onConfirm = { name, iconKey -> viewModel.createCategory(name, iconKey) }
             )
         }
 
@@ -139,51 +299,300 @@ fun CategoriesScreen(
 }
 
 @Composable
+private fun MonthlyInsightCard(
+    insight: CategoryMonthlyInsight,
+    formattedAmount: String
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+        shape = MaterialTheme.shapes.extraLarge,
+        tonalElevation = 1.dp,
+        shadowElevation = 0.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                color = Color.White.copy(alpha = 0.92f),
+                shape = MaterialTheme.shapes.large,
+                modifier = Modifier.size(34.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Insights,
+                        contentDescription = null,
+                        tint = Expense,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Insight del mes",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Expense
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Este mes has gastado más en ${insight.categoryName}.",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "Acumulas $formattedAmount en esta categoría.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+private enum class CategoryKind {
+    Income,
+    Expense,
+    Other
+}
+
+@Composable
+private fun CategorySectionHeader(
+    title: String,
+    subtitle: String,
+    accentColor: Color,
+    icon: androidx.compose.ui.graphics.vector.ImageVector
+) {
+    Surface(
+        color = accentColor.copy(alpha = 0.10f),
+        shape = MaterialTheme.shapes.extraLarge,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Surface(
+                color = Color.White.copy(alpha = 0.9f),
+                shape = MaterialTheme.shapes.large,
+                modifier = Modifier.size(38.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, tint = accentColor, modifier = Modifier.size(20.dp))
+                }
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = accentColor
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PreviewChip(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    accentColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier
+            .widthIn(min = 150.dp, max = 220.dp),
+        color = accentColor.copy(alpha = 0.08f),
+        shape = MaterialTheme.shapes.large
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(icon, contentDescription = null, tint = accentColor, modifier = Modifier.size(14.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Clip
+            )
+        }
+    }
+}
+@Composable
+private fun CategoryFabAction(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit
+) {
+    ElevatedCard(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.extraLarge,
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = Color.White)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmptySearchState(searchQuery: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = MaterialTheme.shapes.extraLarge,
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.SearchOff,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(36.dp)
+            )
+            Text(
+                text = "No encontramos categorías para \"$searchQuery\"",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text = "Prueba con otro nombre o crea una nueva categoría desde el botón +.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+private fun resolveCategoryKind(category: CategoryEntity): CategoryKind {
+    val n = category.name.uppercase()
+    return when {
+        n.contains("INGRES") || n.contains("SALAR") || n.contains("SUELD") || n.contains("VENTA") || n.contains("INVERS") || n.contains("PRESTAM") -> CategoryKind.Income
+        n.contains("EGRES") || n.contains("GAST") || n.contains("MERCAD") || n.contains("TRANSP") || n.contains("SERVIC") || n.contains("FIJ") || n.contains("HOGAR") || n.contains("SALUD") -> CategoryKind.Expense
+        else -> CategoryKind.Other
+    }
+}
+
+@Composable
+private fun categoryAccentColor(kind: CategoryKind): Color {
+    return when (kind) {
+        CategoryKind.Income -> Income
+        CategoryKind.Expense -> Expense
+        CategoryKind.Other -> MaterialTheme.colorScheme.primary
+    }
+}
+
+private fun resolveCategoryIcon(
+    iconKey: String?,
+    categoryName: String,
+    kind: CategoryKind
+): androidx.compose.ui.graphics.vector.ImageVector {
+    categoryIconOptions.firstOrNull { it.key == iconKey }?.let { return it.icon }
+    val n = categoryName.uppercase()
+    return when {
+        n.contains("MERCAD") || n.contains("SUPER") || n.contains("ALIMENT") -> Icons.Default.ShoppingCart
+        n.contains("TRANSP") || n.contains("GASOL") || n.contains("VEH") -> Icons.Default.DirectionsCar
+        n.contains("SERVIC") || n.contains("LUZ") || n.contains("AGUA") || n.contains("INTERNET") -> Icons.Default.Lightbulb
+        n.contains("HOGAR") || n.contains("ARRIEND") || n.contains("CASA") -> Icons.Default.Home
+        n.contains("SALUD") || n.contains("MEDIC") -> Icons.Default.LocalHospital
+        n.contains("OCIO") || n.contains("ENTRET") -> Icons.Default.LocalActivity
+        n.contains("EDUC") || n.contains("CURS") -> Icons.Default.School
+        n.contains("AHORR") || n.contains("INVERS") -> Icons.Default.Savings
+        n.contains("PRESTAM") -> Icons.Default.AccountBalance
+        n.contains("PLOMER") || n.contains("TUBER") -> Icons.Default.Plumbing
+        n.contains("ELECTR") || n.contains("CABLE") -> Icons.Default.ElectricBolt
+        n.contains("TECNO") || n.contains("SOFT") || n.contains("SISTEM") || n.contains("COMPUT") -> Icons.Default.Computer
+        n.contains("REPAR") || n.contains("MANTEN") || n.contains("ARREG") -> Icons.Default.Handyman
+        n.contains("LLAVE") || n.contains("CERRAJ") -> Icons.Default.Key
+        n.contains("CONSTR") || n.contains("OBRA") -> Icons.Default.Construction
+        n.contains("INGEN") -> Icons.Default.Engineering
+        n.contains("NEGOC") || n.contains("EMPRES") -> Icons.Default.BusinessCenter
+        n.contains("SALAR") || n.contains("SUELD") || n.contains("INGRES") -> Icons.Default.Payments
+        kind == CategoryKind.Income -> Icons.Default.TrendingUp
+        kind == CategoryKind.Expense -> Icons.Default.ReceiptLong
+        else -> Icons.Default.Folder
+    }
+}
+
+@Composable
 private fun CategoryItem(
     category: CategoryEntity,
     children: List<CategoryEntity>,
     isExpanded: Boolean,
     onToggleExpand: () -> Unit,
     onAddSubcategory: () -> Unit,
-    onRename: (String) -> Unit,
+    onRename: (String, String?) -> Unit,
     onDelete: () -> Unit,
-    onRenameChild: (String, String) -> Unit,
+    onRenameChild: (String, String, String?) -> Unit,
     onDeleteChild: (String) -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
-
-    val kindLabel = remember(category.name) {
-        val n = category.name.uppercase()
-        when {
-            n.contains("INGRES") -> "Ingreso"
-            n.contains("EGRES") || n.contains("GAST") -> "Egreso"
-            else -> "Categoría"
-        }
+    val kind = remember(category.name) { resolveCategoryKind(category) }
+    val accentColor = categoryAccentColor(kind)
+    val kindLabel = when (kind) {
+        CategoryKind.Income -> "Ingreso"
+        CategoryKind.Expense -> "Gasto"
+        CategoryKind.Other -> "Categoría"
     }
-    val accentKind = remember(category.name) {
-        val n = category.name.uppercase()
-        when {
-            n.contains("INGRES") -> "INCOME"
-            n.contains("EGRES") || n.contains("GAST") -> "EXPENSE"
-            else -> "PRIMARY"
-        }
+    val categoryIcon = resolveCategoryIcon(category.iconKey, category.name, kind)
+    val screenWidthDp = LocalConfiguration.current.screenWidthDp
+    val maxPreviewChildren = remember(screenWidthDp) {
+        if (screenWidthDp < 360) 1 else 2
     }
-    val accentColor = when (accentKind) {
-        "INCOME" -> Income
-        "EXPENSE" -> Expense
-        else -> MaterialTheme.colorScheme.primary
-    }
+    val previewChildren = remember(children, maxPreviewChildren) { children.take(maxPreviewChildren) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = Color.White
         ),
         border = BorderStroke(
             1.dp,
-            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f)
-        )
+            accentColor.copy(alpha = 0.10f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        shape = MaterialTheme.shapes.extraLarge
     ) {
         Row(modifier = Modifier.fillMaxWidth()) {
             Box(
@@ -197,160 +606,189 @@ private fun CategoryItem(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .clickable(enabled = children.isNotEmpty(), onClick = onToggleExpand)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                // Expand/Collapse icon
-                if (children.isNotEmpty()) {
-                    IconButton(
-                        onClick = onToggleExpand,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                            contentDescription = if (isExpanded) "Colapsar" else "Expandir"
-                        )
-                    }
-                } else {
-                    Spacer(modifier = Modifier.width(32.dp))
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // Category icon
-                Surface(
-                    shape = MaterialTheme.shapes.medium,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Default.Folder,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        category.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        if (children.isNotEmpty()) "$kindLabel • ${children.size} subcategorías" else kindLabel,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                // Subcategories count
-                if (children.isNotEmpty()) {
                     Surface(
-                        shape = MaterialTheme.shapes.extraLarge,
-                        color = MaterialTheme.colorScheme.secondary
+                        shape = MaterialTheme.shapes.large,
+                        color = accentColor.copy(alpha = 0.12f),
+                        modifier = Modifier.size(44.dp)
                     ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                categoryIcon,
+                                contentDescription = null,
+                                tint = accentColor,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "${children.size}",
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimary
+                            category.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            if (children.isNotEmpty()) "$kindLabel • ${children.size} subcategorías" else kindLabel,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (previewChildren.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                previewChildren.forEach { child ->
+                                    PreviewChip(
+                                        label = child.name,
+                                        icon = resolveCategoryIcon(child.iconKey, child.name, kind),
+                                        accentColor = accentColor
+                                    )
+                                }
+                                if (children.size > previewChildren.size) {
+                                    PreviewChip(
+                                        label = "+${children.size - previewChildren.size}",
+                                        icon = Icons.Default.MoreHoriz,
+                                        accentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
                     }
-                }
 
-                // Menu
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Opciones")
-                    }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        DropdownMenuItem(
-                            text = { Text("Agregar subcategoría") },
-                            onClick = {
-                                showMenu = false
-                                onAddSubcategory()
-                            },
-                            leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Renombrar") },
-                            onClick = {
-                                showMenu = false
-                                showRenameDialog = true
-                            },
-                            leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Eliminar") },
-                            onClick = {
-                                showMenu = false
-                                onDelete()
-                            },
-                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) }
-                        )
+                        if (children.isNotEmpty()) {
+                            Surface(
+                                shape = MaterialTheme.shapes.extraLarge,
+                                color = accentColor.copy(alpha = 0.14f)
+                            ) {
+                                Text(
+                                    text = "${children.size}",
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = accentColor
+                                )
+                            }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (children.isNotEmpty()) {
+                                Surface(
+                                    shape = MaterialTheme.shapes.large,
+                                    color = accentColor.copy(alpha = 0.10f)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = if (isExpanded) "Ocultar" else "Ver",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = accentColor
+                                        )
+                                        Icon(
+                                            imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                            contentDescription = if (isExpanded) "Colapsar" else "Expandir",
+                                            tint = accentColor,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            Box {
+                                IconButton(onClick = { showMenu = true }) {
+                                    Icon(Icons.Default.MoreVert, contentDescription = "Opciones")
+                                }
+                                DropdownMenu(
+                                    expanded = showMenu,
+                                    onDismissRequest = { showMenu = false },
+                                    containerColor = Color.White,
+                                    tonalElevation = 0.dp
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("Agregar subcategoría") },
+                                        onClick = {
+                                            showMenu = false
+                                            onAddSubcategory()
+                                        },
+                                        leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Renombrar") },
+                                        onClick = {
+                                            showMenu = false
+                                            showRenameDialog = true
+                                        },
+                                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Eliminar") },
+                                        onClick = {
+                                            showMenu = false
+                                            onDelete()
+                                        },
+                                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
-            }
 
-            // Children
-            if (isExpanded && children.isNotEmpty()) {
-                HorizontalDivider(
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f)
-                )
-                children.forEach { child ->
-                    SubcategoryItem(
-                        category = child,
-                        onRename = { newName -> onRenameChild(child.id, newName) },
-                        onDelete = { onDeleteChild(child.id) }
+                if (isExpanded && children.isNotEmpty()) {
+                    HorizontalDivider(
+                        color = accentColor.copy(alpha = 0.12f)
                     )
+                    Column(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        children.forEach { child ->
+                            SubcategoryItem(
+                                category = child,
+                                kind = kind,
+                                onRename = { newName, iconKey -> onRenameChild(child.id, newName, iconKey) },
+                                onDelete = { onDeleteChild(child.id) }
+                            )
+                        }
+                    }
                 }
-            }
             }
         }
     }
 
     // Rename Dialog
     if (showRenameDialog) {
-        var newName by remember { mutableStateOf(category.name) }
-        AlertDialog(
-            onDismissRequest = { showRenameDialog = false },
-            title = { Text("Renombrar categoría") },
-            text = {
-                OutlinedTextField(
-                    value = newName,
-                    onValueChange = { newName = it },
-                    label = { Text("Nombre") },
-                    singleLine = true
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (newName.isNotBlank()) {
-                            onRename(newName)
-                            showRenameDialog = false
-                        }
-                    }
-                ) {
-                    Text("Guardar")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRenameDialog = false }) {
-                    Text("Cancelar")
-                }
+        CategoryEditorDialog(
+            title = "Renombrar categoría",
+            initialName = category.name,
+            initialIconKey = category.iconKey,
+            confirmLabel = "Guardar",
+            onDismiss = { showRenameDialog = false },
+            onConfirm = { newName, iconKey ->
+                onRename(newName, iconKey)
+                showRenameDialog = false
             }
         )
     }
@@ -359,99 +797,102 @@ private fun CategoryItem(
 @Composable
 private fun SubcategoryItem(
     category: CategoryEntity,
-    onRename: (String) -> Unit,
+    kind: CategoryKind,
+    onRename: (String, String?) -> Unit,
     onDelete: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
+    val accentColor = categoryAccentColor(kind)
+    val itemIcon = resolveCategoryIcon(category.iconKey, category.name, kind)
 
-    Row(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 56.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .clip(MaterialTheme.shapes.large),
+        color = accentColor.copy(alpha = 0.06f),
+        shape = MaterialTheme.shapes.large
     ) {
-        Icon(
-            Icons.Default.SubdirectoryArrowRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp)
-        )
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        Text(
-            category.name,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f),
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-
-        Box {
-            IconButton(
-                onClick = { showMenu = true },
-                modifier = Modifier.size(32.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 12.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = MaterialTheme.shapes.medium,
+                color = Color.White.copy(alpha = 0.8f),
+                modifier = Modifier.size(34.dp)
             ) {
-                Icon(
-                    Icons.Default.MoreVert,
-                    contentDescription = "Opciones",
-                    modifier = Modifier.size(18.dp)
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        itemIcon,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
-            DropdownMenu(
-                expanded = showMenu,
-                onDismissRequest = { showMenu = false }
-            ) {
-                DropdownMenuItem(
-                    text = { Text("Renombrar") },
-                    onClick = {
-                        showMenu = false
-                        showRenameDialog = true
-                    },
-                    leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
-                )
-                DropdownMenuItem(
-                    text = { Text("Eliminar") },
-                    onClick = {
-                        showMenu = false
-                        onDelete()
-                    },
-                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) }
-                )
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Text(
+                category.name,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Box {
+                IconButton(
+                    onClick = { showMenu = true },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        Icons.Default.MoreVert,
+                        contentDescription = "Opciones",
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false },
+                    containerColor = Color.White,
+                    tonalElevation = 0.dp
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Renombrar") },
+                        onClick = {
+                            showMenu = false
+                            showRenameDialog = true
+                        },
+                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Eliminar") },
+                        onClick = {
+                            showMenu = false
+                            onDelete()
+                        },
+                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) }
+                    )
+                }
             }
         }
     }
 
     if (showRenameDialog) {
-        var newName by remember { mutableStateOf(category.name) }
-        AlertDialog(
-            onDismissRequest = { showRenameDialog = false },
-            title = { Text("Renombrar subcategoría") },
-            text = {
-                OutlinedTextField(
-                    value = newName,
-                    onValueChange = { newName = it },
-                    label = { Text("Nombre") },
-                    singleLine = true
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (newName.isNotBlank()) {
-                            onRename(newName)
-                            showRenameDialog = false
-                        }
-                    }
-                ) {
-                    Text("Guardar")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRenameDialog = false }) {
-                    Text("Cancelar")
-                }
+        CategoryEditorDialog(
+            title = "Renombrar subcategoría",
+            initialName = category.name,
+            initialIconKey = category.iconKey,
+            confirmLabel = "Guardar",
+            onDismiss = { showRenameDialog = false },
+            onConfirm = { newName, iconKey ->
+                onRename(newName, iconKey)
+                showRenameDialog = false
             }
         )
     }
@@ -461,32 +902,149 @@ private fun SubcategoryItem(
 private fun AddCategoryDialog(
     isSubcategory: Boolean,
     onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
+    onConfirm: (String, String?) -> Unit
 ) {
-    var name by remember { mutableStateOf("") }
+    CategoryEditorDialog(
+        title = if (isSubcategory) "Nueva subcategoría" else "Nueva categoría",
+        initialName = "",
+        initialIconKey = null,
+        confirmLabel = "Crear",
+        onDismiss = onDismiss,
+        onConfirm = onConfirm
+    )
+}
+
+private data class CategoryIconOption(
+    val key: String,
+    val label: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector
+)
+
+private val categoryIconOptions = listOf(
+    CategoryIconOption("folder", "General", Icons.Default.Folder),
+    CategoryIconOption("shopping_cart", "Compras", Icons.Default.ShoppingCart),
+    CategoryIconOption("directions_car", "Transporte", Icons.Default.DirectionsCar),
+    CategoryIconOption("lightbulb", "Servicios", Icons.Default.Lightbulb),
+    CategoryIconOption("home", "Hogar", Icons.Default.Home),
+    CategoryIconOption("local_hospital", "Salud", Icons.Default.LocalHospital),
+    CategoryIconOption("local_activity", "Ocio", Icons.Default.LocalActivity),
+    CategoryIconOption("school", "Educación", Icons.Default.School),
+    CategoryIconOption("savings", "Ahorro", Icons.Default.Savings),
+    CategoryIconOption("account_balance", "Banca", Icons.Default.AccountBalance),
+    CategoryIconOption("payments", "Ingresos", Icons.Default.Payments),
+    CategoryIconOption("receipt_long", "Gastos", Icons.Default.ReceiptLong),
+    CategoryIconOption("trending_up", "Tendencia +", Icons.Default.TrendingUp),
+    CategoryIconOption("trending_down", "Tendencia -", Icons.Default.TrendingDown),
+    CategoryIconOption("restaurant", "Comida", Icons.Default.Restaurant),
+    CategoryIconOption("work", "Trabajo", Icons.Default.Work),
+    CategoryIconOption("computer", "Tecnología", Icons.Default.Computer),
+    CategoryIconOption("handyman", "Reparaciones", Icons.Default.Handyman),
+    CategoryIconOption("plumbing", "Plomería", Icons.Default.Plumbing),
+    CategoryIconOption("electric_bolt", "Eléctrico", Icons.Default.ElectricBolt),
+    CategoryIconOption("key", "Llaves", Icons.Default.Key),
+    CategoryIconOption("construction", "Construcción", Icons.Default.Construction),
+    CategoryIconOption("engineering", "Ingeniería", Icons.Default.Engineering),
+    CategoryIconOption("build", "Herramientas", Icons.Default.Build),
+    CategoryIconOption("business_center", "Negocio", Icons.Default.BusinessCenter),
+    CategoryIconOption("pets", "Mascotas", Icons.Default.Pets),
+    CategoryIconOption("flight", "Viajes", Icons.Default.Flight)
+)
+
+@Composable
+private fun CategoryEditorDialog(
+    title: String,
+    initialName: String,
+    initialIconKey: String?,
+    confirmLabel: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String?) -> Unit
+) {
+    var name by remember(initialName) { mutableStateOf(initialName) }
+    var selectedIconKey by remember(initialIconKey) { mutableStateOf(initialIconKey) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (isSubcategory) "Nueva subcategoría" else "Nueva categoría") },
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(title) },
         text = {
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Nombre") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Nombre") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Text(
+                    text = "Icono",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(categoryIconOptions) { option ->
+                        val selected = selectedIconKey == option.key
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier
+                                .widthIn(min = 64.dp)
+                                .clickable {
+                                    selectedIconKey = if (selected) null else option.key
+                                }
+                        ) {
+                            Surface(
+                                modifier = Modifier.size(44.dp),
+                                shape = CircleShape,
+                                color = if (selected) {
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+                                },
+                                border = BorderStroke(
+                                    width = if (selected) 2.dp else 1.dp,
+                                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                                ),
+                                tonalElevation = 0.dp,
+                                shadowElevation = 0.dp
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = option.icon,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(22.dp),
+                                        tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            Text(
+                                text = option.label,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
         },
         confirmButton = {
             TextButton(
                 onClick = {
                     if (name.isNotBlank()) {
-                        onConfirm(name)
+                        onConfirm(name.trim(), selectedIconKey)
                     }
                 },
                 enabled = name.isNotBlank()
             ) {
-                Text("Crear")
+                Text(confirmLabel)
             }
         },
         dismissButton = {

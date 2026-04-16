@@ -62,6 +62,12 @@ interface TransferDao {
     @Query("SELECT * FROM transfers WHERE id = :id")
     suspend fun getById(id: String): TransferEntity?
 
+    @Query("SELECT MAX(updated_at_epoch_sec) FROM transfers WHERE user_uid = :userUid")
+    suspend fun getMaxUpdatedAtEpochSec(userUid: String): Long?
+
+    @Query("SELECT MAX(updated_at_epoch_sec) FROM transfers WHERE user_uid = :userUid")
+    fun observeMaxUpdatedAtEpochSec(userUid: String): Flow<Long?>
+
     @Query("DELETE FROM transfers WHERE id = :id")
     suspend fun delete(id: String)
 

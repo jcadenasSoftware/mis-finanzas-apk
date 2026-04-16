@@ -26,6 +26,10 @@ data class AccountEntity(
     val name: String,
     val type: String,
     val currency: String,
+    @ColumnInfo(name = "icon_key")
+    val iconKey: String? = null,
+    @ColumnInfo(name = "color_hex")
+    val colorHex: String? = null,
     @ColumnInfo(name = "created_at_epoch_sec")
     val createdAtEpochSec: Long,
     @ColumnInfo(name = "updated_at_epoch_sec")

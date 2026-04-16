@@ -28,6 +28,9 @@ interface AccountDao {
     @Query("SELECT * FROM accounts WHERE id = :id")
     suspend fun getById(id: String): AccountEntity?
 
+    @Query("SELECT MAX(updated_at_epoch_sec) FROM accounts WHERE user_uid = :userUid")
+    suspend fun getMaxUpdatedAtEpochSec(userUid: String): Long?
+
     @Query("DELETE FROM accounts WHERE id = :id")
     suspend fun delete(id: String)
 

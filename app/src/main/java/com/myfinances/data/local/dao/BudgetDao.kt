@@ -22,6 +22,9 @@ interface BudgetDao {
     @Query("SELECT * FROM budgets WHERE id = :id")
     suspend fun getById(id: String): BudgetEntity?
 
+    @Query("SELECT MAX(updated_at_epoch_sec) FROM budgets WHERE user_uid = :userUid")
+    suspend fun getMaxUpdatedAtEpochSec(userUid: String): Long?
+
     @Query(
         """
         SELECT * FROM budgets
@@ -61,4 +64,7 @@ interface BudgetDao {
 
     @Query("DELETE FROM budgets WHERE id = :id")
     suspend fun delete(id: String)
+
+    @Query("DELETE FROM budgets WHERE user_uid = :userUid")
+    suspend fun deleteAllByUser(userUid: String)
 }

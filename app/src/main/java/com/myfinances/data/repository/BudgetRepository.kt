@@ -67,16 +67,44 @@ class BudgetRepository @Inject constructor(
         deleteFromFirestore(userUid, budgetId)
     }
 
+    suspend fun deleteAllByUser(userUid: String) {
+        budgetDao.deleteAllByUser(userUid)
+        deleteAllFromFirestore(userUid)
+    }
+
+    private suspend fun deleteAllFromFirestore(userUid: String) {
+        try {
+            val batch = firestore.batch()
+            val collectionRef = firestore.collection("users")
+                .document(userUid)
+                .collection("budgets")
+            val snapshot = collectionRef.get().await()
+            snapshot.documents.forEach { doc ->
+                batch.delete(doc.reference)
+            }
+            batch.commit().await()
+        } catch (e: Exception) {
+            Log.e("BudgetRepository", "Error deleting all from Firestore", e)
+        }
+    }
+
     suspend fun syncFromFirestore(userUid: String) {
         try {
             Log.d("BudgetRepository", "Syncing budgets from Firestore user=$userUid")
-            val snapshot = firestore.collection("users")
+            val lastUpdatedAt = budgetDao.getMaxUpdatedAtEpochSec(userUid)
+            val collectionRef = firestore.collection("users")
                 .document(userUid)
                 .collection("budgets")
-                .get()
-                .await()
-
-            val remoteIds = snapshot.documents.map { it.id }.toSet()
+            val snapshot = if (lastUpdatedAt != null && lastUpdatedAt > 0L) {
+                collectionRef
+                    .whereGreaterThan("updatedAtEpochSec", lastUpdatedAt)
+                    .get()
+                    .await()
+            } else {
+                collectionRef
+                    .get()
+                    .await()
+            }
 
             val budgets = snapshot.documents.mapNotNull { doc ->
                 try {
@@ -153,21 +181,6 @@ class BudgetRepository @Inject constructor(
             }
 
             Log.d("BudgetRepository", "Budgets upserted inserted=$inserted updated=$updated skipped=$skipped")
-
-            val localAll = budgetDao.getByUser(userUid)
-            var deleted = 0
-            for (l in localAll) {
-                if (remoteIds.contains(l.id)) {
-                    continue
-                }
-                try {
-                    budgetDao.delete(l.id)
-                    deleted++
-                } catch (e: Exception) {
-                    Log.e("BudgetRepository", "Failed to delete missing local budget=${l.id}", e)
-                }
-            }
-            Log.d("BudgetRepository", "Budgets deletedMissing=$deleted")
         } catch (e: Exception) {
             Log.e("BudgetRepository", "Error syncing budgets", e)
         }
@@ -175,18 +188,27 @@ class BudgetRepository @Inject constructor(
 
     private suspend fun syncToFirestore(userUid: String, budget: BudgetEntity) {
         try {
-            firestore.collection("users")
+            val docRef = firestore.collection("users")
                 .document(userUid)
                 .collection("budgets")
                 .document(budget.id)
-                .set(budget, SetOptions.merge())
-                .await()
 
-            firestore.collection("users")
-                .document(userUid)
-                .collection("budgets")
-                .document(budget.id)
-                .set(mapOf("updatedBy" to deviceIdProvider.get()), SetOptions.merge())
+            val remoteSnap = runCatching { docRef.get().await() }.getOrNull()
+            val remoteUpdatedAt = remoteSnap
+                ?.takeIf { it.exists() }
+                ?.let { snap ->
+                    (snap.getLong("updatedAtEpochSec")
+                        ?: snap.getLong("updated_at_epoch_sec")
+                        ?: snap.getLong("updatedAt")
+                        ?: snap.getLong("updated_at"))
+                }
+
+            if (remoteUpdatedAt != null && remoteUpdatedAt >= budget.updatedAtEpochSec) {
+                return
+            }
+
+            docRef
+                .set(budget, SetOptions.merge())
                 .await()
         } catch (_: Exception) {
         }

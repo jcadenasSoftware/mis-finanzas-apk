@@ -41,7 +41,7 @@ import com.myfinances.data.local.entity.UserEntity
         ExchangeRateEntity::class,
         UserSettingsEntity::class
     ],
-    version = 5,
+    version = 8,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -215,6 +215,25 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_goals_user_uid ON goals(user_uid)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_goals_account_id ON goals(account_id)")
+            }
+        }
+
+        val MIGRATION_5_6: Migration = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE categories ADD COLUMN icon_key TEXT")
+            }
+        }
+
+        val MIGRATION_6_7: Migration = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE categories ADD COLUMN kind TEXT NOT NULL DEFAULT 'BOTH'")
+            }
+        }
+
+        val MIGRATION_7_8: Migration = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE accounts ADD COLUMN icon_key TEXT")
+                db.execSQL("ALTER TABLE accounts ADD COLUMN color_hex TEXT")
             }
         }
     }

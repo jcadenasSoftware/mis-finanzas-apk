@@ -53,6 +53,27 @@ class ExchangeRateRepository @Inject constructor(
         deleteFromFirestore(userUid, rateId)
     }
 
+    suspend fun deleteAllByUser(userUid: String) {
+        exchangeRateDao.deleteAllByUser(userUid)
+        deleteAllFromFirestore(userUid)
+    }
+
+    private suspend fun deleteAllFromFirestore(userUid: String) {
+        try {
+            val batch = firestore.batch()
+            val collectionRef = firestore.collection("users")
+                .document(userUid)
+                .collection("exchangeRates")
+            val snapshot = collectionRef.get().await()
+            snapshot.documents.forEach { doc ->
+                batch.delete(doc.reference)
+            }
+            batch.commit().await()
+        } catch (e: Exception) {
+            Log.e("ExchangeRateRepository", "Error deleting all from Firestore", e)
+        }
+    }
+
     suspend fun syncFromFirestore(userUid: String) {
         try {
             Log.d("ExchangeRateRepository", "Syncing exchangeRates from Firestore user=$userUid")
@@ -130,13 +151,6 @@ class ExchangeRateRepository @Inject constructor(
                 .collection("exchangeRates")
                 .document(rate.id)
                 .set(rate, SetOptions.merge())
-                .await()
-
-            firestore.collection("users")
-                .document(userUid)
-                .collection("exchangeRates")
-                .document(rate.id)
-                .set(mapOf("updatedBy" to deviceIdProvider.get()), SetOptions.merge())
                 .await()
         } catch (_: Exception) {
         }

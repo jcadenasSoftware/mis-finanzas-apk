@@ -30,6 +30,10 @@ data class CategoryEntity(
     @ColumnInfo(name = "user_uid")
     val userUid: String,
     val name: String,
+    @ColumnInfo(name = "kind")
+    val kind: String = "BOTH",
+    @ColumnInfo(name = "icon_key")
+    val iconKey: String? = null,
     @ColumnInfo(name = "parent_id")
     val parentId: String?,
     @ColumnInfo(name = "created_at_epoch_sec")

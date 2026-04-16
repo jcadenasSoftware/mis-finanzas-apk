@@ -39,6 +39,8 @@ class CategoryRepository @Inject constructor(
             id = id,
             userUid = userUid,
             name = name,
+            kind = "BOTH",
+            iconKey = null,
             parentId = null,
             createdAtEpochSec = now,
             updatedAtEpochSec = now,
@@ -80,6 +82,8 @@ class CategoryRepository @Inject constructor(
     suspend fun create(
         userUid: String,
         name: String,
+        kind: String = "BOTH",
+        iconKey: String? = null,
         parentId: String? = null
     ): CategoryEntity {
         val now = System.currentTimeMillis() / 1000
@@ -87,6 +91,8 @@ class CategoryRepository @Inject constructor(
             id = UUID.randomUUID().toString(),
             userUid = userUid,
             name = name,
+            kind = kind,
+            iconKey = iconKey,
             parentId = parentId,
             createdAtEpochSec = now,
             updatedAtEpochSec = now,
@@ -97,18 +103,59 @@ class CategoryRepository @Inject constructor(
         return category
     }
 
-    suspend fun rename(userUid: String, categoryId: String, newName: String): CategoryEntity? {
+    suspend fun updateCategory(
+        userUid: String,
+        categoryId: String,
+        newName: String,
+        iconKey: String? = null
+    ): CategoryEntity? {
         val category = categoryDao.getById(categoryId) ?: return null
         val now = System.currentTimeMillis() / 1000
-        val updated = category.copy(name = newName, updatedAtEpochSec = now, updatedBy = deviceIdProvider.get())
+        val updated = category.copy(
+            name = newName,
+            iconKey = iconKey,
+            updatedAtEpochSec = now,
+            updatedBy = deviceIdProvider.get()
+        )
         categoryDao.update(updated)
         syncToFirestore(userUid, updated)
         return updated
     }
 
+    suspend fun rename(userUid: String, categoryId: String, newName: String): CategoryEntity? {
+        val category = categoryDao.getById(categoryId) ?: return null
+        return updateCategory(
+            userUid = userUid,
+            categoryId = categoryId,
+            newName = newName,
+            iconKey = category.iconKey
+        )
+    }
+
     suspend fun delete(categoryId: String, userUid: String) {
         categoryDao.delete(categoryId)
         deleteFromFirestore(userUid, categoryId)
+    }
+
+    suspend fun deleteAllByUser(userUid: String) {
+        categoryDao.deleteAllByUser(userUid)
+        deleteAllFromFirestore(userUid)
+    }
+
+    private suspend fun deleteAllFromFirestore(userUid: String) {
+        try {
+            val batch = firestore.batch()
+            val collectionRef = firestore.collection("users")
+                .document(userUid)
+                .collection("categories")
+            val snapshot = collectionRef.get().await()
+            snapshot.documents.forEach { doc ->
+                batch.delete(doc.reference)
+            }
+            batch.commit().await()
+        } catch (e: Exception) {
+            Log.e("CategoryRepository", "Error deleting all from Firestore", e)
+        }
     }
 
     suspend fun syncFromFirestore(userUid: String) {
@@ -145,6 +192,13 @@ class CategoryRepository @Inject constructor(
                     val parentId = (data["parentId"] as? String)?.takeIf { it.isNotBlank() }
                         ?: (data["parent_id"] as? String)?.takeIf { it.isNotBlank() }
 
+                    val iconKey = (data["iconKey"] as? String)?.trim().takeUnless { it.isNullOrBlank() }
+                        ?: (data["icon_key"] as? String)?.trim().takeUnless { it.isNullOrBlank() }
+
+                    val kind = (data["kind"] as? String)?.trim()?.uppercase()
+                        ?.takeIf { it == "INCOME" || it == "EXPENSE" || it == "BOTH" }
+                        ?: "BOTH"
+
                     val updatedBy = (data["updatedBy"] as? String)?.trim().takeUnless { it.isNullOrBlank() }
                         ?: (data["updated_by"] as? String)?.trim().takeUnless { it.isNullOrBlank() }
 
@@ -155,6 +209,8 @@ class CategoryRepository @Inject constructor(
                         id = doc.id,
                         userUid = userUid,
                         name = name,
+                        kind = kind,
+                        iconKey = iconKey,
                         parentId = parentId,
                         createdAtEpochSec = createdAt,
                         updatedAtEpochSec = updatedAt,
@@ -264,6 +320,7 @@ class CategoryRepository @Inject constructor(
             Log.d("CategoryRepository", "Categories deleted=$deleted skipped=$deleteSkipped")
         } catch (e: Exception) {
             Log.e("CategoryRepository", "Error syncing categories from Firestore", e)
+            throw e
         }
     }
 
@@ -274,13 +331,6 @@ class CategoryRepository @Inject constructor(
                 .collection("categories")
                 .document(category.id)
                 .set(category, SetOptions.merge())
-                .await()
-
-            firestore.collection("users")
-                .document(userUid)
-                .collection("categories")
-                .document(category.id)
-                .set(mapOf("updatedBy" to deviceIdProvider.get()), SetOptions.merge())
                 .await()
         } catch (e: Exception) {
             // Log error

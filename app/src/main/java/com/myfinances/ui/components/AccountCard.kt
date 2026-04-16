@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -28,17 +29,28 @@ fun AccountCard(
     var showDeleteDialog by remember { mutableStateOf(false) }
     
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("es", "CO")) }
+    val isGoalAccount = account.name.contains("meta", ignoreCase = true) || account.type.equals("SAVINGS", ignoreCase = true)
+    val accountIconColor = when {
+        isGoalAccount -> Color(0xFF8E44AD)
+        account.type.equals("CASH", ignoreCase = true) -> Color(0xFF1565C0)
+        else -> Color(0xFF2563EB)
+    }
+    val accountIconBackground = when {
+        isGoalAccount -> Color(0xFFF3E8FF)
+        account.type.equals("CASH", ignoreCase = true) -> Color(0xFFE3F2FD)
+        else -> Color(0xFFE8F0FF)
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = Color.White
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = MaterialTheme.shapes.medium,
+        elevation = CardDefaults.cardElevation(defaultElevation = 5.dp),
+        shape = MaterialTheme.shapes.large,
         border = CardDefaults.outlinedCardBorder().copy(
             width = 1.dp,
-            brush = SolidColor(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f))
+            brush = SolidColor(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
         )
     ) {
         Row(
@@ -49,9 +61,10 @@ fun AccountCard(
         ) {
             // Account icon
             Surface(
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.22f),
-                modifier = Modifier.size(48.dp)
+                shape = MaterialTheme.shapes.large,
+                color = accountIconBackground,
+                shadowElevation = 1.dp,
+                modifier = Modifier.size(50.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -61,7 +74,8 @@ fun AccountCard(
                             else -> Icons.Default.AccountBalance
                         },
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = accountIconColor,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }

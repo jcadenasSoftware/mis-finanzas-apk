@@ -1,7 +1,10 @@
 package com.myfinances.ui.screens.budget
 
 import android.app.DatePickerDialog
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,9 +18,11 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -28,6 +33,8 @@ import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -35,12 +42,14 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,10 +57,10 @@ import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -65,18 +74,28 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.myfinances.data.local.entity.BudgetEntity
+import com.myfinances.ui.components.CompactHeader
+import com.myfinances.ui.components.SyncSwipeRefresh
 import com.myfinances.ui.theme.Income
+import com.myfinances.ui.theme.Expense
 import com.myfinances.ui.util.CountryCurrency
 import com.myfinances.ui.viewmodel.BudgetViewModel
+import com.myfinances.ui.viewmodel.SyncViewModel
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Currency
@@ -107,13 +126,129 @@ fun BudgetScreen(
     var showWithdraw by remember { mutableStateOf(false) }
     var withdrawGoalId by remember { mutableStateOf("") }
 
+    var showFabMenu by remember { mutableStateOf(false) }
+    var showQuickMove by remember { mutableStateOf(false) }
+    var quickMoveGoalExpanded by remember { mutableStateOf(false) }
+    var quickMoveGoalId by remember { mutableStateOf("") }
+    var quickMoveType by remember { mutableStateOf("DEPOSIT") }
+
+    if (showQuickMove) {
+        val goals = state.goals
+        LaunchedEffect(showQuickMove, goals) {
+            if (showQuickMove && quickMoveGoalId.isBlank()) {
+                quickMoveGoalId = goals.firstOrNull()?.id.orEmpty()
+            }
+        }
+
+        AlertDialog(
+            onDismissRequest = { showQuickMove = false },
+            title = { Text("Registrar movimiento") },
+            containerColor = Color.White,
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .imePadding(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    BudgetSegmentedTabs(
+                        selectedTab = if (quickMoveType == "DEPOSIT") 0 else 1,
+                        tabs = listOf("Depositar", "Retirar"),
+                        onSelectTab = { idx -> quickMoveType = if (idx == 0) "DEPOSIT" else "WITHDRAW" }
+                    )
+
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        val selected = goals.firstOrNull { it.id == quickMoveGoalId }
+                        OutlinedTextField(
+                            value = selected?.name ?: "Selecciona meta",
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Meta") },
+                            trailingIcon = {
+                                IconButton(onClick = { quickMoveGoalExpanded = true }) {
+                                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = null)
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.extraLarge,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color.White,
+                                unfocusedContainerColor = Color.White,
+                                disabledContainerColor = Color.White,
+                                focusedBorderColor = Color(0xFF2463EB),
+                                unfocusedBorderColor = Color(0xFFD8DFEA)
+                            )
+                        )
+                        DropdownMenu(
+                            expanded = quickMoveGoalExpanded,
+                            onDismissRequest = { quickMoveGoalExpanded = false },
+                            modifier = Modifier
+                                .clip(MaterialTheme.shapes.extraLarge)
+                                .background(Color.White)
+                        ) {
+                            if (goals.isEmpty()) {
+                                DropdownMenuItem(
+                                    text = { Text("No hay metas") },
+                                    onClick = { quickMoveGoalExpanded = false }
+                                )
+                            } else {
+                                goals.forEach { g ->
+                                    DropdownMenuItem(
+                                        text = { Text(g.name) },
+                                        onClick = {
+                                            quickMoveGoalId = g.id
+                                            quickMoveGoalExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showQuickMove = false
+                        if (quickMoveGoalId.isNotBlank()) {
+                            if (quickMoveType == "DEPOSIT") {
+                                depositGoalId = quickMoveGoalId
+                                showDeposit = true
+                            } else {
+                                withdrawGoalId = quickMoveGoalId
+                                showWithdraw = true
+                            }
+                        }
+                    },
+                    enabled = quickMoveGoalId.isNotBlank(),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2463EB))
+                ) {
+                    Text("Continuar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showQuickMove = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
     var showEditMonthlyLimit by remember { mutableStateOf(false) }
     var editMonthlyCategoryId by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Presupuesto") },
+            CompactHeader(
+                title = {
+                    Text(
+                        text = "Presupuesto",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
@@ -124,8 +259,34 @@ fun BudgetScreen(
         ,
         floatingActionButton = {
             if (selectedTab == 0) {
-                FloatingActionButton(onClick = { showCreateGoal = true }) {
-                    Icon(Icons.Default.Add, contentDescription = "Nueva meta")
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (showFabMenu) {
+                        BudgetFabAction(
+                            label = "Registrar movimiento",
+                            icon = Icons.Default.AttachMoney,
+                            onClick = {
+                                showFabMenu = false
+                                showQuickMove = true
+                            }
+                        )
+                        BudgetFabAction(
+                            label = "Nueva meta",
+                            icon = Icons.Default.Add,
+                            onClick = {
+                                showFabMenu = false
+                                showCreateGoal = true
+                            }
+                        )
+                    }
+                    FloatingActionButton(onClick = { showFabMenu = !showFabMenu }) {
+                        Icon(
+                            imageVector = if (showFabMenu) Icons.Default.Close else Icons.Default.Add,
+                            contentDescription = "Acciones"
+                        )
+                    }
                 }
             }
         }
@@ -135,18 +296,24 @@ fun BudgetScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            TabRow(selectedTabIndex = selectedTab) {
-                tabs.forEachIndexed { index, title ->
-                    Tab(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        text = { Text(title) }
-                    )
-                }
-            }
+            BudgetSegmentedTabs(
+                selectedTab = selectedTab,
+                tabs = tabs,
+                onSelectTab = { selectedTab = it }
+            )
 
             when (selectedTab) {
                 0 -> {
+                    val totalSavedCents = remember(state.goals, state.goalAccountBalancesCents) {
+                        state.goals.sumOf { g -> state.goalAccountBalancesCents[g.id] ?: 0L }
+                    }
+                    val totalTargetCents = remember(state.goals) {
+                        state.goals.sumOf { it.targetCents }
+                    }
+                    val totalProgress = remember(totalSavedCents, totalTargetCents) {
+                        if (totalTargetCents <= 0L) 0f else (totalSavedCents.toFloat() / totalTargetCents.toFloat()).coerceIn(0f, 1f)
+                    }
+
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -157,6 +324,13 @@ fun BudgetScreen(
                         state.error?.let { err ->
                             Text(err, color = MaterialTheme.colorScheme.error)
                         }
+
+                        GoalsGlobalSummaryCard(
+                            totalSavedCents = totalSavedCents,
+                            totalTargetCents = totalTargetCents,
+                            progress = totalProgress,
+                            currencyFormat = currencyFormat
+                        )
 
                         if (state.goals.isEmpty()) {
                             Text(
@@ -173,93 +347,62 @@ fun BudgetScreen(
                             val monthsLeft = viewModel.monthsUntil(goal.targetDateEpochSec, now)
                             val suggestedMonthly = if (remaining <= 0) 0L else (remaining / monthsLeft)
 
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                            ) {
-                                Column(modifier = Modifier.padding(14.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(goal.name, fontWeight = FontWeight.SemiBold)
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Text(
-                                                "Objetivo: ${currencyFormat.format(goal.targetCents / 100.0)}",
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            Text(
-                                                "Fecha objetivo: ${dateFormat.format(Date(goal.targetDateEpochSec * 1000))}",
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                style = MaterialTheme.typography.bodySmall
-                                            )
-                                            Spacer(modifier = Modifier.height(6.dp))
-                                            Text(
-                                                "Ahorrado: ${currencyFormat.format(savedCents / 100.0)}",
-                                                color = Income
-                                            )
-                                            Text(
-                                                "Restante: ${currencyFormat.format(remaining / 100.0)}",
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
-                                        Text("${(progress * 100).toInt()}%")
-                                    }
-
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    LinearProgressIndicator(
-                                        progress = { progress },
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                    Text(
-                                        "Sugerido mensual: ${currencyFormat.format(suggestedMonthly / 100.0)} (en $monthsLeft mes(es))",
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.End
-                                    ) {
-                                        TextButton(
-                                            onClick = {
-                                                depositGoalId = goal.id
-                                                showDeposit = true
-                                            }
-                                        ) {
-                                            Icon(Icons.Default.Savings, contentDescription = null)
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Text("Depositar")
-                                        }
-                                        TextButton(
-                                            onClick = {
-                                                withdrawGoalId = goal.id
-                                                showWithdraw = true
-                                            }
-                                        ) {
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Text("Retirar")
-                                        }
-                                    }
+                            GoalModernCard(
+                                title = goal.name,
+                                savedCents = savedCents,
+                                targetCents = goal.targetCents,
+                                remainingCents = remaining,
+                                progress = progress,
+                                targetDateEpochSec = goal.targetDateEpochSec,
+                                currencyFormat = currencyFormat,
+                                dateFormat = dateFormat,
+                                suggestedMonthlyCents = suggestedMonthly,
+                                monthsLeft = monthsLeft,
+                                onDeposit = {
+                                    depositGoalId = goal.id
+                                    showDeposit = true
+                                },
+                                onWithdraw = {
+                                    withdrawGoalId = goal.id
+                                    showWithdraw = true
                                 }
-                            }
+                            )
                         }
                     }
                 }
                 1 -> {
-                    val currencies = remember(state.accounts) {
-                        state.accounts.map { it.currency }.filter { it.isNotBlank() }.distinct().sorted()
-                    }
-                    var currencyExpanded by remember { mutableStateOf(false) }
-
                     val totalLimit = state.monthlyTotalLimitCents
                     val totalSpent = state.monthlyTotalSpentCents
                     val available = totalLimit - totalSpent
+
+                    val monthlyProgress = remember(totalLimit, totalSpent) {
+                        if (totalLimit <= 0L) 0f else (totalSpent.toFloat() / totalLimit.toFloat()).coerceAtLeast(0f)
+                    }
+
+                    val rootCatsSorted = remember(state.monthlyRootCategories) {
+                        state.monthlyRootCategories.sortedBy { it.name }
+                    }
+
+                    val monthlyCards = remember(state.monthlyItems, totalLimit) {
+                        state.monthlyItems.map { item ->
+                            val p = if (item.limitCents <= 0L) 0f else (item.spentCents.toFloat() / item.limitCents.toFloat()).coerceAtLeast(0f)
+                            val status = monthlyStatus(p, item.limitCents)
+                            MonthlyCategoryCardModel(
+                                categoryId = item.categoryId,
+                                categoryName = item.categoryName,
+                                limitCents = item.limitCents,
+                                spentCents = item.spentCents,
+                                progress = p,
+                                status = status
+                            )
+                        }.sortedWith(
+                            compareByDescending<MonthlyCategoryCardModel> { it.status.priority }
+                                .thenByDescending { it.progress }
+                                .thenBy { it.categoryName }
+                        )
+                    }
+
+                    var expandedRootId by remember { mutableStateOf<String?>(null) }
 
                     LazyColumn(
                         modifier = Modifier
@@ -273,357 +416,70 @@ fun BudgetScreen(
                                 Text(err, color = MaterialTheme.colorScheme.error)
                                 Spacer(modifier = Modifier.height(8.dp))
                             }
-
-                            OutlinedCard(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                border = androidx.compose.foundation.BorderStroke(
-                                    1.dp,
-                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f)
-                                )
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                                ) {
-                                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                                        IconButton(onClick = { viewModel.shiftMonthlyMonth(-1) }) {
-                                            Icon(Icons.Default.ChevronLeft, contentDescription = "Mes anterior")
-                                        }
-                                        Column {
-                                            Text(
-                                                formatMonthKey(state.monthlyMonth),
-                                                style = MaterialTheme.typography.titleMedium,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                            Text(
-                                                "Presupuesto mensual",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                        IconButton(onClick = { viewModel.shiftMonthlyMonth(1) }) {
-                                            Icon(Icons.Default.ChevronRight, contentDescription = "Mes siguiente")
-                                        }
-                                    }
-
-                                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                                        Box {
-                                            val selectedCurrency = state.monthlyCurrency.ifBlank { currencies.firstOrNull().orEmpty() }
-                                            AssistChip(
-                                                onClick = { currencyExpanded = true },
-                                                label = {
-                                                    Text(
-                                                        if (selectedCurrency.isBlank()) "Moneda" else selectedCurrency,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis
-                                                    )
-                                                },
-                                                leadingIcon = {
-                                                    Icon(Icons.Default.AttachMoney, contentDescription = null)
-                                                },
-                                                trailingIcon = {
-                                                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = null)
-                                                },
-                                                colors = AssistChipDefaults.assistChipColors(
-                                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                                    labelColor = MaterialTheme.colorScheme.onSurface
-                                                )
-                                            )
-                                            DropdownMenu(
-                                                expanded = currencyExpanded,
-                                                onDismissRequest = { currencyExpanded = false }
-                                            ) {
-                                                currencies.forEach { code ->
-                                                    DropdownMenuItem(
-                                                        text = { Text(code) },
-                                                        onClick = {
-                                                            currencyExpanded = false
-                                                            viewModel.setMonthlyCurrency(code)
-                                                        }
-                                                    )
-                                                }
-                                            }
-                                        }
-
-                                        FilledTonalIconButton(
-                                            onClick = { viewModel.copyPreviousMonthBudgets() }
-                                        ) {
-                                            Icon(Icons.Default.ContentCopy, contentDescription = "Copiar mes anterior")
-                                        }
-                                    }
-                                }
-                            }
                         }
 
                         item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                            ) {
-                                Column(modifier = Modifier.padding(14.dp)) {
-                                    Text(
-                                        "Resumen",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text("Presupuestado", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        Text(currencyFormat.format(totalLimit / 100.0), fontWeight = FontWeight.SemiBold)
-                                    }
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text("Gastado", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        Text(currencyFormat.format(totalSpent / 100.0), fontWeight = FontWeight.SemiBold)
-                                    }
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text("Disponible", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        Text(
-                                            currencyFormat.format(available / 100.0),
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = if (available >= 0) Income else MaterialTheme.colorScheme.error
-                                        )
-                                    }
+                            MonthlyGlobalSummaryCard(
+                                monthKey = state.monthlyMonth,
+                                monthsWithMovements = state.monthlyExpenseMonths,
+                                totalLimitCents = totalLimit,
+                                totalSpentCents = totalSpent,
+                                availableCents = available,
+                                progress = monthlyProgress,
+                                currencyFormat = currencyFormat,
+                                onSelectMonthKey = { targetMonthKey ->
+                                    val diff = monthsDiff(state.monthlyMonth, targetMonthKey)
+                                    if (diff != 0) viewModel.shiftMonthlyMonth(diff)
                                 }
-                            }
-                        }
-
-                        if (currencies.isEmpty()) {
-                            item {
-                                Text(
-                                    "No hay cuentas para determinar moneda.",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-
-                        if (state.monthlyItems.isEmpty()) {
-                            item {
-                                Text(
-                                    "Aún no tienes presupuestos ni gastos en este mes/moneda.",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-
-                        items(state.monthlyItems, key = { "budget_${it.categoryId}" }) { item ->
-                            val limit = item.limitCents
-                            val spent = item.spentCents
-                            val progress = if (limit <= 0) 0f else (spent.toFloat() / limit.toFloat()).coerceIn(0f, 1f)
-                            val over = spent > limit && limit > 0
-
-                            val subItems = state.monthlySubcategoryItemsByRootId[item.categoryId].orEmpty()
-
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        editMonthlyCategoryId = item.categoryId
-                                        showEditMonthlyLimit = true
-                                    },
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                border = androidx.compose.foundation.BorderStroke(
-                                    1.dp,
-                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f)
-                                )
-                            ) {
-                                Column(modifier = Modifier.padding(14.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            item.categoryName,
-                                            style = MaterialTheme.typography.titleSmall,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                        if (limit > 0) {
-                                            val pct = (progress * 100).toInt()
-                                            Surface(
-                                                shape = MaterialTheme.shapes.extraLarge,
-                                                color = (if (over) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
-                                                    .copy(alpha = 0.10f)
-                                            ) {
-                                                Text(
-                                                    "$pct%",
-                                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                                    color = if (over) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                                                    style = MaterialTheme.typography.labelMedium,
-                                                    fontWeight = FontWeight.SemiBold
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Text(
-                                        "${currencyFormat.format(spent / 100.0)} / ${if (limit > 0) currencyFormat.format(limit / 100.0) else "Sin límite"}",
-                                        color = if (over) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                    LinearProgressIndicator(
-                                        progress = { progress },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        color = if (over) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-                                    )
-
-                                    if (subItems.isNotEmpty()) {
-                                        Spacer(modifier = Modifier.height(10.dp))
-                                        Text(
-                                            "Subcategorías",
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Spacer(modifier = Modifier.height(8.dp))
-
-                                        subItems.forEach { sub ->
-                                            val subLimit = sub.limitCents
-                                            val subSpent = sub.spentCents
-                                            val subProgress = if (subLimit <= 0) 0f else (subSpent.toFloat() / subLimit.toFloat()).coerceIn(0f, 1f)
-                                            val subOver = subSpent > subLimit && subLimit > 0
-
-                                            Column(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .clip(MaterialTheme.shapes.medium)
-                                                    .clickable {
-                                                        editMonthlyCategoryId = sub.categoryId
-                                                        showEditMonthlyLimit = true
-                                                    }
-                                                    .padding(vertical = 6.dp)
-                                            ) {
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                                                ) {
-                                                    Text(
-                                                        sub.categoryName,
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis
-                                                    )
-                                                    Text(
-                                                        "${currencyFormat.format(subSpent / 100.0)} / ${if (subLimit > 0) currencyFormat.format(subLimit / 100.0) else "Sin límite"}",
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        color = if (subOver) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-                                                    )
-                                                }
-
-                                                Spacer(modifier = Modifier.height(6.dp))
-                                                LinearProgressIndicator(
-                                                    progress = { subProgress },
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    color = if (subOver) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        item {
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                "Configurar límites por categoría y subcategoría",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodySmall
                             )
                         }
 
-                        val rootCats = state.monthlyRootCategories.sortedBy { it.name }
-                        items(rootCats, key = { "config_root_${it.id}" }) { root ->
-                            val currentLimit = state.monthlyLimitsByCategoryId[root.id] ?: 0L
-
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        editMonthlyCategoryId = root.id
-                                        showEditMonthlyLimit = true
-                                    },
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                border = androidx.compose.foundation.BorderStroke(
-                                    1.dp,
-                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f)
+                        if (monthlyCards.isEmpty()) {
+                            item {
+                                MonthlyEmptyState(
+                                    onCreateFirst = {
+                                        val firstRoot = rootCatsSorted.firstOrNull()
+                                        if (firstRoot != null) {
+                                            val firstChild = state.monthlyChildrenMap[firstRoot.id]
+                                                .orEmpty()
+                                                .sortedBy { it.name }
+                                                .firstOrNull()
+                                            val targetId = firstChild?.id ?: firstRoot.id
+                                            editMonthlyCategoryId = targetId
+                                            showEditMonthlyLimit = true
+                                        }
+                                    }
                                 )
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        root.name,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        if (currentLimit > 0) currencyFormat.format(currentLimit / 100.0) else "Sin límite",
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
-                                }
+                            }
+                        } else {
+                            item {
+                                Text(
+                                    "Tus categorías",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
 
-                            val children = state.monthlyChildrenMap[root.id].orEmpty().sortedBy { it.name }
-                            children.forEach { child ->
-                                val childLimit = state.monthlyLimitsByCategoryId[child.id] ?: 0L
-                                Card(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(start = 16.dp)
-                                        .clickable {
-                                            editMonthlyCategoryId = child.id
-                                            showEditMonthlyLimit = true
-                                        },
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                    border = androidx.compose.foundation.BorderStroke(
-                                        1.dp,
-                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f)
-                                    )
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            child.name,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Text(
-                                            if (childLimit > 0) currencyFormat.format(childLimit / 100.0) else "Sin límite",
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            style = MaterialTheme.typography.bodyMedium
-                                        )
+                            items(monthlyCards, key = { "budget_${it.categoryId}" }) { model ->
+                                val children = state.monthlySubcategoryItemsByRootId[model.categoryId].orEmpty()
+                                val isExpanded = expandedRootId == model.categoryId
+                                MonthlyCategoryBudgetCard(
+                                    model = model,
+                                    currencyFormat = currencyFormat,
+                                    expanded = isExpanded,
+                                    children = children,
+                                    onToggleExpand = {
+                                        expandedRootId = if (isExpanded) null else model.categoryId
+                                    },
+                                    onEditRoot = {
+                                        editMonthlyCategoryId = model.categoryId
+                                        showEditMonthlyLimit = true
+                                    },
+                                    onEditChild = { childId ->
+                                        editMonthlyCategoryId = childId
+                                        showEditMonthlyLimit = true
                                     }
-                                }
+                                )
                             }
                         }
                     }
@@ -654,6 +510,7 @@ fun BudgetScreen(
         AlertDialog(
             onDismissRequest = { showEditMonthlyLimit = false },
             title = { Text("Límite mensual") },
+            containerColor = Color.White,
             text = {
                 Column(
                     modifier = Modifier
@@ -777,6 +634,7 @@ fun BudgetScreen(
         AlertDialog(
             onDismissRequest = { showCreateGoal = false },
             title = { Text("Nueva meta") },
+            containerColor = Color.White,
             text = {
                 Column(
                     modifier = Modifier
@@ -790,7 +648,15 @@ fun BudgetScreen(
                         onValueChange = { goalName = it },
                         label = { Text("Nombre") },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            disabledContainerColor = Color.White,
+                            focusedBorderColor = Color(0xFF2463EB),
+                            unfocusedBorderColor = Color(0xFFD8DFEA)
+                        )
                     )
                     OutlinedTextField(
                         value = goalAmountText,
@@ -799,7 +665,16 @@ fun BudgetScreen(
                         leadingIcon = { Icon(Icons.Default.AttachMoney, contentDescription = null) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color(0xFFF5F7FA),
+                            unfocusedContainerColor = Color(0xFFF5F7FA),
+                            disabledContainerColor = Color(0xFFF5F7FA),
+                            focusedBorderColor = Color(0xFF2463EB),
+                            unfocusedBorderColor = Color(0xFFD8DFEA)
+                        )
                     )
 
                     OutlinedTextField(
@@ -817,7 +692,15 @@ fun BudgetScreen(
                                 Icon(Icons.Default.Savings, contentDescription = null)
                             }
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            disabledContainerColor = Color.White,
+                            focusedBorderColor = Color(0xFF2463EB),
+                            unfocusedBorderColor = Color(0xFFD8DFEA)
+                        )
                     )
 
                     if (currencyExpanded) {
@@ -827,7 +710,8 @@ fun BudgetScreen(
                         }
 
                         ElevatedCard(
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.elevatedCardColors(containerColor = Color.White)
                         ) {
                             Column(
                                 modifier = Modifier
@@ -885,9 +769,20 @@ fun BudgetScreen(
                         readOnly = true,
                         label = { Text("Fecha objetivo") },
                         leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showDatePicker = true }
+                        trailingIcon = {
+                            IconButton(onClick = { showDatePicker = true }) {
+                                Icon(Icons.Default.CalendarToday, contentDescription = null)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            disabledContainerColor = Color.White,
+                            focusedBorderColor = Color(0xFF2463EB),
+                            unfocusedBorderColor = Color(0xFFD8DFEA)
+                        )
                     )
                 }
             },
@@ -905,15 +800,18 @@ fun BudgetScreen(
                             showCreateGoal = false
                         }
                     },
-                    enabled = goalName.isNotBlank() && goalAmountText.isNotBlank() && !state.isLoading
+                    enabled = goalName.isNotBlank() && goalAmountText.isNotBlank() && !state.isLoading,
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2463EB))
                 ) {
                     Text("Crear")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showCreateGoal = false }) {
-                    Text("Cancelar")
-                }
+                FilledTonalButton(
+                    onClick = { showCreateGoal = false },
+                    shape = MaterialTheme.shapes.extraLarge
+                ) { Text("Cancelar") }
             }
         )
 
@@ -966,6 +864,7 @@ fun BudgetScreen(
         AlertDialog(
             onDismissRequest = { showDeposit = false },
             title = { Text("Depositar a meta") },
+            containerColor = Color.White,
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -990,7 +889,8 @@ fun BudgetScreen(
                         )
                         DropdownMenu(
                             expanded = fromExpanded,
-                            onDismissRequest = { fromExpanded = false }
+                            onDismissRequest = { fromExpanded = false },
+                            modifier = Modifier.background(Color.White)
                         ) {
                             fromAccounts.forEach { account ->
                                 val bal = state.accountBalancesCents[account.id] ?: 0L
@@ -1020,10 +920,20 @@ fun BudgetScreen(
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Fecha") },
-                        leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showDatePicker = true }
+                        trailingIcon = {
+                            IconButton(onClick = { showDatePicker = true }) {
+                                Icon(Icons.Default.CalendarToday, contentDescription = null)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            disabledContainerColor = Color.White,
+                            focusedBorderColor = Color(0xFF2463EB),
+                            unfocusedBorderColor = Color(0xFFD8DFEA)
+                        )
                     )
 
                     OutlinedTextField(
@@ -1110,6 +1020,7 @@ fun BudgetScreen(
         AlertDialog(
             onDismissRequest = { showWithdraw = false },
             title = { Text("Retirar de meta") },
+            containerColor = Color.White,
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -1134,7 +1045,8 @@ fun BudgetScreen(
                         )
                         DropdownMenu(
                             expanded = toExpanded,
-                            onDismissRequest = { toExpanded = false }
+                            onDismissRequest = { toExpanded = false },
+                            modifier = Modifier.background(Color.White)
                         ) {
                             toAccounts.forEach { account ->
                                 val bal = state.accountBalancesCents[account.id] ?: 0L
@@ -1165,9 +1077,22 @@ fun BudgetScreen(
                         readOnly = true,
                         label = { Text("Fecha") },
                         leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
+                        trailingIcon = {
+                            IconButton(onClick = { showDatePicker = true }) {
+                                Icon(Icons.Default.CalendarToday, contentDescription = null)
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { showDatePicker = true }
+                            .clickable { showDatePicker = true },
+                        shape = MaterialTheme.shapes.extraLarge,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            disabledContainerColor = Color.White,
+                            focusedBorderColor = Color(0xFF2463EB),
+                            unfocusedBorderColor = Color(0xFFD8DFEA)
+                        )
                     )
 
                     OutlinedTextField(
@@ -1228,6 +1153,924 @@ fun BudgetScreen(
             ).apply {
                 setOnCancelListener { showDatePicker = false }
             }.show()
+        }
+    }
+}
+
+@Composable
+private fun BudgetSegmentedTabs(
+    selectedTab: Int,
+    tabs: List<String>,
+    onSelectTab: (Int) -> Unit
+) {
+    val leftSelected = selectedTab == 0
+    val leftBg by animateColorAsState(if (leftSelected) Color(0xFF2463EB) else Color(0xFFF1F3F7), label = "budgetTabLeftBg")
+    val rightBg by animateColorAsState(if (!leftSelected) Color(0xFF2463EB) else Color(0xFFF1F3F7), label = "budgetTabRightBg")
+    val leftFg = if (leftSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+    val rightFg = if (!leftSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        color = Color(0xFFF1F3F7),
+        shape = MaterialTheme.shapes.extraLarge
+    ) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(MaterialTheme.shapes.extraLarge)
+                    .background(leftBg)
+                    .clickable { onSelectTab(0) }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(tabs.getOrElse(0) { "" }, color = leftFg, fontWeight = FontWeight.SemiBold)
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(MaterialTheme.shapes.extraLarge)
+                    .background(rightBg)
+                    .clickable { onSelectTab(1) }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(tabs.getOrElse(1) { "" }, color = rightFg, fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun GoalsGlobalSummaryCard(
+    totalSavedCents: Long,
+    totalTargetCents: Long,
+    progress: Float,
+    currencyFormat: NumberFormat
+) {
+    val pct = (progress * 100).toInt().coerceIn(0, 100)
+    val pctColor = goalProgressColor(progress)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp)
+        ) {
+            Text(
+                text = "Tus metas",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                shape = MaterialTheme.shapes.extraLarge,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    GoalsSummaryBackgroundGraph(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .padding(horizontal = 6.dp, vertical = 6.dp)
+                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Progreso general",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            Surface(
+                                color = pctColor.copy(alpha = 0.12f),
+                                shape = MaterialTheme.shapes.extraLarge
+                            ) {
+                                Text(
+                                    "$pct%",
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    color = pctColor,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        SummaryLine(label = "Ahorrado total", value = currencyFormat.format(totalSavedCents / 100.0), valueColor = Income)
+                        SummaryLine(label = "Objetivo total", value = currencyFormat.format(totalTargetCents / 100.0), valueColor = MaterialTheme.colorScheme.onSurface)
+
+                        LinearProgressIndicator(
+                            progress = { progress.coerceIn(0f, 1f) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(10.dp)
+                                .clip(MaterialTheme.shapes.extraLarge),
+                            color = goalProgressColor(progress),
+                            trackColor = Color(0xFFE9EEF6)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GoalsSummaryBackgroundGraph(
+    modifier: Modifier = Modifier
+) {
+    val primaryOverlay = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+    Canvas(modifier = modifier) {
+        val width = size.width
+        val height = size.height
+
+        // Curved line path
+        val linePath = androidx.compose.ui.graphics.Path().apply {
+            moveTo(0f, height * 0.78f)
+            cubicTo(
+                width * 0.18f, height * 0.55f,
+                width * 0.36f, height * 0.88f,
+                width * 0.52f, height * 0.62f
+            )
+            cubicTo(
+                width * 0.68f, height * 0.38f,
+                width * 0.82f, height * 0.66f,
+                width, height * 0.3f
+            )
+        }
+
+        drawPath(
+            path = linePath,
+            color = primaryOverlay,
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 4f)
+        )
+
+        // Decorative circles (bubbles)
+        drawCircle(
+            color = Income.copy(alpha = 0.08f),
+            radius = width * 0.18f,
+            center = Offset(width * 0.15f, height * 0.2f)
+        )
+        drawCircle(
+            color = Expense.copy(alpha = 0.06f),
+            radius = width * 0.14f,
+            center = Offset(width * 0.82f, height * 0.78f)
+        )
+    }
+}
+
+@Composable
+private fun SummaryLine(
+    label: String,
+    value: String,
+    valueColor: Color
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
+        Text(value, color = valueColor, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun GoalModernCard(
+    title: String,
+    savedCents: Long,
+    targetCents: Long,
+    remainingCents: Long,
+    progress: Float,
+    targetDateEpochSec: Long,
+    currencyFormat: NumberFormat,
+    dateFormat: SimpleDateFormat,
+    suggestedMonthlyCents: Long,
+    monthsLeft: Int,
+    onDeposit: () -> Unit,
+    onWithdraw: () -> Unit
+) {
+    val pct = (progress.coerceIn(0f, 1f) * 100).toInt()
+    val pctColor = goalProgressColor(progress)
+    val remainingText = currencyFormat.format(remainingCents / 100.0)
+    val targetText = currencyFormat.format(targetCents / 100.0)
+    val savedText = currencyFormat.format(savedCents / 100.0)
+    val dateText = dateFormat.format(Date(targetDateEpochSec * 1000))
+
+    val nowEpochSec = System.currentTimeMillis() / 1000
+    val daysLeft = remember(targetDateEpochSec, nowEpochSec) {
+        ((targetDateEpochSec - nowEpochSec) / 86400).toInt().coerceAtLeast(1)
+    }
+    val suggestedDailyCents = remember(remainingCents, daysLeft) {
+        if (remainingCents <= 0L) 0L else (remainingCents / daysLeft.toLong()).coerceAtLeast(0L)
+    }
+    val motivationalLabel = when {
+        progress >= 0.75f -> "Vas muy bien"
+        progress >= 0.35f -> "Vas a mitad de camino"
+        else -> "Aún falta bastante"
+    }
+
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = "$pct%",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = pctColor
+                )
+            }
+
+            Text(
+                text = "$savedText / $targetText",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            LinearProgressIndicator(
+                progress = { progress.coerceIn(0f, 1f) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(10.dp)
+                    .clip(MaterialTheme.shapes.extraLarge),
+                color = pctColor,
+                trackColor = Color(0xFFE9EEF6)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Faltan: $remainingText",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "\uD83D\uDCC5 $dateText",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Surface(
+                color = pctColor.copy(alpha = 0.08f),
+                shape = MaterialTheme.shapes.extraLarge
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        motivationalLabel,
+                        fontWeight = FontWeight.Bold,
+                        color = pctColor,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    if (remainingCents > 0L) {
+                        val dailyText = currencyFormat.format(suggestedDailyCents / 100.0)
+                        Text(
+                            "Si ahorras $dailyText/día lo logras en $daysLeft día(s)",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            "Sugerido mensual: ${currencyFormat.format(suggestedMonthlyCents / 100.0)} (en $monthsLeft mes(es))",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Button(
+                    onClick = onDeposit,
+                    modifier = Modifier.weight(1f),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2463EB))
+                ) {
+                    Text("+ Depositar")
+                }
+                OutlinedButton(
+                    onClick = onWithdraw,
+                    modifier = Modifier.weight(1f),
+                    shape = MaterialTheme.shapes.extraLarge
+                ) {
+                    Text("Retirar")
+                }
+            }
+        }
+    }
+}
+
+private fun goalProgressColor(progress: Float): Color {
+    return when {
+        progress >= 0.75f -> Color(0xFF16A34A)
+        progress >= 0.35f -> Color(0xFFF59E0B)
+        else -> Color(0xFF2463EB)
+    }
+}
+
+private enum class MonthlyStatus(val label: String, val priority: Int) {
+    OK("Bien", 1),
+    RISK("En riesgo", 2),
+    EXCEEDED("Excedido", 3)
+}
+
+private data class MonthlyCategoryCardModel(
+    val categoryId: String,
+    val categoryName: String,
+    val limitCents: Long,
+    val spentCents: Long,
+    val progress: Float,
+    val status: MonthlyStatus
+)
+
+private fun monthlyStatus(progress: Float, limitCents: Long): MonthlyStatus {
+    if (limitCents <= 0L) return MonthlyStatus.OK
+    return when {
+        progress > 1f -> MonthlyStatus.EXCEEDED
+        progress >= 0.7f -> MonthlyStatus.RISK
+        else -> MonthlyStatus.OK
+    }
+}
+
+private fun monthlyStatusColor(status: MonthlyStatus): Color {
+    return when (status) {
+        MonthlyStatus.OK -> Color(0xFF2463EB)
+        MonthlyStatus.RISK -> Color(0xFFF59E0B)
+        MonthlyStatus.EXCEEDED -> Color(0xFFEF4444)
+    }
+}
+
+private fun monthsDiff(currentMonthKey: String, targetMonthKey: String): Int {
+    val c = currentMonthKey.split("-")
+    val t = targetMonthKey.split("-")
+    val cy = c.getOrNull(0)?.toIntOrNull() ?: return 0
+    val cm = c.getOrNull(1)?.toIntOrNull() ?: return 0
+    val ty = t.getOrNull(0)?.toIntOrNull() ?: return 0
+    val tm = t.getOrNull(1)?.toIntOrNull() ?: return 0
+    return (ty * 12 + tm) - (cy * 12 + cm)
+}
+
+@Composable
+private fun MonthlyGlobalSummaryCard(
+    monthKey: String,
+    monthsWithMovements: List<String>,
+    totalLimitCents: Long,
+    totalSpentCents: Long,
+    availableCents: Long,
+    progress: Float,
+    currencyFormat: NumberFormat,
+    onSelectMonthKey: (String) -> Unit
+) {
+    var monthExpanded by remember { mutableStateOf(false) }
+    val monthOptions = remember(monthKey, monthsWithMovements) {
+        val list = (listOf(monthKey) + monthsWithMovements)
+            .distinct()
+            .sortedDescending()
+        if (list.isEmpty()) listOf(monthKey) else list
+    }
+
+    val status = monthlyStatus(progress, totalLimitCents)
+    val statusColor = monthlyStatusColor(status)
+    val pct = (progress * 100).toInt().coerceAtLeast(0)
+    val noDecimals = remember(currencyFormat) {
+        (currencyFormat.clone() as NumberFormat).apply {
+            maximumFractionDigits = 0
+            minimumFractionDigits = 0
+        }
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Este mes",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Box {
+                    AssistChip(
+                        onClick = { monthExpanded = true },
+                        label = {
+                            Text(
+                                formatMonthKey(monthKey),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        },
+                        leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
+                        trailingIcon = { Icon(Icons.Default.KeyboardArrowDown, contentDescription = null) },
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            labelColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    )
+                    DropdownMenu(
+                        expanded = monthExpanded,
+                        onDismissRequest = { monthExpanded = false },
+                        modifier = Modifier.background(Color.White)
+                    ) {
+                        Surface(color = Color.White, shape = MaterialTheme.shapes.large) {
+                            Column(
+                                modifier = Modifier
+                                    .background(Color.White)
+                                    .heightIn(max = 340.dp)
+                                    .verticalScroll(rememberScrollState())
+                            ) {
+                                monthOptions.forEach { key ->
+                                    DropdownMenuItem(
+                                        text = { Text(formatMonthKey(key)) },
+                                        onClick = {
+                                            monthExpanded = false
+                                            onSelectMonthKey(key)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                shape = MaterialTheme.shapes.extraLarge,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    MonthlySummaryBackgroundGraph(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .padding(horizontal = 6.dp, vertical = 6.dp)
+                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Row 1: Presupuesto and Gastado
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Presupuesto", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    noDecimals.format(totalLimitCents / 100.0),
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    softWrap = false
+                                )
+                            }
+                            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                                Text("Gastado", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    noDecimals.format(totalSpentCents / 100.0),
+                                    fontWeight = FontWeight.Bold,
+                                    color = statusColor,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    softWrap = false
+                                )
+                            }
+                        }
+
+                        // Row 2: Disponible centered
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("Disponible", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    noDecimals.format(availableCents / 100.0),
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (availableCents >= 0L) Color(0xFF16A34A) else Color(0xFFEF4444),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    softWrap = false
+                                )
+                            }
+                        }
+
+                        // Progress bar and percentage
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            LinearProgressIndicator(
+                                progress = { progress.coerceAtLeast(0f).coerceAtMost(1f) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(10.dp)
+                                    .clip(MaterialTheme.shapes.extraLarge),
+                                color = statusColor,
+                                trackColor = Color(0xFFE9EEF6)
+                            )
+                            Text(
+                                "$pct%",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MonthlySummaryBackgroundGraph(
+    modifier: Modifier = Modifier
+) {
+    val primaryOverlay = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+    Canvas(modifier = modifier) {
+        val width = size.width
+        val height = size.height
+
+        // Curved line path
+        val linePath = androidx.compose.ui.graphics.Path().apply {
+            moveTo(0f, height * 0.78f)
+            cubicTo(
+                width * 0.18f, height * 0.55f,
+                width * 0.36f, height * 0.88f,
+                width * 0.52f, height * 0.62f
+            )
+            cubicTo(
+                width * 0.68f, height * 0.38f,
+                width * 0.82f, height * 0.66f,
+                width, height * 0.3f
+            )
+        }
+
+        drawPath(
+            path = linePath,
+            color = primaryOverlay,
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 4f)
+        )
+
+        // Decorative circles (bubbles)
+        drawCircle(
+            color = Income.copy(alpha = 0.08f),
+            radius = width * 0.18f,
+            center = Offset(width * 0.15f, height * 0.2f)
+        )
+        drawCircle(
+            color = Expense.copy(alpha = 0.06f),
+            radius = width * 0.14f,
+            center = Offset(width * 0.82f, height * 0.78f)
+        )
+    }
+}
+
+@Composable
+private fun MonthlyCategoryBudgetCard(
+    model: MonthlyCategoryCardModel,
+    currencyFormat: NumberFormat,
+    expanded: Boolean,
+    children: List<com.myfinances.ui.viewmodel.MonthlyBudgetItem>,
+    onToggleExpand: () -> Unit,
+    onEditRoot: () -> Unit,
+    onEditChild: (String) -> Unit
+) {
+    val statusColor = monthlyStatusColor(model.status)
+    val pct = (model.progress * 100).toInt().coerceAtLeast(0)
+    val availableCents = model.limitCents - model.spentCents
+    val availableLabel = if (model.limitCents <= 0L) {
+        "Sin límite"
+    } else {
+        if (availableCents >= 0L) {
+            "Disponible: ${currencyFormat.format(availableCents / 100.0)}"
+        } else {
+            "Excediste por ${currencyFormat.format((-availableCents) / 100.0)}"
+        }
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onToggleExpand),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = statusColor.copy(alpha = 0.10f)
+                    ) {
+                        Box(
+                            modifier = Modifier.size(36.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                model.categoryName.take(1).uppercase(),
+                                fontWeight = FontWeight.Bold,
+                                color = statusColor
+                            )
+                        }
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            model.categoryName,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        val topLine = if (model.limitCents > 0L) {
+                            "${currencyFormat.format(model.spentCents / 100.0)} / ${currencyFormat.format(model.limitCents / 100.0)}"
+                        } else {
+                            currencyFormat.format(model.spentCents / 100.0)
+                        }
+                        Text(
+                            topLine,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Surface(
+                        color = statusColor.copy(alpha = 0.12f),
+                        shape = MaterialTheme.shapes.extraLarge
+                    ) {
+                        Text(
+                            "$pct%",
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            color = statusColor,
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+
+                    if (children.isEmpty()) {
+                        IconButton(onClick = onEditRoot) {
+                            Icon(Icons.Default.Edit, contentDescription = "Editar límite")
+                        }
+                    }
+                }
+            }
+
+            LinearProgressIndicator(
+                progress = { model.progress.coerceAtLeast(0f).coerceAtMost(1f) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(10.dp)
+                    .clip(MaterialTheme.shapes.extraLarge),
+                color = statusColor,
+                trackColor = Color(0xFFE9EEF6)
+            )
+
+            Text(
+                availableLabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (model.status == MonthlyStatus.EXCEEDED) Color(0xFFEF4444) else MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = if (model.status == MonthlyStatus.EXCEEDED) FontWeight.SemiBold else FontWeight.Normal
+            )
+
+            if (expanded && children.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    children.forEach { child ->
+                        val childProgress = if (child.limitCents <= 0L) 0f else (child.spentCents.toFloat() / child.limitCents.toFloat()).coerceAtLeast(0f)
+                        val childStatus = monthlyStatus(childProgress, child.limitCents)
+                        val childColor = monthlyStatusColor(childStatus)
+                        val childPct = (childProgress * 100).toInt().coerceAtLeast(0)
+
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onEditChild(child.categoryId) },
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f)
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            child.categoryName,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        val childTopLine = if (child.limitCents > 0L) {
+                                            "${currencyFormat.format(child.spentCents / 100.0)} / ${currencyFormat.format(child.limitCents / 100.0)}"
+                                        } else {
+                                            currencyFormat.format(child.spentCents / 100.0)
+                                        }
+                                        Text(
+                                            childTopLine,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+
+                                    Surface(
+                                        color = childColor.copy(alpha = 0.12f),
+                                        shape = MaterialTheme.shapes.extraLarge
+                                    ) {
+                                        Text(
+                                            "$childPct%",
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                            color = childColor,
+                                            fontWeight = FontWeight.Bold,
+                                            style = MaterialTheme.typography.labelLarge
+                                        )
+                                    }
+                                }
+
+                                LinearProgressIndicator(
+                                    progress = { childProgress.coerceAtLeast(0f).coerceAtMost(1f) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(8.dp)
+                                        .clip(MaterialTheme.shapes.extraLarge),
+                                    color = childColor,
+                                    trackColor = Color(0xFFE9EEF6)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MonthlyEmptyState(
+    onCreateFirst: () -> Unit
+) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                "Aún no has definido presupuestos",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                "Crea tu primer límite para controlar tus gastos por categoría.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Button(
+                onClick = onCreateFirst,
+                shape = MaterialTheme.shapes.extraLarge,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2463EB))
+            ) {
+                Text("Crear primer presupuesto")
+            }
+        }
+    }
+}
+
+@Composable
+private fun BudgetFabAction(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = CircleShape,
+        color = Color.White,
+        shadowElevation = 3.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f)),
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(icon, contentDescription = null, tint = Color(0xFF2463EB), modifier = Modifier.size(18.dp))
+            Text(label, fontWeight = FontWeight.SemiBold)
         }
     }
 }

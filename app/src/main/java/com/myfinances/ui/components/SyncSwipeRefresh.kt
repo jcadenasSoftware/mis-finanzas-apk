@@ -18,7 +18,7 @@ fun SyncSwipeRefresh(
     val isSyncing by syncViewModel.isSyncing.collectAsState()
     SwipeRefresh(
         state = rememberSwipeRefreshState(isRefreshing = isSyncing),
-        onRefresh = { syncViewModel.syncAll() },
+        onRefresh = { syncViewModel.syncAll(force = true) },
         modifier = modifier
     ) {
         content()

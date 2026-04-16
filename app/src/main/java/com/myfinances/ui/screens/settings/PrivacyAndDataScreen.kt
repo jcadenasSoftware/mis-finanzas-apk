@@ -1,18 +1,11 @@
 package com.myfinances.ui.screens.settings
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -26,15 +19,11 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -54,43 +43,30 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.myfinances.ui.components.CompactHeader
-import com.myfinances.ui.util.CountryCurrency
 import com.myfinances.ui.viewmodel.PrivacyAndDataViewModel
-import com.myfinances.ui.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(
+fun PrivacyAndDataScreen(
     onNavigateBack: () -> Unit,
     onNavigateToPrivacyPolicy: () -> Unit,
-    viewModel: SettingsViewModel = hiltViewModel(),
-    privacyViewModel: PrivacyAndDataViewModel = hiltViewModel()
+    viewModel: PrivacyAndDataViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
-    val privacyState by privacyViewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(state.error) {
-        state.error?.let { snackbarHostState.showSnackbar(it) }
-    }
-    LaunchedEffect(privacyState.message) {
-        privacyState.message?.let { snackbarHostState.showSnackbar(it) }
+    LaunchedEffect(state.message) {
+        state.message?.let { snackbarHostState.showSnackbar(it) }
     }
 
     var showDeleteConfirm by remember { mutableStateOf(false) }
-    var countryExpanded by remember { mutableStateOf(false) }
-
-    var showAddRate by remember { mutableStateOf(false) }
-    var rateFrom by remember { mutableStateOf("USD") }
-    var rateTo by remember { mutableStateOf(state.baseCurrency) }
-    var rateValue by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
             CompactHeader(
                 title = {
                     Text(
-                        text = "Configuración",
+                        text = "Privacidad y datos",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -99,7 +75,7 @@ fun SettingsScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
                     }
-                },
+                }
             )
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
@@ -110,117 +86,7 @@ fun SettingsScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            // País y Moneda
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    Text(
-                        text = "Regional",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
-
-                    Text("País")
-                    Box {
-                        OutlinedTextField(
-                            value = CountryCurrency.displayName(state.countryCode),
-                            onValueChange = {},
-                            readOnly = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Box(
-                            modifier = Modifier
-                                .matchParentSize()
-                                .clickable { countryExpanded = true }
-                        )
-                        DropdownMenu(
-                            expanded = countryExpanded,
-                            onDismissRequest = { countryExpanded = false },
-                            modifier = Modifier.background(Color.White)
-                        ) {
-                            CountryCurrency.options.forEach { opt ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Column {
-                                            Text(
-                                                text = opt.displayName,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                            Text(
-                                                text = opt.suggestedCurrency,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                    },
-                                    onClick = {
-                                        countryExpanded = false
-                                        viewModel.saveCountry(opt.code)
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    OutlinedTextField(
-                        value = state.baseCurrency,
-                        onValueChange = { viewModel.saveBaseCurrency(it.trim().uppercase()) },
-                        label = { Text("Moneda base (ISO)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Tasas manuales
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("Tasas manuales")
-                Button(onClick = {
-                    rateTo = state.baseCurrency
-                    showAddRate = true
-                }) {
-                    Text("Agregar")
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            LazyColumn(modifier = Modifier.height(if (state.rates.isEmpty()) 0.dp else (state.rates.size * 52).coerceAtMost(200).dp)) {
-                items(state.rates) { r ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("${r.fromCurrency} -> ${r.toCurrency}: ${r.rate}")
-                        IconButton(onClick = { viewModel.deleteRate(r.id) }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Eliminar")
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-            Divider()
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Política de privacidad
+            // Privacy Policy Section
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -247,12 +113,14 @@ fun SettingsScreen(
                             fontWeight = FontWeight.Bold
                         )
                     }
+
                     Text(
                         text = "Consulta cómo recopilamos, usamos y protegemos tu información personal.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
+
                     OutlinedButton(
                         onClick = onNavigateToPrivacyPolicy,
                         modifier = Modifier.fillMaxWidth()
@@ -269,7 +137,7 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Eliminar datos
+            // Delete Data Section
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -297,15 +165,19 @@ fun SettingsScreen(
                             color = Color(0xFFDC2626)
                         )
                     }
+
                     Text(
                         text = "Elimina permanentemente todos tus datos de la aplicación y del servidor. Esta acción no se puede deshacer.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
+
                     Button(
                         onClick = { showDeleteConfirm = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFDC2626)
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(
@@ -317,8 +189,6 @@ fun SettingsScreen(
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 
@@ -358,9 +228,13 @@ fun SettingsScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        privacyViewModel.deleteAllUserData { showDeleteConfirm = false }
+                        viewModel.deleteAllUserData { success ->
+                            showDeleteConfirm = false
+                        }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFDC2626)
+                    )
                 ) {
                     Text("Sí, eliminar todo")
                 }
@@ -372,50 +246,5 @@ fun SettingsScreen(
             }
         )
     }
-
-    if (showAddRate) {
-        AlertDialog(
-            onDismissRequest = { showAddRate = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    val parsed = rateValue.toDoubleOrNull()
-                    if (parsed != null) {
-                        viewModel.upsertRate(rateFrom.trim().uppercase(), rateTo.trim().uppercase(), parsed)
-                        showAddRate = false
-                        rateValue = ""
-                    }
-                }) {
-                    Text("Guardar")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddRate = false }) {
-                    Text("Cancelar")
-                }
-            },
-            title = { Text("Nueva tasa") },
-            text = {
-                Column {
-                    OutlinedTextField(
-                        value = rateFrom,
-                        onValueChange = { rateFrom = it },
-                        label = { Text("Desde (ISO)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = rateTo,
-                        onValueChange = { rateTo = it },
-                        label = { Text("Hacia (ISO)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = rateValue,
-                        onValueChange = { rateValue = it },
-                        label = { Text("Tasa") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-        )
-    }
 }
+
