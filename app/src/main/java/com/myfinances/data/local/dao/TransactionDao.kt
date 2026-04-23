@@ -48,6 +48,11 @@ data class CategorySpentTotal(
     val totalSpentCents: Long
 )
 
+data class CategorySpentResult(
+    val categoryId: String,
+    val totalSpentCents: Long
+)
+
 data class HierarchyCategoryTotal(
     val rootCategoryId: String,
     val rootCategoryName: String,
@@ -303,4 +308,20 @@ interface TransactionDao {
         fromEpochSec: Long,
         toEpochSec: Long
     ): List<HierarchyCategoryTotal>
+
+    @Query("""
+        SELECT t.category_id AS categoryId, COALESCE(SUM(t.amount_cents), 0) AS totalSpentCents
+        FROM transactions t
+        INNER JOIN accounts a ON a.id = t.account_id
+        WHERE t.user_uid = :userUid
+          AND t.kind = 'EXPENSE'
+          AND a.currency = :currency
+          AND strftime('%Y-%m', datetime(t.occurred_at_epoch_sec, 'unixepoch')) = :month
+        GROUP BY t.category_id
+    """)
+    suspend fun getSpentPerCategoryForMonth(
+        userUid: String,
+        currency: String,
+        month: String
+    ): List<CategorySpentResult>
 }

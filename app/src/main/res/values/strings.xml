@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Mis Finanzas</string>
+    <string name="app_name">Xpendz</string>
     <!-- Client ID para Google Sign-In -->
     <string name="default_web_client_id">288237658868-anbqshh1m1fft87d9vdhudj4dcrcrg21.apps.googleusercontent.com</string>
 </resources>

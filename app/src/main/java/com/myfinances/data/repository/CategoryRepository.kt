@@ -107,12 +107,14 @@ class CategoryRepository @Inject constructor(
         userUid: String,
         categoryId: String,
         newName: String,
+        kind: String? = null,
         iconKey: String? = null
     ): CategoryEntity? {
         val category = categoryDao.getById(categoryId) ?: return null
         val now = System.currentTimeMillis() / 1000
         val updated = category.copy(
             name = newName,
+            kind = kind ?: category.kind,
             iconKey = iconKey,
             updatedAtEpochSec = now,
             updatedBy = deviceIdProvider.get()

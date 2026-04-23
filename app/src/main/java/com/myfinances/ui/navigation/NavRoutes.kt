@@ -1,6 +1,7 @@
 package com.myfinances.ui.navigation
 
 sealed class NavRoutes(val route: String) {
+    object Onboarding : NavRoutes("onboarding")
     object Login : NavRoutes("login")
     object Dashboard : NavRoutes("dashboard")
     object Transactions : NavRoutes("transactions?accountId={accountId}&categoryId={categoryId}&from={from}&to={to}") {
@@ -21,7 +22,12 @@ sealed class NavRoutes(val route: String) {
     object Categories : NavRoutes("categories")
     object Charts : NavRoutes("charts")
     object Loans : NavRoutes("loans")
-    object Budget : NavRoutes("budget")
+    object Budget : NavRoutes("budget?tab={tab}") {
+        fun createRoute(tab: String? = null): String {
+            val t = tab ?: ""
+            return "budget?tab=$t"
+        }
+    }
     object AddTransaction : NavRoutes("add_transaction")
     object EditTransaction : NavRoutes("edit_transaction/{transactionId}") {
         fun createRoute(transactionId: String) = "edit_transaction/$transactionId"

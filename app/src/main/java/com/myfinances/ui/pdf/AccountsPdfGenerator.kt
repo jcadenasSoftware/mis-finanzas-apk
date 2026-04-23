@@ -35,28 +35,43 @@ object AccountsPdfGenerator {
 
     // Account type colors
     private val typeColors = mapOf(
-        "SAVINGS"   to Color.parseColor("#16A34A"),
-        "CHECKING"  to Color.parseColor("#1A56DB"),
+        "BANK"      to Color.parseColor("#1A56DB"),
         "CASH"      to Color.parseColor("#D97706"),
-        "CREDIT"    to Color.parseColor("#DC2626"),
-        "INVESTMENT" to Color.parseColor("#7C3AED"),
+        "SAVINGS"   to Color.parseColor("#16A34A"),
+        "VIRTUAL_WALLET" to Color.parseColor("#2563EB"),
+        "DIGITAL_ACCOUNT" to Color.parseColor("#0EA5E9"),
+
+        // Legacy aliases
+        "CHECKING"  to Color.parseColor("#1A56DB"),
+        "CREDIT"    to Color.parseColor("#1A56DB"),
+        "INVESTMENT" to Color.parseColor("#16A34A"),
         "OTHER"     to Color.parseColor("#64748B")
     )
     private val typeBgColors = mapOf(
-        "SAVINGS"   to Color.parseColor("#F0FDF4"),
-        "CHECKING"  to Color.parseColor("#EFF6FF"),
+        "BANK"      to Color.parseColor("#EFF6FF"),
         "CASH"      to Color.parseColor("#FFFBEB"),
-        "CREDIT"    to Color.parseColor("#FEF2F2"),
-        "INVESTMENT" to Color.parseColor("#F5F3FF"),
+        "SAVINGS"   to Color.parseColor("#F0FDF4"),
+        "VIRTUAL_WALLET" to Color.parseColor("#EFF6FF"),
+        "DIGITAL_ACCOUNT" to Color.parseColor("#E0F2FE"),
+
+        // Legacy aliases
+        "CHECKING"  to Color.parseColor("#EFF6FF"),
+        "CREDIT"    to Color.parseColor("#EFF6FF"),
+        "INVESTMENT" to Color.parseColor("#F0FDF4"),
         "OTHER"     to Color.parseColor("#F8FAFC")
     )
     private val typeLabels = mapOf(
-        "SAVINGS"    to "Ahorros",
-        "CHECKING"   to "Corriente",
-        "CASH"       to "Efectivo",
-        "CREDIT"     to "Crédito",
-        "INVESTMENT" to "Inversión",
-        "OTHER"      to "Otra"
+        "BANK"           to "Banco",
+        "CASH"           to "Efectivo",
+        "SAVINGS"        to "Ahorro",
+        "VIRTUAL_WALLET" to "Billetera virtual",
+        "DIGITAL_ACCOUNT" to "Cuenta digital",
+
+        // Legacy aliases
+        "CHECKING"   to "Banco",
+        "CREDIT"     to "Banco",
+        "INVESTMENT" to "Ahorro",
+        "OTHER"      to "Banco"
     )
 
     data class AccountWithBalance(

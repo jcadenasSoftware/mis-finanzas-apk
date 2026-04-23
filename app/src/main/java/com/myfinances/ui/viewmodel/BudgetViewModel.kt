@@ -210,18 +210,16 @@ class BudgetViewModel @Inject constructor(
             subcategoryItemsByRootId[r.id] = childItems
         }
 
-        val rootsWithLimits = summedLimitByRoot.filterValues { it > 0 }.keys
-        val usedCategoryIds = (spentMap.keys + rootsWithLimits)
-
-        val items = usedCategoryIds.mapNotNull { id ->
-            val cat = rootMap[id] ?: return@mapNotNull null
-            MonthlyBudgetItem(
-                categoryId = id,
-                categoryName = cat.name,
-                limitCents = summedLimitByRoot[id] ?: 0L,
-                spentCents = spentMap[id] ?: 0L
-            )
-        }.sortedBy { it.categoryName }
+        val items = roots
+            .map { cat ->
+                MonthlyBudgetItem(
+                    categoryId = cat.id,
+                    categoryName = cat.name,
+                    limitCents = summedLimitByRoot[cat.id] ?: 0L,
+                    spentCents = spentMap[cat.id] ?: 0L
+                )
+            }
+            .sortedBy { it.categoryName }
 
         val totalLimit = items.sumOf { it.limitCents }
         val totalSpent = items.sumOf { it.spentCents }

@@ -1300,7 +1300,7 @@ private fun ChartsFiltersBottomSheet(
                 }
             }
 
-            Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f))
+            HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f))
 
             Column(
                 modifier = Modifier

@@ -112,19 +112,17 @@ fun LoginScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.ic_launcher),
-                    contentDescription = "Mis Finanzas Logo",
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(MaterialTheme.shapes.large)
+                    painter = painterResource(id = R.mipmap.xpendz_ico),
+                    contentDescription = "Xpendz Logo",
+                    modifier = Modifier.size(80.dp)
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = "Mis Finanzas",
+                    text = "Xpendz",
                     style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
                     color = Color(0xFF2463EB)
                 )
 

@@ -266,7 +266,7 @@ private fun MonthPickerBottomSheet(
                                 style = MaterialTheme.typography.bodyLarge
                             )
                         }
-                        Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
                     }
                 }
             }
@@ -327,7 +327,7 @@ private fun AccountPickerBottomSheet(
                         Icon(radio(selectedAccountId == null), contentDescription = null)
                         Text("Todas las cuentas", style = MaterialTheme.typography.bodyLarge)
                     }
-                    Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
 
                     accounts.forEach { account ->
                         Row(
@@ -341,7 +341,7 @@ private fun AccountPickerBottomSheet(
                             Icon(radio(selectedAccountId == account.id), contentDescription = null)
                             Text(account.name, style = MaterialTheme.typography.bodyLarge)
                         }
-                        Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
                     }
                 }
             }

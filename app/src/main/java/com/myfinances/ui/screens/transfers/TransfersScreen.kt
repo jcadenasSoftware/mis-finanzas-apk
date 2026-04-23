@@ -327,7 +327,7 @@ private fun AccountPickerBottomSheet(
                         )
                         Text("Todas las cuentas", style = MaterialTheme.typography.bodyLarge)
                     }
-                    Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
 
                     accounts.forEach { account ->
                         val selected = selectedAccountId == account.id
@@ -346,7 +346,7 @@ private fun AccountPickerBottomSheet(
                             )
                             Text(account.name, style = MaterialTheme.typography.bodyLarge)
                         }
-                        Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
                     }
                 }
             }
@@ -548,7 +548,7 @@ private fun MonthPickerBottomSheet(
                             Icon(Icons.Default.DateRange, contentDescription = null)
                             Text(selectedLabel, style = MaterialTheme.typography.bodyLarge)
                         }
-                        Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
                     }
                 }
             }

@@ -41,7 +41,7 @@ import com.myfinances.data.local.entity.UserEntity
         ExchangeRateEntity::class,
         UserSettingsEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -234,6 +234,11 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE accounts ADD COLUMN icon_key TEXT")
                 db.execSQL("ALTER TABLE accounts ADD COLUMN color_hex TEXT")
+            }
+        }
+
+        val MIGRATION_8_9: Migration = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
             }
         }
     }

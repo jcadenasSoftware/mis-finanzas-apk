@@ -295,7 +295,7 @@ fun DashboardScreen(
                                     onNavigateToSettings()
                                 }
                             )
-                            Divider(modifier = androidx.compose.ui.Modifier.padding(vertical = 4.dp))
+                            HorizontalDivider(modifier = androidx.compose.ui.Modifier.padding(vertical = 4.dp))
                             DropdownMenuItem(
                                 text = {
                                     Text(
@@ -854,11 +854,26 @@ private fun defaultIconKeyForType(accountType: String): String {
     return when (accountType) {
         "BANK" -> "bank"
         "CASH" -> "cash"
-        "CREDIT" -> "card"
         "SAVINGS" -> "savings"
         "VIRTUAL_WALLET" -> "wallet"
         "DIGITAL_ACCOUNT" -> "digital"
         else -> "bank"
+    }
+}
+
+private fun accountTypeLabel(raw: String?): String {
+    val t = raw?.trim()?.uppercase().orEmpty()
+    return when (t) {
+        "BANK" -> "Banco"
+        "CASH" -> "Efectivo"
+        "SAVINGS" -> "Ahorro"
+        "VIRTUAL_WALLET" -> "Billetera virtual"
+        "DIGITAL_ACCOUNT" -> "Cuenta digital"
+        "CREDIT" -> "Banco"
+        "INVESTMENT" -> "Ahorro"
+        "OTHER" -> "Banco"
+        "CHECKING" -> "Banco"
+        else -> if (t.isBlank()) "Cuenta" else t
     }
 }
 
@@ -943,7 +958,7 @@ private fun RankedAccountCard(
                         maxLines = 2
                     )
                     Text(
-                        text = "${accountWithBalance.account.type}  •  ${accountWithBalance.account.currency}",
+                        text = "${accountTypeLabel(accountWithBalance.account.type)}  •  ${accountWithBalance.account.currency}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -1019,8 +1034,7 @@ private fun RankedAccountCard(
         val accountTypes = listOf(
             "BANK" to "Banco",
             "CASH" to "Efectivo",
-            "CREDIT" to "Crédito",
-            "SAVINGS" to "Ahorros",
+            "SAVINGS" to "Ahorro",
             "VIRTUAL_WALLET" to "Billetera virtual",
             "DIGITAL_ACCOUNT" to "Cuenta digital"
         )

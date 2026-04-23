@@ -210,7 +210,7 @@ fun CategoriesScreen(
                                         isExpanded = state.expandedCategories.contains(category.id),
                                         onToggleExpand = { viewModel.toggleExpanded(category.id) },
                                         onAddSubcategory = { viewModel.showAddDialog(category.id) },
-                                        onRename = { newName, iconKey -> viewModel.renameCategory(category.id, newName, iconKey) },
+                                        onRename = { newName, iconKey, kind -> viewModel.renameCategory(category.id, newName, iconKey, kind) },
                                         onDelete = { viewModel.deleteCategory(category.id) },
                                         onRenameChild = { childId, newName, iconKey -> viewModel.renameCategory(childId, newName, iconKey) },
                                         onDeleteChild = { childId -> viewModel.deleteCategory(childId) }
@@ -234,7 +234,7 @@ fun CategoriesScreen(
                                         isExpanded = state.expandedCategories.contains(category.id),
                                         onToggleExpand = { viewModel.toggleExpanded(category.id) },
                                         onAddSubcategory = { viewModel.showAddDialog(category.id) },
-                                        onRename = { newName, iconKey -> viewModel.renameCategory(category.id, newName, iconKey) },
+                                        onRename = { newName, iconKey, kind -> viewModel.renameCategory(category.id, newName, iconKey, kind) },
                                         onDelete = { viewModel.deleteCategory(category.id) },
                                         onRenameChild = { childId, newName, iconKey -> viewModel.renameCategory(childId, newName, iconKey) },
                                         onDeleteChild = { childId -> viewModel.deleteCategory(childId) }
@@ -247,7 +247,7 @@ fun CategoriesScreen(
                                     CategorySectionHeader(
                                         title = "OTRAS",
                                         subtitle = "${otherRoots.size} categorías",
-                                        accentColor = MaterialTheme.colorScheme.primary,
+                                        accentColor = MaterialTheme.colorScheme.tertiary,
                                         icon = Icons.Default.Category
                                     )
                                 }
@@ -258,21 +258,12 @@ fun CategoriesScreen(
                                         isExpanded = state.expandedCategories.contains(category.id),
                                         onToggleExpand = { viewModel.toggleExpanded(category.id) },
                                         onAddSubcategory = { viewModel.showAddDialog(category.id) },
-                                        onRename = { newName, iconKey -> viewModel.renameCategory(category.id, newName, iconKey) },
+                                        onRename = { newName, iconKey, kind -> viewModel.renameCategory(category.id, newName, iconKey, kind) },
                                         onDelete = { viewModel.deleteCategory(category.id) },
                                         onRenameChild = { childId, newName, iconKey -> viewModel.renameCategory(childId, newName, iconKey) },
                                         onDeleteChild = { childId -> viewModel.deleteCategory(childId) }
                                     )
                                 }
-                            }
-                        }
-
-                        state.monthlyInsight?.let { insight ->
-                            item {
-                                MonthlyInsightCard(
-                                    insight = insight,
-                                    formattedAmount = currencyFormat.format(insight.totalSpentCents / 100.0)
-                                )
                             }
                         }
                     }
@@ -285,7 +276,7 @@ fun CategoriesScreen(
             AddCategoryDialog(
                 isSubcategory = state.addDialogParentId != null,
                 onDismiss = { viewModel.hideAddDialog() },
-                onConfirm = { name, iconKey -> viewModel.createCategory(name, iconKey) }
+                onConfirm = { name, iconKey, kind -> viewModel.createCategory(name, iconKey, kind) }
             )
         }
 
@@ -505,6 +496,11 @@ private fun EmptySearchState(searchQuery: String) {
 }
 
 private fun resolveCategoryKind(category: CategoryEntity): CategoryKind {
+    val k = category.kind.trim().uppercase()
+    if (k == "INCOME") return CategoryKind.Income
+    if (k == "EXPENSE") return CategoryKind.Expense
+
+    // Fallback for legacy/older records that might still be BOTH or invalid.
     val n = category.name.uppercase()
     return when {
         n.contains("INGRES") || n.contains("SALAR") || n.contains("SUELD") || n.contains("VENTA") || n.contains("INVERS") || n.contains("PRESTAM") -> CategoryKind.Income
@@ -561,7 +557,7 @@ private fun CategoryItem(
     isExpanded: Boolean,
     onToggleExpand: () -> Unit,
     onAddSubcategory: () -> Unit,
-    onRename: (String, String?) -> Unit,
+    onRename: (String, String?, String?) -> Unit,
     onDelete: () -> Unit,
     onRenameChild: (String, String, String?) -> Unit,
     onDeleteChild: (String) -> Unit
@@ -784,10 +780,12 @@ private fun CategoryItem(
             title = "Renombrar categoría",
             initialName = category.name,
             initialIconKey = category.iconKey,
+            showKindSelector = true,
+            initialKind = category.kind,
             confirmLabel = "Guardar",
             onDismiss = { showRenameDialog = false },
-            onConfirm = { newName, iconKey ->
-                onRename(newName, iconKey)
+            onConfirm = { newName, iconKey, kind ->
+                onRename(newName, iconKey, kind)
                 showRenameDialog = false
             }
         )
@@ -888,9 +886,11 @@ private fun SubcategoryItem(
             title = "Renombrar subcategoría",
             initialName = category.name,
             initialIconKey = category.iconKey,
+            showKindSelector = false,
+            initialKind = null,
             confirmLabel = "Guardar",
             onDismiss = { showRenameDialog = false },
-            onConfirm = { newName, iconKey ->
+            onConfirm = { newName, iconKey, _ ->
                 onRename(newName, iconKey)
                 showRenameDialog = false
             }
@@ -902,12 +902,14 @@ private fun SubcategoryItem(
 private fun AddCategoryDialog(
     isSubcategory: Boolean,
     onDismiss: () -> Unit,
-    onConfirm: (String, String?) -> Unit
+    onConfirm: (String, String?, String?) -> Unit
 ) {
     CategoryEditorDialog(
         title = if (isSubcategory) "Nueva subcategoría" else "Nueva categoría",
         initialName = "",
         initialIconKey = null,
+        showKindSelector = !isSubcategory,
+        initialKind = "EXPENSE",
         confirmLabel = "Crear",
         onDismiss = onDismiss,
         onConfirm = onConfirm
@@ -955,12 +957,17 @@ private fun CategoryEditorDialog(
     title: String,
     initialName: String,
     initialIconKey: String?,
+    showKindSelector: Boolean,
+    initialKind: String?,
     confirmLabel: String,
     onDismiss: () -> Unit,
-    onConfirm: (String, String?) -> Unit
+    onConfirm: (String, String?, String?) -> Unit
 ) {
     var name by remember(initialName) { mutableStateOf(initialName) }
     var selectedIconKey by remember(initialIconKey) { mutableStateOf(initialIconKey) }
+    var kind by remember(initialKind) {
+        mutableStateOf(initialKind?.trim()?.uppercase()?.takeIf { it == "INCOME" || it == "EXPENSE" })
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -975,6 +982,31 @@ private fun CategoryEditorDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                if (showKindSelector) {
+                    Text(
+                        text = "Tipo",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        SegmentedButton(
+                            selected = kind == "INCOME",
+                            onClick = { kind = "INCOME" },
+                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                        ) {
+                            Text("Ingreso")
+                        }
+                        SegmentedButton(
+                            selected = kind == "EXPENSE",
+                            onClick = { kind = "EXPENSE" },
+                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                        ) {
+                            Text("Egreso")
+                        }
+                    }
+                }
 
                 Text(
                     text = "Icono",
@@ -1039,10 +1071,10 @@ private fun CategoryEditorDialog(
             TextButton(
                 onClick = {
                     if (name.isNotBlank()) {
-                        onConfirm(name.trim(), selectedIconKey)
+                        onConfirm(name.trim(), selectedIconKey, kind)
                     }
                 },
-                enabled = name.isNotBlank()
+                enabled = name.isNotBlank() && (!showKindSelector || kind != null)
             ) {
                 Text(confirmLabel)
             }

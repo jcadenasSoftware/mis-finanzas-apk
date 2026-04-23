@@ -19,6 +19,36 @@ class AccountRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val deviceIdProvider: DeviceIdProvider
 ) {
+    private fun normalizeType(raw: String?): String {
+        val t = raw?.trim()?.uppercase().orEmpty()
+        if (t.isBlank()) {
+            return "BANK"
+        }
+        if (
+            t == "BANK"
+            || t == "CASH"
+            || t == "SAVINGS"
+            || t == "VIRTUAL_WALLET"
+            || t == "DIGITAL_ACCOUNT"
+            || t == "CREDIT"
+        ) {
+            return t
+        }
+        if (t == "CREDIT_CARD") {
+            return "CREDIT"
+        }
+        if (t == "INVESTMENT") {
+            return "SAVINGS"
+        }
+        if (t == "OTHER") {
+            return "BANK"
+        }
+        if (t == "CHECKING") {
+            return "BANK"
+        }
+        return "BANK"
+    }
+
     fun observeAccounts(userUid: String): Flow<List<AccountEntity>> {
         return accountDao.observeByUser(userUid)
     }
@@ -40,11 +70,12 @@ class AccountRepository @Inject constructor(
         colorHex: String? = null
     ): AccountEntity {
         val now = System.currentTimeMillis() / 1000
+        val normalizedType = normalizeType(type)
         val account = AccountEntity(
             id = UUID.randomUUID().toString(),
             userUid = userUid,
             name = name,
-            type = type,
+            type = normalizedType,
             currency = currency,
             iconKey = iconKey,
             colorHex = colorHex,
@@ -76,9 +107,10 @@ class AccountRepository @Inject constructor(
     ): AccountEntity? {
         val account = accountDao.getById(accountId) ?: return null
         val now = System.currentTimeMillis() / 1000
+        val normalizedType = normalizeType(type)
         val updated = account.copy(
             name = name,
-            type = type,
+            type = normalizedType,
             iconKey = iconKey,
             colorHex = colorHex,
             updatedAtEpochSec = now,
@@ -192,7 +224,7 @@ class AccountRepository @Inject constructor(
                         id = doc.id,
                         userUid = userUid,
                         name = name,
-                        type = type,
+                        type = normalizeType(type),
                         currency = currency,
                         iconKey = iconKey,
                         colorHex = colorHex,

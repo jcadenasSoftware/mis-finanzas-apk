@@ -14,6 +14,10 @@ import com.myfinances.data.local.dao.RootCategorySpentTotal
 import com.myfinances.data.local.dao.TransactionWithDetails
 import com.myfinances.data.local.entity.TransactionEntity
 import com.myfinances.sync.DeviceIdProvider
+import com.myfinances.work.BudgetAlertHelper
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
@@ -168,6 +172,26 @@ class TransactionRepository @Inject constructor(
         )
         transactionDao.insert(transaction)
         syncToFirestore(userUid, transaction)
+        Log.d("BudgetAlert", "create() called: kind=$kind categoryId=$categoryId")
+        if (kind.trim().uppercase() == "EXPENSE") {
+            val helper = BudgetAlertHelper.instance
+            if (helper != null) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        helper.checkAfterTransaction(
+                            userUid = userUid,
+                            accountId = accountId,
+                            categoryId = categoryId,
+                            occurredAtEpochSec = occurredAtEpochSec
+                        )
+                    } catch (e: Exception) {
+                        Log.e("BudgetAlert", "checkAfterTransaction failed: ${e.message}", e)
+                    }
+                }
+            } else {
+                Log.w("BudgetAlert", "BudgetAlertHelper.instance is null")
+            }
+        }
         return transaction
     }
 
@@ -244,20 +268,17 @@ class TransactionRepository @Inject constructor(
     suspend fun syncFromFirestore(userUid: String) {
         try {
             Log.d("TransactionRepository", "Syncing transactions from Firestore for user: $userUid")
-            val lastUpdatedAt = transactionDao.getMaxUpdatedAtEpochSec(userUid)
             val collectionRef = firestore.collection("users")
                 .document(userUid)
                 .collection("transactions")
-            val snapshot = if (lastUpdatedAt != null && lastUpdatedAt > 0L) {
-                collectionRef
-                    .whereGreaterThan("updatedAtEpochSec", lastUpdatedAt)
-                    .get()
-                    .await()
-            } else {
-                collectionRef
-                    .get()
-                    .await()
-            }
+            // NOTE:
+            // Desktop currently pulls the full collection and applies last-write-wins locally.
+            // Incremental sync based on local MAX(updated_at_epoch_sec) can miss remote rows due to
+            // clock skew, equal timestamps, or local rows with artificially high updatedAt.
+            // To ensure correctness, always pull the full collection here as well.
+            val snapshot = collectionRef
+                .get()
+                .await()
 
             Log.d("TransactionRepository", "Snapshot size: ${snapshot.size()}")
 

@@ -31,7 +31,6 @@ private fun defaultIconKeyForType(accountType: String): String {
     return when (accountType) {
         "BANK" -> "bank"
         "CASH" -> "cash"
-        "CREDIT" -> "card"
         "SAVINGS" -> "savings"
         "VIRTUAL_WALLET" -> "wallet"
         "DIGITAL_ACCOUNT" -> "digital"
@@ -75,8 +74,7 @@ fun AddAccountDialog(
     val accountTypes = listOf(
         "BANK" to "Banco",
         "CASH" to "Efectivo",
-        "CREDIT" to "Crédito",
-        "SAVINGS" to "Ahorros",
+        "SAVINGS" to "Ahorro",
         "VIRTUAL_WALLET" to "Billetera virtual",
         "DIGITAL_ACCOUNT" to "Cuenta digital"
     )

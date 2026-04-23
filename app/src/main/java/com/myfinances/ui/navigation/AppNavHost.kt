@@ -1,7 +1,11 @@
 package com.myfinances.ui.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material.icons.Icons
@@ -14,9 +18,13 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,6 +39,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.myfinances.ui.screens.categories.CategoriesScreen
@@ -39,6 +48,7 @@ import com.myfinances.ui.screens.dashboard.DashboardScreen
 import com.myfinances.ui.screens.budget.BudgetScreen
 import com.myfinances.ui.screens.loans.LoansScreen
 import com.myfinances.ui.screens.login.LoginScreen
+import com.myfinances.ui.screens.onboarding.OnboardingScreen
 import com.myfinances.ui.screens.reports.ReportsScreen
 import com.myfinances.ui.screens.settings.PrivacyPolicyScreen
 import com.myfinances.ui.screens.settings.SettingsScreen
@@ -47,25 +57,38 @@ import com.myfinances.ui.screens.transactions.TransactionsScreen
 import com.myfinances.ui.screens.transfers.AddTransferScreen
 import com.myfinances.ui.screens.transfers.TransfersScreen
 import com.myfinances.ui.viewmodel.AuthViewModel
+import com.myfinances.ui.viewmodel.OnboardingViewModel
+import com.myfinances.work.BudgetAlertHelper
 
 @Composable
 fun AppNavHost(
     navController: NavHostController,
-    authViewModel: AuthViewModel = hiltViewModel()
+    authViewModel: AuthViewModel = hiltViewModel(),
+    onboardingViewModel: OnboardingViewModel = hiltViewModel()
 ) {
     val authState by authViewModel.authState.collectAsState()
+    val onboardingCompleted by onboardingViewModel.onboardingCompleted.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
     var bottomBarVisible by remember { mutableStateOf(true) }
-    
-    val startDestination = if (authState.isLoggedIn) {
-        NavRoutes.Dashboard.route
-    } else {
-        NavRoutes.Login.route
+
+    // Esperar a que DataStore resuelva el valor antes de decidir la ruta inicial
+    if (onboardingCompleted == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+            CircularProgressIndicator(color = androidx.compose.ui.graphics.Color(0xFF1E6DFF))
+        }
+        return
+    }
+
+    val startDestination = when {
+        authState.isLoggedIn -> NavRoutes.Dashboard.route
+        onboardingCompleted == false -> NavRoutes.Onboarding.route
+        else -> NavRoutes.Login.route
     }
 
     val isAuthRoute = currentRoute == NavRoutes.Login.route
+            || currentRoute == NavRoutes.Onboarding.route
     val isModalRoute = currentRoute == NavRoutes.AddTransaction.route ||
         currentRoute == NavRoutes.EditTransaction.route ||
         currentRoute == NavRoutes.AddTransfer.route ||
@@ -78,7 +101,25 @@ fun AppNavHost(
     val isTopRouteCategories = currentRoute == NavRoutes.Categories.route
     val isTopRouteLoans = currentRoute == NavRoutes.Loans.route
 
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) {
+        BudgetAlertHelper.alerts.collect { alert ->
+            val result = snackbarHostState.showSnackbar(
+                message = alert.message,
+                actionLabel = "Ver",
+                withDismissAction = true
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                navController.navigate(NavRoutes.Budget.createRoute(tab = "monthly")) {
+                    launchSingleTop = true
+                }
+            }
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         bottomBar = {
             if (showBottomBar) {
                 Surface(
@@ -86,62 +127,94 @@ fun AppNavHost(
                     shadowElevation = 8.dp,
                     shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
                 ) {
-                NavigationBar(
-                    modifier = Modifier.fillMaxWidth(),
-                    tonalElevation = 0.dp,
-                    containerColor = Color.White
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.White,
+                                    Color(0xFF1E6DFF).copy(alpha = 0.06f)
+                                )
+                            )
+                        )
                 ) {
-                    val itemColors = NavigationBarItemDefaults.colors(
-                        indicatorColor = Color.Transparent,
-                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    NavigationBarItem(
-                        selected = isTopRouteDashboard,
-                        onClick = {
-                            navController.navigate(NavRoutes.Dashboard.route) {
-                                launchSingleTop = true
-                            }
-                        },
-                        icon = { Icon(imageVector = Icons.Default.Home, contentDescription = "Inicio") },
-                        label = { Text("Inicio", maxLines = 1, fontSize = 10.sp) },
-                        colors = itemColors
-                    )
-                    NavigationBarItem(
-                        selected = isTopRouteTransactions,
-                        onClick = {
-                            navController.navigate(NavRoutes.Transactions.createRoute()) {
-                                launchSingleTop = true
-                            }
-                        },
-                        icon = { Icon(imageVector = Icons.Default.ReceiptLong, contentDescription = "Transacciones") },
-                        label = { Text("Transacciones", maxLines = 1, fontSize = 10.sp) },
-                        colors = itemColors
-                    )
-                    NavigationBarItem(
-                        selected = isTopRouteCategories,
-                        onClick = {
-                            navController.navigate(NavRoutes.Categories.route) {
-                                launchSingleTop = true
-                            }
-                        },
-                        icon = { Icon(imageVector = Icons.Default.Category, contentDescription = "Categorías") },
-                        label = { Text("Categorías", maxLines = 1, fontSize = 10.sp) },
-                        colors = itemColors
-                    )
-                    NavigationBarItem(
-                        selected = isTopRouteLoans,
-                        onClick = {
-                            navController.navigate(NavRoutes.Loans.route) {
-                                launchSingleTop = true
-                            }
-                        },
-                        icon = { Icon(imageVector = Icons.Default.MoneyOff, contentDescription = "Préstamos") },
-                        label = { Text("Préstamos", maxLines = 1, fontSize = 10.sp) },
-                        colors = itemColors
-                    )
+                    NavigationBar(
+                        modifier = Modifier.fillMaxWidth(),
+                        tonalElevation = 0.dp,
+                        containerColor = Color.Transparent
+                    ) {
+                        val itemColors = NavigationBarItemDefaults.colors(
+                            indicatorColor = Color.Transparent,
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        NavigationBarItem(
+                            selected = isTopRouteDashboard,
+                            onClick = {
+                                val popped = navController.popBackStack(NavRoutes.Dashboard.route, inclusive = false)
+                                if (!popped) {
+                                    navController.navigate(NavRoutes.Dashboard.route) {
+                                        popUpTo(startDestination) {
+                                            saveState = true
+                                        }
+                                        restoreState = true
+                                        launchSingleTop = true
+                                    }
+                                }
+                            },
+                            icon = { Icon(imageVector = Icons.Default.Home, contentDescription = "Inicio") },
+                            label = { Text("Inicio", maxLines = 1, fontSize = 10.sp) },
+                            colors = itemColors
+                        )
+                        NavigationBarItem(
+                            selected = isTopRouteTransactions,
+                            onClick = {
+                                navController.navigate(NavRoutes.Transactions.createRoute()) {
+                                    popUpTo(startDestination) {
+                                        saveState = true
+                                    }
+                                    restoreState = true
+                                    launchSingleTop = true
+                                }
+                            },
+                            icon = { Icon(imageVector = Icons.Default.ReceiptLong, contentDescription = "Transacciones") },
+                            label = { Text("Transacciones", maxLines = 1, fontSize = 10.sp) },
+                            colors = itemColors
+                        )
+                        NavigationBarItem(
+                            selected = isTopRouteCategories,
+                            onClick = {
+                                navController.navigate(NavRoutes.Categories.route) {
+                                    popUpTo(startDestination) {
+                                        saveState = true
+                                    }
+                                    restoreState = true
+                                    launchSingleTop = true
+                                }
+                            },
+                            icon = { Icon(imageVector = Icons.Default.Category, contentDescription = "Categorías") },
+                            label = { Text("Categorías", maxLines = 1, fontSize = 10.sp) },
+                            colors = itemColors
+                        )
+                        NavigationBarItem(
+                            selected = isTopRouteLoans,
+                            onClick = {
+                                navController.navigate(NavRoutes.Loans.route) {
+                                    popUpTo(startDestination) {
+                                        saveState = true
+                                    }
+                                    restoreState = true
+                                    launchSingleTop = true
+                                }
+                            },
+                            icon = { Icon(imageVector = Icons.Default.MoneyOff, contentDescription = "Préstamos") },
+                            label = { Text("Préstamos", maxLines = 1, fontSize = 10.sp) },
+                            colors = itemColors
+                        )
+                    }
                 }
                 }
             }
@@ -152,6 +225,16 @@ fun AppNavHost(
             startDestination = startDestination,
             modifier = androidx.compose.ui.Modifier.padding(paddingValues)
         ) {
+        composable(NavRoutes.Onboarding.route) {
+            OnboardingScreen(
+                onFinish = {
+                    navController.navigate(NavRoutes.Login.route) {
+                        popUpTo(NavRoutes.Onboarding.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+
         composable(NavRoutes.Login.route) {
             LoginScreen(
                 onLoginSuccess = {
@@ -200,9 +283,15 @@ fun AppNavHost(
             )
         }
 
-        composable(NavRoutes.Budget.route) {
+        composable(
+            route = NavRoutes.Budget.route,
+            arguments = listOf(navArgument("tab") { type = NavType.StringType; defaultValue = "" })
+        ) { backStackEntry ->
+            val tab = backStackEntry.arguments?.getString("tab") ?: ""
             BudgetScreen(
                 onNavigateBack = { navController.popBackStack() }
+                ,
+                initialTab = tab
             )
         }
 

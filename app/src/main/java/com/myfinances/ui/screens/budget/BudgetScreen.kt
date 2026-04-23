@@ -107,10 +107,18 @@ import java.util.Locale
 @Composable
 fun BudgetScreen(
     onNavigateBack: () -> Unit,
+    initialTab: String = "",
     viewModel: BudgetViewModel = hiltViewModel()
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Metas", "Mensual")
+    val initialTabIndex = remember(initialTab) {
+        when (initialTab.trim().lowercase()) {
+            "goals", "metas" -> 1
+            "monthly", "mensual" -> 0
+            else -> 0
+        }
+    }
+    var selectedTab by remember { mutableIntStateOf(initialTabIndex) }
+    val tabs = listOf("Mensual", "Metas")
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("es", "CO")) }
@@ -258,7 +266,7 @@ fun BudgetScreen(
         }
         ,
         floatingActionButton = {
-            if (selectedTab == 0) {
+            if (selectedTab == 1) {
                 Column(
                     horizontalAlignment = Alignment.End,
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -304,73 +312,6 @@ fun BudgetScreen(
 
             when (selectedTab) {
                 0 -> {
-                    val totalSavedCents = remember(state.goals, state.goalAccountBalancesCents) {
-                        state.goals.sumOf { g -> state.goalAccountBalancesCents[g.id] ?: 0L }
-                    }
-                    val totalTargetCents = remember(state.goals) {
-                        state.goals.sumOf { it.targetCents }
-                    }
-                    val totalProgress = remember(totalSavedCents, totalTargetCents) {
-                        if (totalTargetCents <= 0L) 0f else (totalSavedCents.toFloat() / totalTargetCents.toFloat()).coerceIn(0f, 1f)
-                    }
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        state.error?.let { err ->
-                            Text(err, color = MaterialTheme.colorScheme.error)
-                        }
-
-                        GoalsGlobalSummaryCard(
-                            totalSavedCents = totalSavedCents,
-                            totalTargetCents = totalTargetCents,
-                            progress = totalProgress,
-                            currencyFormat = currencyFormat
-                        )
-
-                        if (state.goals.isEmpty()) {
-                            Text(
-                                "No tienes metas. Crea una para empezar a ahorrar.",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        state.goals.forEach { goal ->
-                            val savedCents = state.goalAccountBalancesCents[goal.id] ?: 0L
-                            val remaining = (goal.targetCents - savedCents).coerceAtLeast(0L)
-                            val progress = if (goal.targetCents <= 0) 0f else (savedCents.toFloat() / goal.targetCents.toFloat()).coerceIn(0f, 1f)
-                            val now = System.currentTimeMillis() / 1000
-                            val monthsLeft = viewModel.monthsUntil(goal.targetDateEpochSec, now)
-                            val suggestedMonthly = if (remaining <= 0) 0L else (remaining / monthsLeft)
-
-                            GoalModernCard(
-                                title = goal.name,
-                                savedCents = savedCents,
-                                targetCents = goal.targetCents,
-                                remainingCents = remaining,
-                                progress = progress,
-                                targetDateEpochSec = goal.targetDateEpochSec,
-                                currencyFormat = currencyFormat,
-                                dateFormat = dateFormat,
-                                suggestedMonthlyCents = suggestedMonthly,
-                                monthsLeft = monthsLeft,
-                                onDeposit = {
-                                    depositGoalId = goal.id
-                                    showDeposit = true
-                                },
-                                onWithdraw = {
-                                    withdrawGoalId = goal.id
-                                    showWithdraw = true
-                                }
-                            )
-                        }
-                    }
-                }
-                1 -> {
                     val totalLimit = state.monthlyTotalLimitCents
                     val totalSpent = state.monthlyTotalSpentCents
                     val available = totalLimit - totalSpent
@@ -481,6 +422,73 @@ fun BudgetScreen(
                                     }
                                 )
                             }
+                        }
+                    }
+                }
+                1 -> {
+                    val totalSavedCents = remember(state.goals, state.goalAccountBalancesCents) {
+                        state.goals.sumOf { g -> state.goalAccountBalancesCents[g.id] ?: 0L }
+                    }
+                    val totalTargetCents = remember(state.goals) {
+                        state.goals.sumOf { it.targetCents }
+                    }
+                    val totalProgress = remember(totalSavedCents, totalTargetCents) {
+                        if (totalTargetCents <= 0L) 0f else (totalSavedCents.toFloat() / totalTargetCents.toFloat()).coerceIn(0f, 1f)
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        state.error?.let { err ->
+                            Text(err, color = MaterialTheme.colorScheme.error)
+                        }
+
+                        GoalsGlobalSummaryCard(
+                            totalSavedCents = totalSavedCents,
+                            totalTargetCents = totalTargetCents,
+                            progress = totalProgress,
+                            currencyFormat = currencyFormat
+                        )
+
+                        if (state.goals.isEmpty()) {
+                            Text(
+                                "No tienes metas. Crea una para empezar a ahorrar.",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        state.goals.forEach { goal ->
+                            val savedCents = state.goalAccountBalancesCents[goal.id] ?: 0L
+                            val remaining = (goal.targetCents - savedCents).coerceAtLeast(0L)
+                            val progress = if (goal.targetCents <= 0) 0f else (savedCents.toFloat() / goal.targetCents.toFloat()).coerceIn(0f, 1f)
+                            val now = System.currentTimeMillis() / 1000
+                            val monthsLeft = viewModel.monthsUntil(goal.targetDateEpochSec, now)
+                            val suggestedMonthly = if (remaining <= 0) 0L else (remaining / monthsLeft)
+
+                            GoalModernCard(
+                                title = goal.name,
+                                savedCents = savedCents,
+                                targetCents = goal.targetCents,
+                                remainingCents = remaining,
+                                progress = progress,
+                                targetDateEpochSec = goal.targetDateEpochSec,
+                                currencyFormat = currencyFormat,
+                                dateFormat = dateFormat,
+                                suggestedMonthlyCents = suggestedMonthly,
+                                monthsLeft = monthsLeft,
+                                onDeposit = {
+                                    depositGoalId = goal.id
+                                    showDeposit = true
+                                },
+                                onWithdraw = {
+                                    withdrawGoalId = goal.id
+                                    showWithdraw = true
+                                }
+                            )
                         }
                     }
                 }

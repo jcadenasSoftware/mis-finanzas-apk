@@ -143,7 +143,7 @@ class CategoriesViewModel @Inject constructor(
         _state.value = _state.value.copy(showAddDialog = false, addDialogParentId = null)
     }
 
-    fun createCategory(name: String, iconKey: String? = null) {
+    fun createCategory(name: String, iconKey: String? = null, kind: String? = null) {
         val uid = userUid ?: return
         val parentId = _state.value.addDialogParentId
 
@@ -156,9 +156,19 @@ class CategoriesViewModel @Inject constructor(
         
         viewModelScope.launch {
             try {
+                val resolvedKind = if (parentId.isNullOrBlank()) {
+                    kind?.trim()?.uppercase()?.takeIf { it == "INCOME" || it == "EXPENSE" }
+                        ?: throw IllegalArgumentException("kind")
+                } else {
+                    val parent = categoryRepository.getById(parentId)
+                        ?: throw IllegalArgumentException("parentId")
+                    parent.kind.trim().uppercase().takeIf { it == "INCOME" || it == "EXPENSE" }
+                        ?: "EXPENSE"
+                }
                 categoryRepository.create(
                     userUid = uid,
                     name = name,
+                    kind = resolvedKind,
                     iconKey = iconKey,
                     parentId = parentId
                 )
@@ -168,20 +178,32 @@ class CategoriesViewModel @Inject constructor(
                 _state.value = _state.value.copy(
                     error = "No se pudo crear la categoría/subcategoría. Verifica que la subcategoría tenga una categoría padre válida."
                 )
+            } catch (e: IllegalArgumentException) {
+                _state.value = _state.value.copy(
+                    error = if (e.message == "kind") {
+                        "Selecciona si la categoría es de Ingreso o Egreso."
+                    } else {
+                        "No se pudo determinar el tipo de la categoría padre."
+                    }
+                )
             } catch (e: Exception) {
                 _state.value = _state.value.copy(error = e.message)
             }
         }
     }
 
-    fun renameCategory(categoryId: String, newName: String, iconKey: String? = null) {
+    fun renameCategory(categoryId: String, newName: String, iconKey: String? = null, kind: String? = null) {
         val uid = userUid ?: return
         viewModelScope.launch {
             try {
+                val existing = categoryRepository.getById(categoryId)
+                val normalizedKind = kind?.trim()?.uppercase()?.takeIf { it == "INCOME" || it == "EXPENSE" }
+                val kindToPersist = if (existing?.parentId.isNullOrBlank()) normalizedKind else null
                 categoryRepository.updateCategory(
                     userUid = uid,
                     categoryId = categoryId,
                     newName = newName,
+                    kind = kindToPersist,
                     iconKey = iconKey ?: categoryRepository.getById(categoryId)?.iconKey
                 )
                 loadCategories()

@@ -17,6 +17,22 @@ import com.myfinances.ui.theme.Expense
 import java.text.NumberFormat
 import java.util.Locale
 
+private fun accountTypeLabel(raw: String?): String {
+    val t = raw?.trim()?.uppercase().orEmpty()
+    return when (t) {
+        "BANK" -> "Banco"
+        "CASH" -> "Efectivo"
+        "SAVINGS" -> "Ahorro"
+        "VIRTUAL_WALLET" -> "Billetera virtual"
+        "DIGITAL_ACCOUNT" -> "Cuenta digital"
+        "CREDIT" -> "Banco"
+        "INVESTMENT" -> "Ahorro"
+        "OTHER" -> "Banco"
+        "CHECKING" -> "Banco"
+        else -> if (t.isBlank()) "Cuenta" else t
+    }
+}
+
 @Composable
 fun AccountCard(
     account: AccountEntity,
@@ -70,7 +86,9 @@ fun AccountCard(
                     Icon(
                         when (account.type) {
                             "CASH" -> Icons.Default.Money
-                            "CREDIT" -> Icons.Default.CreditCard
+                            "DIGITAL_ACCOUNT" -> Icons.Default.PhoneAndroid
+                            "VIRTUAL_WALLET" -> Icons.Default.AccountBalanceWallet
+                            "SAVINGS" -> Icons.Default.Savings
                             else -> Icons.Default.AccountBalance
                         },
                         contentDescription = null,
@@ -91,7 +109,7 @@ fun AccountCard(
                     maxLines = 1
                 )
                 Text(
-                    "${account.type} • ${account.currency}",
+                    "${accountTypeLabel(account.type)} • ${account.currency}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
