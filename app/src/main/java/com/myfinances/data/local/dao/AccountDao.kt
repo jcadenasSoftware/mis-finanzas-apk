@@ -42,8 +42,8 @@ interface AccountDao {
             COALESCE((
                 SELECT SUM(
                     CASE
-                        WHEN kind IN ('INCOME', 'LOAN_BORROWED_IN', 'LOAN_REPAYMENT_PRINCIPAL_IN') THEN amount_cents
-                        WHEN kind IN ('EXPENSE', 'LOAN_LENT_OUT', 'LOAN_REPAYMENT_PRINCIPAL_OUT') THEN -amount_cents
+                        WHEN kind IN ('INCOME', 'LOAN_BORROWED_IN', 'LOAN_BORROWED_TOPUP', 'LOAN_BORROWED_CORRECTION', 'LOAN_LENT_CORRECTION_IN', 'LOAN_BORROWED_CORRECTION_IN', 'LOAN_REPAYMENT_PRINCIPAL_IN') THEN amount_cents
+                        WHEN kind IN ('EXPENSE', 'LOAN_LENT_OUT', 'LOAN_LENT_TOPUP', 'LOAN_LENT_CORRECTION', 'LOAN_LENT_CORRECTION_OUT', 'LOAN_BORROWED_CORRECTION_OUT', 'LOAN_REPAYMENT_PRINCIPAL_OUT') THEN -amount_cents
                         ELSE 0
                     END
                 )

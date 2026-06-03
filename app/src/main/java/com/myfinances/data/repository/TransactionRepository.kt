@@ -34,8 +34,20 @@ class TransactionRepository @Inject constructor(
     private fun signedAmountDeltaCents(kind: String, amountCents: Long): Long {
         val k = kind.trim().uppercase()
         return when (k) {
-            "INCOME", "LOAN_BORROWED_IN", "LOAN_REPAYMENT_PRINCIPAL_IN" -> amountCents
-            "EXPENSE", "LOAN_LENT_OUT", "LOAN_REPAYMENT_PRINCIPAL_OUT" -> -amountCents
+            "INCOME",
+            "LOAN_BORROWED_IN",
+            "LOAN_BORROWED_TOPUP",
+            "LOAN_BORROWED_CORRECTION",
+            "LOAN_LENT_CORRECTION_IN",
+            "LOAN_BORROWED_CORRECTION_IN",
+            "LOAN_REPAYMENT_PRINCIPAL_IN" -> amountCents
+            "EXPENSE",
+            "LOAN_LENT_OUT",
+            "LOAN_LENT_TOPUP",
+            "LOAN_LENT_CORRECTION",
+            "LOAN_LENT_CORRECTION_OUT",
+            "LOAN_BORROWED_CORRECTION_OUT",
+            "LOAN_REPAYMENT_PRINCIPAL_OUT" -> -amountCents
             else -> 0L
         }
     }
