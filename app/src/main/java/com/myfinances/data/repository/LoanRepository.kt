@@ -120,20 +120,12 @@ class LoanRepository @Inject constructor(
     suspend fun syncFromFirestore(userUid: String) {
         try {
             Log.d("LoanRepository", "Syncing loans from Firestore user=$userUid")
-            val lastUpdatedAt = loanDao.getMaxUpdatedAtEpochSec(userUid)
             val collectionRef = firestore.collection("users")
                 .document(userUid)
                 .collection("loans")
-            val snapshot = if (lastUpdatedAt != null && lastUpdatedAt > 0L) {
-                collectionRef
-                    .whereGreaterThan("updatedAtEpochSec", lastUpdatedAt)
-                    .get()
-                    .await()
-            } else {
-                collectionRef
-                    .get()
-                    .await()
-            }
+            val snapshot = collectionRef
+                .get()
+                .await()
 
             val loans = snapshot.documents.mapNotNull { doc ->
                 try {
