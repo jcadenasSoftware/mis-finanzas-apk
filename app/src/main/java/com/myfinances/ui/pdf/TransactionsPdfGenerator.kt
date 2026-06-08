@@ -1,5 +1,6 @@
 package com.myfinances.ui.pdf
 
+import android.graphics.BitmapFactory
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
@@ -7,6 +8,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
+import com.myfinances.R
 import com.myfinances.data.local.dao.TransactionWithDetails
 import java.io.File
 import java.text.NumberFormat
@@ -46,8 +48,12 @@ object TransactionsPdfGenerator {
         val currencyFormat = NumberFormat.getCurrencyInstance(Locale("es", "CO"))
         val generatedAt = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("es", "CO")).format(Date())
 
-        val totalIncome = transactions.filter { it.kind == "INCOME" }.sumOf { it.amountCents }
-        val totalExpense = transactions.filter { it.kind == "EXPENSE" }.sumOf { it.amountCents }
+        val totalIncome = transactions.filter { 
+            it.kind == "INCOME" || it.kind == "LOAN_BORROWED_IN" || it.kind == "LOAN_REPAYMENT_PRINCIPAL_IN"
+        }.sumOf { it.amountCents }
+        val totalExpense = transactions.filter { 
+            it.kind == "EXPENSE" || it.kind == "LOAN_LENT_OUT" || it.kind == "LOAN_REPAYMENT_PRINCIPAL_OUT"
+        }.sumOf { it.amountCents }
         val balance = totalIncome - totalExpense
 
         val document = PdfDocument()
@@ -79,24 +85,47 @@ object TransactionsPdfGenerator {
             isAntiAlias = true
         }
 
-        // Paginate transactions
-        val rowHeight = 28f
+        // Layout constants
         val headerSectionHeight = 230f   // space reserved for cover/summary on first page
         val tableHeaderHeight = 26f
         val colHeaderHeight = 22f
+        val footerHeight = 34f
+        val bottomGuard = 10f
 
-        val rowsPerFirstPage = ((PAGE_HEIGHT - headerSectionHeight - tableHeaderHeight - colHeaderHeight - MARGIN * 2) / rowHeight).toInt()
-        val rowsPerNextPage = ((PAGE_HEIGHT - MARGIN * 2 - tableHeaderHeight - colHeaderHeight) / rowHeight).toInt()
-
+        // Dynamic pagination - calculate row heights in real time
         val pages = mutableListOf<List<TransactionWithDetails>>()
         if (transactions.isEmpty()) {
             pages.add(emptyList())
         } else {
-            pages.add(transactions.take(rowsPerFirstPage))
-            var offset = rowsPerFirstPage
-            while (offset < transactions.size) {
-                pages.add(transactions.subList(offset, minOf(offset + rowsPerNextPage, transactions.size)))
-                offset += rowsPerNextPage
+            val currentPage = mutableListOf<TransactionWithDetails>()
+            var currentY = 0f
+            
+            for (transaction in transactions) {
+                // Calculate row height based on description wrapping
+                val descText = transaction.note ?: ""
+                val descLines = wrapText(descText, 7.2f, 145f - 8f).take(2)
+                val rowH = if (descLines.size > 1) 28f else 20f
+                
+                // Check if we need a new page
+                val isFirstPage = pages.isEmpty()
+                val availableHeight = if (isFirstPage) {
+                    PAGE_HEIGHT - headerSectionHeight - tableHeaderHeight - colHeaderHeight - MARGIN * 2 - footerHeight - bottomGuard
+                } else {
+                    PAGE_HEIGHT - tableHeaderHeight - colHeaderHeight - MARGIN * 2 - footerHeight - bottomGuard
+                }
+                
+                if (currentY + rowH > availableHeight && currentPage.isNotEmpty()) {
+                    pages.add(currentPage.toList())
+                    currentPage.clear()
+                    currentY = 0f
+                }
+                
+                currentPage.add(transaction)
+                currentY += rowH
+            }
+            
+            if (currentPage.isNotEmpty()) {
+                pages.add(currentPage)
             }
         }
 
@@ -114,10 +143,12 @@ object TransactionsPdfGenerator {
                 // Blue header background
                 canvas.drawRect(0f, 0f, PAGE_WIDTH.toFloat(), 110f, fillPaint(COLOR_BG_HEADER))
 
+                drawLogo(canvas, context, MARGIN, 14f, 28f)
+
                 // App name
                 canvas.drawText(
-                    "Mis Finanzas",
-                    MARGIN,
+                    "Xpendz",
+                    MARGIN + 38f,
                     38f,
                     paint(Color.WHITE, 20f, bold = true)
                 )
@@ -125,7 +156,7 @@ object TransactionsPdfGenerator {
                 // Report title
                 canvas.drawText(
                     "Reporte de Transacciones",
-                    MARGIN,
+                    MARGIN + 38f,
                     62f,
                     paint(Color.parseColor("#BFDBFE"), 13f)
                 )
@@ -133,7 +164,7 @@ object TransactionsPdfGenerator {
                 // Period
                 canvas.drawText(
                     "${dateFormat.format(fromDate)}  –  ${dateFormat.format(toDate)}",
-                    MARGIN,
+                    MARGIN + 38f,
                     82f,
                     paint(Color.WHITE, 10f)
                 )
@@ -203,7 +234,8 @@ object TransactionsPdfGenerator {
             } else {
                 // ── CONTINUATION HEADER ────────────────────────────────
                 canvas.drawRect(0f, 0f, PAGE_WIDTH.toFloat(), 40f, fillPaint(COLOR_BG_HEADER))
-                canvas.drawText("Mis Finanzas · Reporte de Transacciones", MARGIN, 26f, paint(Color.WHITE, 10f))
+                drawLogo(canvas, context, MARGIN, 11f, 16f)
+                canvas.drawText("Xpendz · Reporte de Transacciones", MARGIN + 24f, 26f, paint(Color.WHITE, 10f))
                 canvas.drawText(
                     "Pág. ${pageIndex + 1} / $totalPages",
                     PAGE_WIDTH - MARGIN,
@@ -227,11 +259,17 @@ object TransactionsPdfGenerator {
 
             // Column headers
             val col = columnPositions()
-            canvas.drawText("Fecha", MARGIN + col.date + 4f, y + 15f, paint(Color.WHITE, 8f, bold = true))
-            canvas.drawText("Tipo", MARGIN + col.type + 4f, y + 15f, paint(Color.WHITE, 8f, bold = true))
-            canvas.drawText("Categoría", MARGIN + col.category + 4f, y + 15f, paint(Color.WHITE, 8f, bold = true))
-            canvas.drawText("Cuenta", MARGIN + col.account + 4f, y + 15f, paint(Color.WHITE, 8f, bold = true))
-            canvas.drawText("Monto", MARGIN + col.amount + col.amountW - 4f, y + 15f, paint(Color.WHITE, 8f, bold = true, align = Paint.Align.RIGHT))
+            val dateW = 62f
+            val typeW = 60f
+            val categoryW = 112f
+            val accountW = 104f
+            val descW = 145f
+            canvas.drawText("Fecha", MARGIN + col.date + dateW / 2f, y + 13.5f, paint(Color.WHITE, 8f, bold = true, align = Paint.Align.CENTER))
+            canvas.drawText("Tipo", MARGIN + col.type + typeW / 2f, y + 13.5f, paint(Color.WHITE, 8f, bold = true, align = Paint.Align.CENTER))
+            canvas.drawText("Categoría", MARGIN + col.category + categoryW / 2f, y + 13.5f, paint(Color.WHITE, 8f, bold = true, align = Paint.Align.CENTER))
+            canvas.drawText("Cuenta", MARGIN + col.account + accountW / 2f, y + 13.5f, paint(Color.WHITE, 8f, bold = true, align = Paint.Align.CENTER))
+            canvas.drawText("Descripción", MARGIN + col.description + descW / 2f, y + 13.5f, paint(Color.WHITE, 8f, bold = true, align = Paint.Align.CENTER))
+            canvas.drawText("Monto", MARGIN + col.amount + col.amountW - 4f, y + 13.5f, paint(Color.WHITE, 8f, bold = true, align = Paint.Align.RIGHT))
             y += colHeaderHeight
 
             // ── ROWS ───────────────────────────────────────────────────
@@ -252,48 +290,68 @@ object TransactionsPdfGenerator {
                     val isIncome = t.kind == "INCOME"
                     val bgColor = if (globalIndex % 2 == 0) COLOR_ROW_NORMAL else COLOR_ROW_ALT
 
-                    canvas.drawRect(MARGIN, y, MARGIN + CONTENT_WIDTH, y + rowHeight, fillPaint(bgColor))
+                    val dateW = 62f
+                    val typeW = 60f
+                    val categoryW = 112f
+                    val accountW = 104f
+                    val descW = 145f
+
+                    // Wrap description to two lines
+                    val descText = t.note ?: ""
+                    val descLines = wrapText(descText, 7.2f, descW - 8f).take(2)
+                    val rowH = if (descLines.size > 1) 28f else 20f
+
+                    canvas.drawRect(MARGIN, y, MARGIN + CONTENT_WIDTH, y + rowH, fillPaint(bgColor))
 
                     // Left accent line per type
                     canvas.drawRect(
-                        MARGIN, y, MARGIN + 3f, y + rowHeight,
+                        MARGIN, y, MARGIN + 3f, y + rowH,
                         fillPaint(if (isIncome) COLOR_INCOME else COLOR_EXPENSE)
                     )
 
-                    val textY = y + rowHeight * 0.64f
+                    val centerY = y + rowH / 2f
                     val dateStr = dateTimeFormat.format(Date(t.occurredAtEpochSec * 1000))
 
-                    canvas.drawText(dateStr, MARGIN + col.date + 6f, textY, paint(COLOR_TEXT_SECONDARY, 8f))
+                    canvas.drawText(dateStr, MARGIN + col.date + 6f, centerY + 3f, paint(COLOR_TEXT_SECONDARY, 8f))
 
                     // Type pill
                     val typeLabel = if (isIncome) "Ingreso" else "Gasto"
                     val typeBg = if (isIncome) COLOR_INCOME_BG else COLOR_EXPENSE_BG
                     val typeColor = if (isIncome) COLOR_INCOME else COLOR_EXPENSE
                     val pillX = MARGIN + col.type + 4f
-                    canvas.drawRoundRect(RectF(pillX, y + 6f, pillX + 44f, y + rowHeight - 6f), 6f, 6f, fillPaint(typeBg))
-                    canvas.drawText(typeLabel, pillX + 22f, textY, paint(typeColor, 7.5f, bold = true, align = Paint.Align.CENTER))
+                    val pillW = typeW - 8f
+                    val pillY = centerY - 7f
+                    canvas.drawRoundRect(RectF(pillX, pillY, pillX + pillW, pillY + 14f), 6f, 6f, fillPaint(typeBg))
+                    canvas.drawText(typeLabel, pillX + pillW / 2f, centerY, paint(typeColor, 7.2f, bold = true, align = Paint.Align.CENTER))
 
                     // Category (truncate)
                     val catName = t.categoryName.take(18)
-                    canvas.drawText(catName, MARGIN + col.category + 4f, textY, paint(COLOR_TEXT_PRIMARY, 8f))
+                    canvas.drawText(catName, MARGIN + col.category + 4f, centerY + 3f, paint(COLOR_TEXT_PRIMARY, 8f))
 
                     // Account (truncate)
                     val accName = t.accountName.take(16)
-                    canvas.drawText(accName, MARGIN + col.account + 4f, textY, paint(COLOR_TEXT_SECONDARY, 8f))
+                    canvas.drawText(accName, MARGIN + col.account + 4f, centerY + 3f, paint(COLOR_TEXT_SECONDARY, 8f))
+
+                    // Description (wrapped)
+                    var descY = if (descLines.size > 1) centerY + 4f else centerY + 3f
+                    descLines.forEach { line ->
+                        canvas.drawText(line, MARGIN + col.description + 4f, descY, paint(COLOR_TEXT_SECONDARY, 7.2f))
+                        descY -= 8f
+                    }
 
                     // Amount right-aligned
                     val amountText = currencyFormat.format(t.amountCents / 100.0)
                     canvas.drawText(
                         amountText,
                         MARGIN + col.amount + col.amountW - 4f,
-                        textY,
+                        centerY + 3f,
                         paint(if (isIncome) COLOR_INCOME else COLOR_EXPENSE, 8f, bold = true, align = Paint.Align.RIGHT)
                     )
 
                     // Bottom border
-                    canvas.drawLine(MARGIN, y + rowHeight, MARGIN + CONTENT_WIDTH, y + rowHeight, strokePaint(COLOR_BORDER, 0.5f))
+                    canvas.drawLine(MARGIN, y, MARGIN + CONTENT_WIDTH, y, strokePaint(COLOR_BORDER, 0.5f))
 
-                    y += rowHeight
+                    y += rowH
                 }
             }
 
@@ -301,7 +359,7 @@ object TransactionsPdfGenerator {
             val footerY = PAGE_HEIGHT - 24f
             canvas.drawLine(MARGIN, footerY - 10f, MARGIN + CONTENT_WIDTH, footerY - 10f, strokePaint(COLOR_BORDER))
             canvas.drawText(
-                "Mis Finanzas · Reporte confidencial",
+                "Xpendz · Reporte confidencial",
                 MARGIN,
                 footerY,
                 paint(COLOR_TEXT_SECONDARY, 8f)
@@ -324,23 +382,71 @@ object TransactionsPdfGenerator {
 
     private data class Columns(
         val date: Float, val type: Float, val category: Float,
-        val account: Float, val amount: Float, val amountW: Float
+        val account: Float, val description: Float, val amount: Float, val amountW: Float
     )
 
     private fun columnPositions(): Columns {
-        val dateW = 58f
-        val typeW = 54f
-        val categoryW = 110f
-        val accountW = 100f
-        val amountW = 93f  // remaining
+        val dateW = 62f
+        val typeW = 60f
+        val categoryW = 112f
+        val accountW = 104f
+        val descW = 145f
+        val amountW = CONTENT_WIDTH - dateW - typeW - categoryW - accountW - descW
 
         return Columns(
             date = 0f,
             type = dateW,
             category = dateW + typeW,
             account = dateW + typeW + categoryW,
-            amount = dateW + typeW + categoryW + accountW,
+            description = dateW + typeW + categoryW + accountW,
+            amount = dateW + typeW + categoryW + accountW + descW,
             amountW = amountW
         )
+    }
+
+    private fun drawLogo(canvas: Canvas, context: Context, x: Float, y: Float, size: Float) {
+        try {
+            val logo = BitmapFactory.decodeResource(context.resources, R.drawable.ic_launcher) ?: return
+            canvas.drawBitmap(logo, null, RectF(x, y, x + size, y + size), null)
+        } catch (_: Exception) {
+            // Ignore logo rendering issues and continue generating the PDF.
+        }
+    }
+
+    private fun wrapText(text: String, fontSize: Float, maxWidth: Float): List<String> {
+        if (text.isBlank()) return emptyList()
+        val paint = Paint().apply { this.textSize = fontSize }
+        val words = text.split(" ")
+        val lines = mutableListOf<String>()
+        var currentLine = ""
+        
+        for (word in words) {
+            val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
+            if (paint.measureText(testLine) <= maxWidth) {
+                currentLine = testLine
+            } else {
+                if (currentLine.isNotEmpty()) {
+                    lines.add(currentLine)
+                    currentLine = word
+                } else {
+                    // Word is too long, split it
+                    var remaining = word
+                    while (remaining.isNotEmpty()) {
+                        var i = 1
+                        while (i <= remaining.length && paint.measureText(remaining.substring(0, i)) <= maxWidth) {
+                            i++
+                        }
+                        if (i > remaining.length) i = remaining.length
+                        lines.add(remaining.substring(0, i))
+                        remaining = remaining.substring(i)
+                    }
+                    currentLine = ""
+                }
+            }
+        }
+        if (currentLine.isNotEmpty()) {
+            lines.add(currentLine)
+        }
+        return lines
     }
 }

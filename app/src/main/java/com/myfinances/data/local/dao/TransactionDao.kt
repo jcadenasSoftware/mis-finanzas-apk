@@ -293,7 +293,7 @@ interface TransactionDao {
         INNER JOIN categories c ON c.id = t.category_id
         INNER JOIN categories r ON r.id = CASE WHEN c.parent_id IS NULL THEN c.id ELSE c.parent_id END
         WHERE t.user_uid = :userUid
-          AND t.kind = :kind
+          AND t.kind IN (:kinds)
           AND a.currency = :currency
           AND t.occurred_at_epoch_sec >= :fromEpochSec
           AND t.occurred_at_epoch_sec <= :toEpochSec
@@ -303,7 +303,7 @@ interface TransactionDao {
     )
     suspend fun getHierarchyTotalsInRange(
         userUid: String,
-        kind: String,
+        kinds: List<String>,
         currency: String,
         fromEpochSec: Long,
         toEpochSec: Long

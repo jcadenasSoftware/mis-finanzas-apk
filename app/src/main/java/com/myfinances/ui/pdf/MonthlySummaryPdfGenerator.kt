@@ -1,12 +1,14 @@
 package com.myfinances.ui.pdf
 
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
+import com.myfinances.R
 import com.myfinances.data.local.dao.RootCategorySpentTotal
 import java.io.File
 import java.text.NumberFormat
@@ -39,10 +41,33 @@ object MonthlySummaryPdfGenerator {
     private val COLOR_WARN_BG      = Color.parseColor("#FFFBEB")
 
     data class BudgetLine(
+        val categoryId: String,
         val categoryName: String,
+        val rootCategoryId: String,
+        val rootCategoryName: String,
         val limitCents: Long,
         val spentCents: Long
     )
+
+    data class LoanLine(
+        val counterpartyName: String,
+        val principalCents: Long,
+        val paidCents: Long,
+        val type: String // "LENT" or "BORROWED"
+    ) {
+        val remainingCents: Long get() = principalCents - paidCents
+        val progress: Float get() = if (principalCents > 0) paidCents.toFloat() / principalCents.toFloat() else 0f
+    }
+
+    data class GoalLine(
+        val name: String,
+        val targetCents: Long,
+        val currentCents: Long,
+        val targetDateEpochSec: Long
+    ) {
+        val remainingCents: Long get() = targetCents - currentCents
+        val progress: Float get() = if (targetCents > 0) currentCents.toFloat() / targetCents.toFloat() else 0f
+    }
 
     fun generate(
         context: Context,
@@ -52,6 +77,8 @@ object MonthlySummaryPdfGenerator {
         incomeHierarchy: List<com.myfinances.data.local.dao.HierarchyCategoryTotal>,
         expenseHierarchy: List<com.myfinances.data.local.dao.HierarchyCategoryTotal>,
         budgetLines: List<BudgetLine>,
+        loanLines: List<LoanLine>,
+        goalLines: List<GoalLine>,
         userName: String
     ): File {
         val cf = NumberFormat.getCurrencyInstance(Locale("es", "CO"))
@@ -94,13 +121,14 @@ object MonthlySummaryPdfGenerator {
         fun Canvas.drawFooter() {
             val fy = PAGE_HEIGHT.toFloat() - 18f
             drawLine(MARGIN, fy - 8f, MARGIN + CONTENT_WIDTH, fy - 8f, stroke(COLOR_BORDER))
-            drawText("Mis Finanzas · Reporte confidencial", MARGIN, fy, paint(COLOR_TEXT_MUTED, 7.5f))
+            drawText("Xpendz · Reporte confidencial", MARGIN, fy, paint(COLOR_TEXT_MUTED, 7.5f))
             drawText("Pág. ${pageIndex + 1}", PAGE_WIDTH - MARGIN, fy, paint(COLOR_TEXT_MUTED, 7.5f, align = Paint.Align.RIGHT))
         }
 
         fun Canvas.contHeader() {
             drawRect(0f, 0f, PAGE_WIDTH.toFloat(), 36f, fill(COLOR_PRIMARY))
-            drawText("Mis Finanzas · Resumen Mensual · $monthLabel", MARGIN, 24f, paint(COLOR_WHITE, 9f))
+            drawLogo(canvas, context, MARGIN, 10f, 16f)
+            drawText("Xpendz · Resumen Mensual · $monthLabel", MARGIN + 24f, 24f, paint(COLOR_WHITE, 9f))
         }
 
         fun checkNewPage(needed: Float) {
@@ -208,9 +236,18 @@ object MonthlySummaryPdfGenerator {
         // PAGE 1 — HEADER BANNER
         // ════════════════════════════════════════════════════════════════
         canvas.drawRect(0f, 0f, PAGE_WIDTH.toFloat(), 100f, fill(COLOR_PRIMARY))
-        canvas.drawCircle(PAGE_WIDTH + 10f, -10f, 90f, fill(COLOR_PRIMARY_DARK))
-        canvas.drawCircle(PAGE_WIDTH - 50f, 115f, 48f, fill(COLOR_PRIMARY_DARK))
-        canvas.drawText("Mis Finanzas", MARGIN, 34f, paint(COLOR_WHITE, 18f, bold = true))
+        
+        drawLogo(canvas, context, MARGIN, 14f, 28f)
+        
+        // App name
+        canvas.drawText(
+            "Xpendz",
+            MARGIN + 38f,
+            38f,
+            paint(COLOR_WHITE, 18f, bold = true)
+        )
+        
+        // Report title
         canvas.drawText("Resumen Mensual", MARGIN, 55f, paint(Color.parseColor("#BFDBFE"), 12f))
         canvas.drawText(monthLabel, MARGIN, 73f, paint(COLOR_WHITE, 9f))
         canvas.drawText("Usuario: ${userName.take(32)}", PAGE_WIDTH - MARGIN, 34f, paint(COLOR_WHITE, 9f, align = Paint.Align.RIGHT))
@@ -302,34 +339,158 @@ object MonthlySummaryPdfGenerator {
             canvas.drawText("Estado",    c4, y + 13f, paint(COLOR_WHITE, 7.5f, bold = true, align = Paint.Align.RIGHT))
             y += 18f
 
-            budgetLines.forEachIndexed { idx, line ->
-                checkNewPage(budRowH + 1f)
-                val pct   = if (line.limitCents > 0) (line.spentCents * 100 / line.limitCents).toInt() else 0
-                val rc    = when { pct >= 100 -> COLOR_EXPENSE; pct >= 80 -> COLOR_WARN; else -> COLOR_INCOME }
-                val rowBg = if (idx % 2 == 0) COLOR_WHITE else COLOR_SURFACE
+            // Group by root category
+            val budgetGroups = budgetLines.groupBy { it.rootCategoryId }
+            for ((_, group) in budgetGroups) {
+                val rootName = group.first().rootCategoryName
+                val rootLimit = group.sumOf { it.limitCents }
+                val rootSpent = group.sumOf { it.spentCents }
+                val rootPct = if (rootLimit > 0) (rootSpent * 100 / rootLimit).toInt() else 0
+                val rootColor = when { rootPct >= 100 -> COLOR_EXPENSE; rootPct >= 80 -> COLOR_WARN; else -> COLOR_INCOME }
 
-                canvas.drawRect(MARGIN, y, MARGIN + CONTENT_WIDTH, y + budRowH, fill(rowBg))
-                canvas.drawRect(MARGIN, y, MARGIN + 3f, y + budRowH, fill(rc))
-
-                val ty = y + budRowH * 0.64f
-                canvas.drawText(line.categoryName.take(22), c0, ty, paint(COLOR_TEXT, 7.5f))
-                canvas.drawText(fmt(line.limitCents), c1, ty, paint(COLOR_TEXT_MUTED, 7.5f))
-                canvas.drawText(fmt(line.spentCents), c2, ty, paint(rc, 7.5f, bold = true))
-                canvas.drawText("$pct%", c3, ty, paint(rc, 7.5f, bold = true))
-
-                // Mini bar
-                val mbW  = CONTENT_WIDTH * 0.13f
-                val mbX  = c4 - mbW
-                val mbFW = (mbW * (line.spentCents.toFloat() / line.limitCents.toFloat().coerceAtLeast(1f))).coerceIn(0f, mbW)
-                canvas.drawRoundRect(RectF(mbX, y + budRowH * 0.68f, mbX + mbW, y + budRowH * 0.86f), 2f, 2f, fill(COLOR_SURFACE))
-                canvas.drawRoundRect(RectF(mbX, y + budRowH * 0.68f, mbX + mbFW, y + budRowH * 0.86f), 2f, 2f, fill(rc))
-
+                // Root row
+                checkNewPage(rootRowH + subRowH * group.size)
+                canvas.drawRect(MARGIN, y, MARGIN + CONTENT_WIDTH, y + rootRowH, fill(COLOR_EXPENSE_BG))
+                canvas.drawRect(MARGIN, y, MARGIN + 4f, y + rootRowH, fill(COLOR_EXPENSE))
+                canvas.drawText(rootName.take(30), MARGIN + 10f, y + rootRowH * 0.72f, paint(COLOR_TEXT, 8.5f, bold = true))
+                canvas.drawText(fmt(rootLimit), c1, y + rootRowH * 0.72f, paint(COLOR_TEXT_MUTED, 8.5f))
+                canvas.drawText(fmt(rootSpent), c2, y + rootRowH * 0.72f, paint(rootColor, 8.5f, bold = true))
+                canvas.drawText("$rootPct%", c3, y + rootRowH * 0.72f, paint(rootColor, 8.5f, bold = true))
                 canvas.drawText(
-                    when { pct >= 100 -> "Excedido"; pct >= 80 -> "Al límite"; else -> "OK" },
-                    c4, ty, paint(rc, 7f, bold = true, align = Paint.Align.RIGHT)
+                    when { rootPct >= 100 -> "Excedido"; rootPct >= 80 -> "Al límite"; else -> "OK" },
+                    c4, y + rootRowH * 0.72f, paint(rootColor, 8f, bold = true, align = Paint.Align.RIGHT)
                 )
-                canvas.drawLine(MARGIN, y + budRowH, MARGIN + CONTENT_WIDTH, y + budRowH, stroke(COLOR_BORDER, 0.3f))
-                y += budRowH
+                y += rootRowH
+
+                // Subcategory rows
+                group.forEach { line ->
+                    checkNewPage(subRowH + 1f)
+                    val pct = if (line.limitCents > 0) (line.spentCents * 100 / line.limitCents).toInt() else 0
+                    val rc = when { pct >= 100 -> COLOR_EXPENSE; pct >= 80 -> COLOR_WARN; else -> COLOR_INCOME }
+                    val rowBg = COLOR_WHITE
+
+                    canvas.drawRect(MARGIN, y, MARGIN + CONTENT_WIDTH, y + subRowH, fill(rowBg))
+                    canvas.drawText("  ${line.categoryName.take(28)}", c0, y + subRowH * 0.64f, paint(COLOR_TEXT, 7.5f))
+                    canvas.drawText(fmt(line.limitCents), c1, y + subRowH * 0.64f, paint(COLOR_TEXT_MUTED, 7.5f))
+                    canvas.drawText(fmt(line.spentCents), c2, y + subRowH * 0.64f, paint(rc, 7.5f, bold = true))
+                    canvas.drawText("$pct%", c3, y + subRowH * 0.64f, paint(rc, 7.5f, bold = true))
+
+                    // Mini bar
+                    val mbW = CONTENT_WIDTH * 0.13f
+                    val mbX = c4 - mbW
+                    val mbFW = (mbW * (line.spentCents.toFloat() / line.limitCents.toFloat().coerceAtLeast(1f))).coerceIn(0f, mbW)
+                    canvas.drawRoundRect(RectF(mbX, y + subRowH * 0.68f, mbX + mbW, y + subRowH * 0.86f), 2f, 2f, fill(COLOR_SURFACE))
+                    canvas.drawRoundRect(RectF(mbX, y + subRowH * 0.68f, mbX + mbFW, y + subRowH * 0.86f), 2f, 2f, fill(rc))
+
+                    canvas.drawText(
+                        when { pct >= 100 -> "Excedido"; pct >= 80 -> "Al límite"; else -> "OK" },
+                        c4, y + subRowH * 0.64f, paint(rc, 7f, bold = true, align = Paint.Align.RIGHT)
+                    )
+                    canvas.drawLine(MARGIN, y + subRowH, MARGIN + CONTENT_WIDTH, y + subRowH, stroke(COLOR_BORDER, 0.3f))
+                    y += subRowH
+                }
+            }
+        }
+
+        // ── 5. PRÉSTAMOS ACTIVOS ────────────────────────────────────────
+        checkNewPage(60f)
+        canvas.drawRect(MARGIN, y, MARGIN + CONTENT_WIDTH, y + 22f, fill(COLOR_PRIMARY))
+        canvas.drawText("PRÉSTAMOS ACTIVOS", MARGIN + CONTENT_WIDTH / 2, y + 15f, paint(COLOR_WHITE, 9f, bold = true, align = Paint.Align.CENTER))
+        y += 26f
+
+        if (loanLines.isEmpty()) {
+            canvas.drawText("No hay préstamos activos.", MARGIN + CONTENT_WIDTH / 2, y + 14f, paint(COLOR_TEXT_MUTED, 8.5f, align = Paint.Align.CENTER))
+            y += 24f
+        } else {
+            // Group by type
+            val lentLoans = loanLines.filter { it.type == "LENT" }
+            val borrowedLoans = loanLines.filter { it.type == "BORROWED" }
+
+            if (lentLoans.isNotEmpty()) {
+                checkNewPage(20f)
+                canvas.drawText("Préstamos otorgados", MARGIN, y + 12f, paint(COLOR_PRIMARY, 8.5f, bold = true))
+                y += 16f
+
+                lentLoans.forEach { loan ->
+                    checkNewPage(24f)
+                    val rowBg = COLOR_WHITE
+                    canvas.drawRect(MARGIN, y, MARGIN + CONTENT_WIDTH, y + 20f, fill(rowBg))
+                    canvas.drawRect(MARGIN, y, MARGIN + 3f, y + 20f, fill(COLOR_PRIMARY))
+
+                    canvas.drawText(loan.counterpartyName.take(25), MARGIN + 10f, y + 14f, paint(COLOR_TEXT, 7.5f))
+                    canvas.drawText(fmt(loan.paidCents), MARGIN + CONTENT_WIDTH * 0.5f, y + 14f, paint(COLOR_INCOME, 7.5f, bold = true))
+                    canvas.drawText(fmt(loan.remainingCents), MARGIN + CONTENT_WIDTH * 0.75f, y + 14f, paint(COLOR_WARN, 7.5f, bold = true))
+                    canvas.drawText("${(loan.progress * 100).toInt()}%", MARGIN + CONTENT_WIDTH - 6f, y + 14f, paint(COLOR_TEXT_MUTED, 7.5f, align = Paint.Align.RIGHT))
+
+                    // Progress bar
+                    val barW = CONTENT_WIDTH * 0.2f
+                    val barX = MARGIN + CONTENT_WIDTH - barW - 10f
+                    canvas.drawRoundRect(RectF(barX, y + 16f, barX + barW, y + 18f), 2f, 2f, fill(COLOR_SURFACE))
+                    canvas.drawRoundRect(RectF(barX, y + 16f, barX + barW * loan.progress, y + 18f), 2f, 2f, fill(COLOR_INCOME))
+
+                    canvas.drawLine(MARGIN, y + 20f, MARGIN + CONTENT_WIDTH, y + 20f, stroke(COLOR_BORDER, 0.3f))
+                    y += 20f
+                }
+                y += 6f
+            }
+
+            if (borrowedLoans.isNotEmpty()) {
+                checkNewPage(20f)
+                canvas.drawText("Préstamos recibidos", MARGIN, y + 12f, paint(COLOR_PRIMARY, 8.5f, bold = true))
+                y += 16f
+
+                borrowedLoans.forEach { loan ->
+                    checkNewPage(24f)
+                    val rowBg = COLOR_WHITE
+                    canvas.drawRect(MARGIN, y, MARGIN + CONTENT_WIDTH, y + 20f, fill(rowBg))
+                    canvas.drawRect(MARGIN, y, MARGIN + 3f, y + 20f, fill(COLOR_EXPENSE))
+
+                    canvas.drawText(loan.counterpartyName.take(25), MARGIN + 10f, y + 14f, paint(COLOR_TEXT, 7.5f))
+                    canvas.drawText(fmt(loan.paidCents), MARGIN + CONTENT_WIDTH * 0.5f, y + 14f, paint(COLOR_EXPENSE, 7.5f, bold = true))
+                    canvas.drawText(fmt(loan.remainingCents), MARGIN + CONTENT_WIDTH * 0.75f, y + 14f, paint(COLOR_WARN, 7.5f, bold = true))
+                    canvas.drawText("${(loan.progress * 100).toInt()}%", MARGIN + CONTENT_WIDTH - 6f, y + 14f, paint(COLOR_TEXT_MUTED, 7.5f, align = Paint.Align.RIGHT))
+
+                    // Progress bar
+                    val barW = CONTENT_WIDTH * 0.2f
+                    val barX = MARGIN + CONTENT_WIDTH - barW - 10f
+                    canvas.drawRoundRect(RectF(barX, y + 16f, barX + barW, y + 18f), 2f, 2f, fill(COLOR_SURFACE))
+                    canvas.drawRoundRect(RectF(barX, y + 16f, barX + barW * loan.progress, y + 18f), 2f, 2f, fill(COLOR_EXPENSE))
+
+                    canvas.drawLine(MARGIN, y + 20f, MARGIN + CONTENT_WIDTH, y + 20f, stroke(COLOR_BORDER, 0.3f))
+                    y += 20f
+                }
+            }
+        }
+
+        // ── 6. METAS ACTIVAS ───────────────────────────────────────────
+        checkNewPage(60f)
+        canvas.drawRect(MARGIN, y, MARGIN + CONTENT_WIDTH, y + 22f, fill(COLOR_PRIMARY))
+        canvas.drawText("METAS ACTIVAS", MARGIN + CONTENT_WIDTH / 2, y + 15f, paint(COLOR_WHITE, 9f, bold = true, align = Paint.Align.CENTER))
+        y += 26f
+
+        if (goalLines.isEmpty()) {
+            canvas.drawText("No hay metas activas.", MARGIN + CONTENT_WIDTH / 2, y + 14f, paint(COLOR_TEXT_MUTED, 8.5f, align = Paint.Align.CENTER))
+            y += 24f
+        } else {
+            goalLines.forEach { goal ->
+                checkNewPage(24f)
+                val rowBg = COLOR_WHITE
+                canvas.drawRect(MARGIN, y, MARGIN + CONTENT_WIDTH, y + 20f, fill(rowBg))
+                canvas.drawRect(MARGIN, y, MARGIN + 3f, y + 20f, fill(COLOR_PRIMARY))
+
+                canvas.drawText(goal.name.take(25), MARGIN + 10f, y + 14f, paint(COLOR_TEXT, 7.5f))
+                canvas.drawText(fmt(goal.currentCents), MARGIN + CONTENT_WIDTH * 0.5f, y + 14f, paint(COLOR_INCOME, 7.5f, bold = true))
+                canvas.drawText(fmt(goal.remainingCents), MARGIN + CONTENT_WIDTH * 0.75f, y + 14f, paint(COLOR_WARN, 7.5f, bold = true))
+                canvas.drawText("${(goal.progress * 100).toInt()}%", MARGIN + CONTENT_WIDTH - 6f, y + 14f, paint(COLOR_TEXT_MUTED, 7.5f, align = Paint.Align.RIGHT))
+
+                // Progress bar
+                val barW = CONTENT_WIDTH * 0.2f
+                val barX = MARGIN + CONTENT_WIDTH - barW - 10f
+                canvas.drawRoundRect(RectF(barX, y + 16f, barX + barW, y + 18f), 2f, 2f, fill(COLOR_SURFACE))
+                canvas.drawRoundRect(RectF(barX, y + 16f, barX + barW * goal.progress, y + 18f), 2f, 2f, fill(COLOR_PRIMARY))
+
+                canvas.drawLine(MARGIN, y + 20f, MARGIN + CONTENT_WIDTH, y + 20f, stroke(COLOR_BORDER, 0.3f))
+                y += 20f
             }
         }
 
@@ -356,5 +517,14 @@ object MonthlySummaryPdfGenerator {
                 .replaceFirstChar { it.titlecase(Locale("es", "CO")) }
             "$monthName $year"
         } catch (_: Exception) { monthKey }
+    }
+
+    private fun drawLogo(canvas: Canvas, context: Context, x: Float, y: Float, size: Float) {
+        try {
+            val logo = BitmapFactory.decodeResource(context.resources, R.drawable.ic_launcher) ?: return
+            canvas.drawBitmap(logo, null, RectF(x, y, x + size, y + size), null)
+        } catch (_: Exception) {
+            // Ignore logo rendering issues and continue generating the PDF.
+        }
     }
 }

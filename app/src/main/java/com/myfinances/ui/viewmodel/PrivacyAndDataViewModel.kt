@@ -98,9 +98,21 @@ class PrivacyAndDataViewModel @Inject constructor(
             try {
                 val userUid = uid ?: throw IllegalStateException("Usuario no autenticado")
 
-                // Last 30 days
-                val toEpochSec = System.currentTimeMillis() / 1000
-                val fromEpochSec = toEpochSec - 30L * 24 * 60 * 60
+                // Current month range
+                val start = Calendar.getInstance().apply {
+                    set(Calendar.DAY_OF_MONTH, 1)
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                val end = Calendar.getInstance().apply {
+                    timeInMillis = start.timeInMillis
+                    add(Calendar.MONTH, 1)
+                    add(Calendar.SECOND, -1)
+                }
+                val fromEpochSec = start.timeInMillis / 1000
+                val toEpochSec = end.timeInMillis / 1000
 
                 val transactions = transactionRepository.getFiltered(
                     userUid = userUid,
@@ -196,27 +208,29 @@ class PrivacyAndDataViewModel @Inject constructor(
                 val fromEpochSec = start.timeInMillis / 1000
                 val toEpochSec = end.timeInMillis / 1000
 
-                // Income & expense totals
+                // Income & expense totals (including loan movements)
                 val transactions = transactionRepository.getFiltered(
                     userUid = userUid,
                     fromEpochSec = fromEpochSec,
                     toEpochSec = toEpochSec,
                     limit = 2000
                 )
-                val incomeCents = transactions.filter { it.kind == "INCOME" }.sumOf { it.amountCents }
-                val expenseCents = transactions.filter { it.kind == "EXPENSE" }.sumOf { it.amountCents }
+                val incomeKinds = setOf("INCOME", "LOAN_BORROWED_IN", "LOAN_REPAYMENT_PRINCIPAL_IN")
+                val expenseKinds = setOf("EXPENSE", "LOAN_LENT_OUT", "LOAN_REPAYMENT_PRINCIPAL_OUT")
+                val incomeCents = transactions.filter { it.kind in incomeKinds }.sumOf { it.amountCents }
+                val expenseCents = transactions.filter { it.kind in expenseKinds }.sumOf { it.amountCents }
 
                 // User settings for currency
                 val userSettings = userSettingsRepository.get(userUid)
                 val currency = userSettings?.baseCurrency ?: "COP"
 
-                // Category hierarchy for income and expense
+                // Category hierarchy for income and expense (including loan movements)
                 val incomeHierarchy = transactionRepository.getHierarchyTotalsInRange(
-                    userUid = userUid, kind = "INCOME", currency = currency,
+                    userUid = userUid, kinds = incomeKinds.toList(), currency = currency,
                     fromEpochSec = fromEpochSec, toEpochSec = toEpochSec
                 )
                 val expenseHierarchy = transactionRepository.getHierarchyTotalsInRange(
-                    userUid = userUid, kind = "EXPENSE", currency = currency,
+                    userUid = userUid, kinds = expenseKinds.toList(), currency = currency,
                     fromEpochSec = fromEpochSec, toEpochSec = toEpochSec
                 )
 
@@ -233,18 +247,52 @@ class PrivacyAndDataViewModel @Inject constructor(
                 // Build a full categoryId→name map (roots + children)
                 val rootCategories = categoryRepository.getRoots(userUid)
                 val allCatNameMap = rootCategories.associate { it.id to it.name }.toMutableMap()
+                val rootIdMap = mutableMapOf<String, String>() // categoryId -> rootCategoryId
                 for (root in rootCategories) {
                     val children = runCatching { categoryRepository.getChildren(userUid, root.id) }.getOrDefault(emptyList())
-                    children.forEach { allCatNameMap[it.id] = it.name }
+                    children.forEach {
+                        allCatNameMap[it.id] = it.name
+                        rootIdMap[it.id] = root.id
+                    }
+                    rootIdMap[root.id] = root.id
                 }
 
                 val budgetLines = budgetEntities.map { b ->
+                    val rootId = rootIdMap[b.categoryId] ?: b.categoryId
+                    val rootName = allCatNameMap[rootId] ?: "Desconocido"
                     com.myfinances.ui.pdf.MonthlySummaryPdfGenerator.BudgetLine(
+                        categoryId = b.categoryId,
                         categoryName = allCatNameMap[b.categoryId] ?: b.categoryId.take(12),
+                        rootCategoryId = rootId,
+                        rootCategoryName = rootName,
                         limitCents = b.limitCents,
                         spentCents = spentMap[b.categoryId] ?: 0L
                     )
                 }.sortedByDescending { it.spentCents }
+
+                // Get active loans
+                val activeLoans = loanRepository.getFiltered(userUid, null, "OPEN", currency)
+                val loanLines = activeLoans.map { loan ->
+                    val paidCents = loanPaymentRepository.sumPrincipalByLoan(userUid, loan.id)
+                    com.myfinances.ui.pdf.MonthlySummaryPdfGenerator.LoanLine(
+                        counterpartyName = loan.counterpartyName,
+                        principalCents = loan.principalCents,
+                        paidCents = paidCents,
+                        type = loan.type
+                    )
+                }
+
+                // Get active goals
+                val activeGoals = goalRepository.getByUser(userUid).filter { it.status == "OPEN" && it.currency == currency }
+                val goalLines = activeGoals.map { goal ->
+                    val currentCents = accountRepository.computeBalance(userUid, goal.accountId)
+                    com.myfinances.ui.pdf.MonthlySummaryPdfGenerator.GoalLine(
+                        name = goal.name,
+                        targetCents = goal.targetCents,
+                        currentCents = currentCents,
+                        targetDateEpochSec = goal.targetDateEpochSec
+                    )
+                }
 
                 val firebaseUser = authRepository.currentUser
                 val userName = firebaseUser?.displayName?.takeIf { it.isNotBlank() }
@@ -259,6 +307,8 @@ class PrivacyAndDataViewModel @Inject constructor(
                     incomeHierarchy = incomeHierarchy,
                     expenseHierarchy = expenseHierarchy,
                     budgetLines = budgetLines,
+                    loanLines = loanLines,
+                    goalLines = goalLines,
                     userName = userName
                 )
 

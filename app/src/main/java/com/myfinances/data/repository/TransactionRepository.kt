@@ -132,12 +132,12 @@ class TransactionRepository @Inject constructor(
 
     suspend fun getHierarchyTotalsInRange(
         userUid: String,
-        kind: String,
+        kinds: List<String>,
         currency: String,
         fromEpochSec: Long,
         toEpochSec: Long
     ): List<HierarchyCategoryTotal> {
-        return transactionDao.getHierarchyTotalsInRange(userUid, kind, currency, fromEpochSec, toEpochSec)
+        return transactionDao.getHierarchyTotalsInRange(userUid, kinds, currency, fromEpochSec, toEpochSec)
     }
 
     suspend fun getExpenseMonths(userUid: String, currency: String, limit: Int = 24): List<String> {

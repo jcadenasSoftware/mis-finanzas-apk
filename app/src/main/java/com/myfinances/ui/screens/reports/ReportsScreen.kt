@@ -209,7 +209,7 @@ private fun ReportsCard(
                     ReportButton(
                         icon = Icons.Default.ReceiptLong,
                         title = "Transacciones",
-                        description = "Últimos 30 días con detalle visual",
+                        description = "Detalle visual de tus transacciones",
                         onClick = onExportTransactions
                     )
                     ReportButton(

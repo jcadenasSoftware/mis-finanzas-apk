@@ -1,13 +1,14 @@
 package com.myfinances.ui.pdf
 
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
+import com.myfinances.R
 import com.myfinances.data.local.entity.AccountEntity
 import java.io.File
 import java.text.NumberFormat
@@ -87,8 +88,11 @@ object AccountsPdfGenerator {
         val currencyFormat = NumberFormat.getCurrencyInstance(Locale("es", "CO"))
         val generatedAt = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("es", "CO")).format(Date())
 
-        val totalBalance = accounts.sumOf { it.balanceCents }
-        val positiveAccounts = accounts.count { it.balanceCents >= 0 }
+        // Sort accounts by balance descending (highest to lowest)
+        val sortedAccounts = accounts.sortedByDescending { it.balanceCents }
+
+        val totalBalance = sortedAccounts.sumOf { it.balanceCents }
+        val positiveAccounts = sortedAccounts.count { it.balanceCents >= 0 }
 
         val document = PdfDocument()
 
@@ -120,20 +124,20 @@ object AccountsPdfGenerator {
         }
 
         // ── Pagination ─────────────────────────────────────────────────
-        val cardHeight = 74f
-        val cardSpacing = 10f
+        val cardHeight = 48f
+        val cardSpacing = 6f
         val headerHeight = 240f
         val cardsPerFirstPage = ((PAGE_HEIGHT - headerHeight - MARGIN) / (cardHeight + cardSpacing)).toInt()
         val cardsPerNextPage = ((PAGE_HEIGHT - MARGIN * 2 - 56f) / (cardHeight + cardSpacing)).toInt()
 
         val pages = mutableListOf<List<AccountWithBalance>>()
-        if (accounts.isEmpty()) {
+        if (sortedAccounts.isEmpty()) {
             pages.add(emptyList())
         } else {
-            pages.add(accounts.take(cardsPerFirstPage))
+            pages.add(sortedAccounts.take(cardsPerFirstPage))
             var offset = cardsPerFirstPage
-            while (offset < accounts.size) {
-                pages.add(accounts.subList(offset, minOf(offset + cardsPerNextPage, accounts.size)))
+            while (offset < sortedAccounts.size) {
+                pages.add(sortedAccounts.subList(offset, minOf(offset + cardsPerNextPage, sortedAccounts.size)))
                 offset += cardsPerNextPage
             }
         }
@@ -150,11 +154,17 @@ object AccountsPdfGenerator {
                 // ── HEADER BANNER ──────────────────────────────────────
                 canvas.drawRect(0f, 0f, PAGE_WIDTH.toFloat(), 110f, fill(COLOR_PRIMARY))
 
-                // Decorative circle top-right
-                canvas.drawCircle(PAGE_WIDTH.toFloat() + 10f, -10f, 90f, fill(Color.parseColor("#1E40AF")))
-                canvas.drawCircle(PAGE_WIDTH - 60f, 120f, 50f, fill(Color.parseColor("#1E40AF")))
+                drawLogo(canvas, context, MARGIN, 14f, 28f)
 
-                canvas.drawText("Mis Finanzas", MARGIN, 38f, paint(COLOR_WHITE, 20f, bold = true))
+                // App name
+                canvas.drawText(
+                    "Xpendz",
+                    MARGIN + 38f,
+                    38f,
+                    paint(COLOR_WHITE, 20f, bold = true)
+                )
+
+                // Report title
                 canvas.drawText(
                     "Balance de Cuentas",
                     MARGIN, 62f,
@@ -178,38 +188,42 @@ object AccountsPdfGenerator {
 
                 y = 126f
 
-                // ── SUMMARY BAR ────────────────────────────────────────
-                // Total balance card (full width)
-                val totalCardRect = RectF(MARGIN, y, MARGIN + CONTENT_WIDTH, y + 60f)
-                canvas.drawRoundRect(RectF(MARGIN + 1f, y + 2f, MARGIN + CONTENT_WIDTH + 1f, y + 62f), 10f, 10f, fill(COLOR_BORDER))
-                canvas.drawRoundRect(totalCardRect, 10f, 10f, fill(COLOR_WHITE))
-                canvas.drawRoundRect(totalCardRect, 10f, 10f, stroke(COLOR_BORDER))
-                // Left color accent bar
-                canvas.drawRoundRect(RectF(MARGIN, y, MARGIN + 4f, y + 60f), 4f, 4f, fill(COLOR_PRIMARY))
-
-                canvas.drawText("Balance total", MARGIN + 16f, y + 22f, paint(COLOR_TEXT_MUTED, 9f))
+                // ── SUMMARY CARDS ────────────────────────────────────────
+                val gap = 8f
+                val cardW = (CONTENT_WIDTH - (gap * 2f)) / 3f
+                val cardH = 58f
+                val radius = 8f
+                
+                // Balance total card
+                val totalCardX = MARGIN
+                val totalColor = if (totalBalance >= 0) COLOR_INCOME else Color.parseColor("#DC2626")
+                canvas.drawRoundRect(RectF(totalCardX + 1f, y + 2f, totalCardX + cardW, y + cardH + 2f), radius, radius, fill(COLOR_BORDER))
+                canvas.drawRoundRect(RectF(totalCardX, y, totalCardX + cardW, y + cardH), radius, radius, fill(COLOR_WHITE))
+                canvas.drawRoundRect(RectF(totalCardX, y, totalCardX + cardW, y + cardH), radius, radius, stroke(COLOR_BORDER, 0.6f))
+                canvas.drawRect(totalCardX, y, totalCardX + cardW, y + 4f, fill(totalColor))
+                canvas.drawText("Balance total", totalCardX + 10f, y + 22f, paint(COLOR_TEXT_MUTED, 8.5f))
                 val totalText = currencyFormat.format(totalBalance / 100.0)
-                val totalSize = when { totalText.length > 16 -> 14f; totalText.length > 12 -> 16f; else -> 20f }
-                canvas.drawText(
-                    totalText, MARGIN + 16f, y + 48f,
-                    paint(if (totalBalance >= 0) COLOR_INCOME else Color.parseColor("#DC2626"), totalSize, bold = true)
-                )
-                // Accounts count badge
-                val badgeText = "${accounts.size} cuentas"
-                canvas.drawRoundRect(
-                    RectF(PAGE_WIDTH - MARGIN - 90f, y + 18f, PAGE_WIDTH - MARGIN - 10f, y + 38f),
-                    10f, 10f, fill(COLOR_ACCENT_BLUE)
-                )
-                canvas.drawRoundRect(
-                    RectF(PAGE_WIDTH - MARGIN - 90f, y + 18f, PAGE_WIDTH - MARGIN - 10f, y + 38f),
-                    10f, 10f, stroke(COLOR_ACCENT_BORDER)
-                )
-                canvas.drawText(
-                    badgeText,
-                    PAGE_WIDTH - MARGIN - 50f, y + 33f,
-                    paint(COLOR_PRIMARY, 9f, bold = true, align = Paint.Align.CENTER)
-                )
-
+                val totalSize = when { totalText.length > 16 -> 10f; totalText.length > 12 -> 11f; else -> 12.5f }
+                canvas.drawText(totalText, totalCardX + 10f, y + 43f, paint(totalColor, totalSize, bold = true))
+                
+                // Cuentas activas card
+                val accountsCardX = MARGIN + cardW + gap
+                canvas.drawRoundRect(RectF(accountsCardX + 1f, y + 2f, accountsCardX + cardW, y + cardH + 2f), radius, radius, fill(COLOR_BORDER))
+                canvas.drawRoundRect(RectF(accountsCardX, y, accountsCardX + cardW, y + cardH), radius, radius, fill(COLOR_WHITE))
+                canvas.drawRoundRect(RectF(accountsCardX, y, accountsCardX + cardW, y + cardH), radius, radius, stroke(COLOR_BORDER, 0.6f))
+                canvas.drawRect(accountsCardX, y, accountsCardX + cardW, y + 4f, fill(COLOR_PRIMARY))
+                canvas.drawText("Cuentas activas", accountsCardX + 10f, y + 22f, paint(COLOR_TEXT_MUTED, 8.5f))
+                canvas.drawText(sortedAccounts.size.toString(), accountsCardX + 10f, y + 43f, paint(COLOR_PRIMARY, 12.5f, bold = true))
+                
+                // Saldo positivo card
+                val positiveCardX = MARGIN + (cardW + gap) * 2
+                canvas.drawRoundRect(RectF(positiveCardX + 1f, y + 2f, positiveCardX + cardW, y + cardH + 2f), radius, radius, fill(COLOR_BORDER))
+                canvas.drawRoundRect(RectF(positiveCardX, y, positiveCardX + cardW, y + cardH), radius, radius, fill(COLOR_WHITE))
+                canvas.drawRoundRect(RectF(positiveCardX, y, positiveCardX + cardW, y + cardH), radius, radius, stroke(COLOR_BORDER, 0.6f))
+                canvas.drawRect(positiveCardX, y, positiveCardX + cardW, y + 4f, fill(COLOR_INCOME))
+                canvas.drawText("Saldo positivo", positiveCardX + 10f, y + 22f, paint(COLOR_TEXT_MUTED, 8.5f))
+                canvas.drawText(positiveAccounts.toString(), positiveCardX + 10f, y + 43f, paint(COLOR_INCOME, 12.5f, bold = true))
+                
                 y += 76f
 
                 // ── SECTION TITLE ──────────────────────────────────────
@@ -219,11 +233,9 @@ object AccountsPdfGenerator {
             } else {
                 // ── CONTINUATION HEADER ────────────────────────────────
                 canvas.drawRect(0f, 0f, PAGE_WIDTH.toFloat(), 40f, fill(COLOR_PRIMARY))
-                canvas.drawText(
-                    "Mis Finanzas · Balance de Cuentas",
-                    MARGIN, 26f,
-                    paint(COLOR_WHITE, 10f)
-                )
+                
+                drawLogo(canvas, context, MARGIN, 11f, 16f)
+                canvas.drawText("Xpendz · Balance de Cuentas", MARGIN + 24f, 26f, paint(COLOR_WHITE, 10f))
                 canvas.drawText(
                     "Pág. ${pageIndex + 1} / $totalPages",
                     PAGE_WIDTH - MARGIN, 26f,
@@ -243,16 +255,13 @@ object AccountsPdfGenerator {
                 pageAccounts.forEach { (account, balanceCents) ->
                     val cx = MARGIN
                     val cw = CONTENT_WIDTH
-                    val cardRect = RectF(cx, y, cx + cw, y + cardHeight)
+                    val h = 48f
+                    val cardRect = RectF(cx, y, cx + cw, y + h)
+                    val radius = 6f
 
-                    // Shadow
-                    canvas.drawRoundRect(
-                        RectF(cx + 1f, y + 2f, cx + cw + 1f, y + cardHeight + 2f),
-                        10f, 10f, fill(COLOR_BORDER)
-                    )
-                    // Card background
-                    canvas.drawRoundRect(cardRect, 10f, 10f, fill(COLOR_WHITE))
-                    canvas.drawRoundRect(cardRect, 10f, 10f, stroke(COLOR_BORDER, 0.8f))
+                    // Rounded card background with subtle border
+                    canvas.drawRoundRect(cardRect, radius, radius, fill(COLOR_WHITE))
+                    canvas.drawRoundRect(cardRect, radius, radius, stroke(COLOR_BORDER, 0.4f))
 
                     // Account type color accent (left bar)
                     val accentColor = try {
@@ -262,67 +271,54 @@ object AccountsPdfGenerator {
                     } catch (_: Exception) {
                         typeColors[account.type.uppercase()] ?: COLOR_TEXT_MUTED
                     }
-                    canvas.drawRoundRect(RectF(cx, y, cx + 5f, y + cardHeight), 4f, 4f, fill(accentColor))
+                    canvas.drawRoundRect(RectF(cx, y, cx + 4f, y + h), radius, radius, fill(accentColor))
 
-                    // Account icon circle
-                    val iconCx = cx + 28f
-                    val iconCy = y + cardHeight / 2
-                    canvas.drawCircle(iconCx, iconCy, 18f, fill(Color.argb(25, Color.red(accentColor), Color.green(accentColor), Color.blue(accentColor))))
+                    // Avatar background
+                    canvas.drawRoundRect(RectF(cx + 16f, y + 12f, cx + 38f, y + 34f), 5f, 5f, fill(Color.argb(46, Color.red(accentColor), Color.green(accentColor), Color.blue(accentColor))))
                     // First letter of account name
                     val initial = account.name.take(1).uppercase()
                     canvas.drawText(
-                        initial, iconCx, iconCy + 5f,
-                        paint(accentColor, 14f, bold = true, align = Paint.Align.CENTER)
+                        initial, cx + 27f, y + 20f,
+                        paint(accentColor, 10f, bold = true, align = Paint.Align.CENTER)
                     )
 
-                    // Account name
+                    // Account name and type
                     canvas.drawText(
                         account.name,
-                        cx + 54f, y + 26f,
-                        paint(COLOR_TEXT, 11f, bold = true)
+                        cx + 48f, y + 26f,
+                        paint(COLOR_TEXT, 9.5f, bold = true)
                     )
-
-                    // Type pill
                     val typeLabel = typeLabels[account.type.uppercase()] ?: account.type
-                    val typeBg = typeBgColors[account.type.uppercase()] ?: COLOR_SURFACE
-                    val pillW = typeLabel.length * 5.8f + 14f
-                    canvas.drawRoundRect(
-                        RectF(cx + 54f, y + 34f, cx + 54f + pillW, y + 50f),
-                        8f, 8f, fill(typeBg)
-                    )
                     canvas.drawText(
                         typeLabel,
-                        cx + 54f + pillW / 2, y + 46f,
-                        paint(accentColor, 7.5f, bold = true, align = Paint.Align.CENTER)
+                        cx + 48f, y + 14f,
+                        paint(COLOR_TEXT_MUTED, 7.5f)
                     )
 
-                    // Currency chip
-                    canvas.drawRoundRect(
-                        RectF(cx + 54f + pillW + 8f, y + 34f, cx + 54f + pillW + 8f + 36f, y + 50f),
-                        8f, 8f, fill(COLOR_ACCENT_BLUE)
-                    )
-                    canvas.drawText(
-                        account.currency,
-                        cx + 54f + pillW + 8f + 18f, y + 46f,
-                        paint(COLOR_PRIMARY, 7.5f, bold = true, align = Paint.Align.CENTER)
-                    )
-
-                    // Balance (right side)
+                    // Balance and percentage
                     val balanceText = currencyFormat.format(balanceCents / 100.0)
                     val balanceColor = if (balanceCents >= 0) COLOR_INCOME else Color.parseColor("#DC2626")
-                    val balSize = when { balanceText.length > 16 -> 9f; balanceText.length > 12 -> 10f; else -> 12f }
                     canvas.drawText(
                         balanceText,
-                        cx + cw - 12f, y + 34f,
-                        paint(balanceColor, balSize, bold = true, align = Paint.Align.RIGHT)
+                        cx + cw - 10f, y + 10f,
+                        paint(balanceColor, 9.5f, bold = true, align = Paint.Align.RIGHT)
                     )
+
+                    val pct = if (totalBalance == 0L) 0f else Math.abs(balanceCents).toFloat() / Math.max(1L, Math.abs(totalBalance)).toFloat()
+                    val pctText = String.format(Locale("es", "CO"), "%.1f%%", pct * 100)
                     canvas.drawText(
-                        "Saldo actual",
-                        cx + cw - 12f, y + 50f,
+                        pctText,
+                        cx + cw - 10f, y + 22f,
                         paint(COLOR_TEXT_MUTED, 7.5f, align = Paint.Align.RIGHT)
                     )
 
-                    y += cardHeight + cardSpacing
+                    // Progress bar
+                    val barW = 100f
+                    canvas.drawRoundRect(RectF(cx + cw - barW - 10f, y + 30f, cx + cw - 10f, y + 34f), 2f, 2f, fill(COLOR_SURFACE))
+                    val fillBarW = Math.max(4f, barW * Math.min(1f, pct))
+                    canvas.drawRoundRect(RectF(cx + cw - barW - 10f, y + 30f, cx + cw - barW - 10f + fillBarW, y + 34f), 2f, 2f, fill(accentColor))
+
+                    y += h + cardSpacing
                 }
             }
 
@@ -330,7 +326,7 @@ object AccountsPdfGenerator {
             val footerY = PAGE_HEIGHT - 24f
             canvas.drawLine(MARGIN, footerY - 10f, MARGIN + CONTENT_WIDTH, footerY - 10f, stroke(COLOR_BORDER))
             canvas.drawText(
-                "Mis Finanzas · Reporte confidencial",
+                "Xpendz · Reporte confidencial",
                 MARGIN, footerY,
                 paint(COLOR_TEXT_MUTED, 8f)
             )
@@ -347,5 +343,14 @@ object AccountsPdfGenerator {
         file.outputStream().use { document.writeTo(it) }
         document.close()
         return file
+    }
+
+    private fun drawLogo(canvas: Canvas, context: Context, x: Float, y: Float, size: Float) {
+        try {
+            val logo = BitmapFactory.decodeResource(context.resources, R.drawable.ic_launcher) ?: return
+            canvas.drawBitmap(logo, null, RectF(x, y, x + size, y + size), null)
+        } catch (_: Exception) {
+            // Ignore logo rendering issues and continue generating the PDF.
+        }
     }
 }
