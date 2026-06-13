@@ -21,7 +21,9 @@ class LoanPaymentRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val deviceIdProvider: DeviceIdProvider,
     private val categoryRepository: CategoryRepository,
-    private val transactionRepository: TransactionRepository
+    private val transactionRepository: TransactionRepository,
+    private val loanMovementRepository: LoanMovementRepository,
+    private val transactionDao: com.myfinances.data.local.dao.TransactionDao
 ) {
     fun observeByLoan(userUid: String, loanId: String): Flow<List<LoanPaymentEntity>> {
         return loanPaymentDao.observeByLoan(userUid, loanId)
@@ -66,14 +68,36 @@ class LoanPaymentRepository @Inject constructor(
             else -> "LOAN_REPAYMENT_PRINCIPAL_IN"
         }
 
-        transactionRepository.create(
+        val tx = transactionRepository.create(
             userUid = userUid,
             accountId = accountId,
             categoryId = repaymentCategoryId,
             kind = kind,
             amountCents = principalCents,
             occurredAtEpochSec = occurredAtEpochSec,
-            note = note ?: "${kind}: ${loan.counterpartyName}"
+            note = note ?: when (loan.type) {
+                "LENT" -> "Pago recibido de: ${loan.counterpartyName}"
+                "BORROWED" -> "Pago realizado a: ${loan.counterpartyName}"
+                else -> "Pago de préstamo: ${loan.counterpartyName}"
+            }
+        )
+
+        // Crear movimiento de pago en loan_movements (siguiendo lógica de Desktop)
+        val movementType = when (loan.type) {
+            "LENT" -> "PAYMENT_IN"
+            "BORROWED" -> "PAYMENT_OUT"
+            else -> "PAYMENT"
+        }
+
+        loanMovementRepository.create(
+            userUid = userUid,
+            loanId = loanId,
+            movementType = movementType,
+            amountCents = principalCents,
+            accountId = accountId,
+            linkedTransactionId = tx.id,
+            note = note,
+            occurredAtEpochSec = occurredAtEpochSec
         )
 
         return payment
@@ -200,4 +224,96 @@ class LoanPaymentRepository @Inject constructor(
         } catch (_: Exception) {
         }
     }
+
+    /**
+     * Migración retroactiva: crea LoanMovement para pagos históricos que no tienen movimiento.
+     * Este método busca pagos sin movimiento correspondiente y crea el movimiento PAYMENT_IN/PAYMENT_OUT.
+     */
+    suspend fun migrateHistoricalPayments(userUid: String): MigrationResult {
+        var migrated = 0
+        var skipped = 0
+        var errors = 0
+
+        try {
+            val payments = loanPaymentDao.getByUser(userUid)
+            val allMovements = loanMovementRepository.getAllByUser(userUid).groupBy { it.loanId }
+
+            for (payment in payments) {
+                try {
+                    // Verificar si ya existe movimiento para este pago
+                    val loanMovements = allMovements[payment.loanId] ?: emptyList()
+                    val hasMovement = loanMovements.any { movement ->
+                        movement.movementType == "PAYMENT_IN" || movement.movementType == "PAYMENT_OUT" &&
+                        movement.amountCents == payment.principalCents &&
+                        movement.occurredAtEpochSec == payment.occurredAtEpochSec
+                    }
+
+                    if (hasMovement) {
+                        skipped++
+                        continue
+                    }
+
+                    // Obtener el préstamo para determinar el tipo de movimiento
+                    val loan = loanDao.getById(payment.loanId) ?: run {
+                        errors++
+                        continue
+                    }
+
+                    // Determinar el tipo de movimiento según el tipo de préstamo
+                    val movementType = when (loan.type) {
+                        "LENT" -> "PAYMENT_IN"
+                        "BORROWED" -> "PAYMENT_OUT"
+                        else -> "PAYMENT"
+                    }
+
+                    // Buscar la transacción asociada por accountId, occurredAtEpochSec, kind y amountCents
+                    val kind = when (loan.type) {
+                        "LENT" -> "LOAN_REPAYMENT_PRINCIPAL_IN"
+                        "BORROWED" -> "LOAN_REPAYMENT_PRINCIPAL_OUT"
+                        else -> "LOAN_REPAYMENT_PRINCIPAL_IN"
+                    }
+
+                    val transactions = transactionDao.getFiltered(
+                        userUid = userUid,
+                        accountId = payment.accountId,
+                        categoryId = null,
+                        fromEpochSec = payment.occurredAtEpochSec,
+                        toEpochSec = payment.occurredAtEpochSec,
+                        limit = 100
+                    )
+
+                    val matchingTransaction = transactions.find { tx ->
+                        tx.kind == kind && tx.amountCents == payment.principalCents
+                    }
+
+                    // Crear el movimiento de pago
+                    loanMovementRepository.create(
+                        userUid = userUid,
+                        loanId = payment.loanId,
+                        movementType = movementType,
+                        amountCents = payment.principalCents,
+                        accountId = payment.accountId,
+                        linkedTransactionId = matchingTransaction?.id,
+                        note = payment.note,
+                        occurredAtEpochSec = payment.occurredAtEpochSec
+                    )
+
+                    migrated++
+                } catch (e: Exception) {
+                    errors++
+                }
+            }
+        } catch (e: Exception) {
+            return MigrationResult(migrated, skipped, errors, e.message)
+        }
+
+        return MigrationResult(migrated, skipped, errors, null)
+    }
+
+    data class MigrationResult(
+        val migrated: Int,
+        val skipped: Int,
+        val errors: Int,
+        val errorMessage: String?
+    )
 }

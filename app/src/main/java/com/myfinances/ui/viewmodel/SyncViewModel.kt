@@ -7,6 +7,7 @@ import com.myfinances.data.repository.AuthRepository
 import com.myfinances.data.repository.BudgetRepository
 import com.myfinances.data.repository.CategoryRepository
 import com.myfinances.data.repository.ExchangeRateRepository
+import com.myfinances.data.repository.LoanMovementRepository
 import com.myfinances.data.repository.GoalRepository
 import com.myfinances.data.repository.LoanPaymentRepository
 import com.myfinances.data.repository.LoanRepository
@@ -49,12 +50,13 @@ class SyncViewModel @Inject constructor(
     private val goalRepository: GoalRepository,
     private val loanRepository: LoanRepository,
     private val loanPaymentRepository: LoanPaymentRepository,
+    private val loanMovementRepository: LoanMovementRepository,
     private val exchangeRateRepository: ExchangeRateRepository,
     private val userSettingsRepository: UserSettingsRepository
 ) : ViewModel() {
 
     companion object {
-        private const val TOTAL_SYNC_STEPS = 10
+        private const val TOTAL_SYNC_STEPS = 11
         private const val MIN_SYNC_INTERVAL_MS = 45_000L
     }
 
@@ -160,7 +162,11 @@ class SyncViewModel @Inject constructor(
                 loanPaymentRepository.syncFromFirestore(uid)
 
                 ensureActiveSync()
-                updateProgress(step = 10, message = "Sincronización completada")
+                updateProgress(step = 10, message = "Sincronizando movimientos de préstamos...")
+                loanMovementRepository.syncFromFirestore(uid)
+
+                ensureActiveSync()
+                updateProgress(step = 11, message = "Sincronización completada")
                 _syncVersion.value = _syncVersion.value + 1
             } catch (_: CancellationException) {
                 _status.value = "Sincronización cancelada"

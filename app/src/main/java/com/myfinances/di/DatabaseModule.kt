@@ -1,6 +1,7 @@
 package com.myfinances.di
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.room.Room
 import com.myfinances.data.local.AppDatabase
 import com.myfinances.data.local.dao.AccountDao
@@ -9,6 +10,7 @@ import com.myfinances.data.local.dao.CategoryDao
 import com.myfinances.data.local.dao.ExchangeRateDao
 import com.myfinances.data.local.dao.GoalDao
 import com.myfinances.data.local.dao.LoanDao
+import com.myfinances.data.local.dao.LoanMovementDao
 import com.myfinances.data.local.dao.LoanPaymentDao
 import com.myfinances.data.local.dao.TransactionDao
 import com.myfinances.data.local.dao.TransferDao
@@ -40,7 +42,8 @@ object DatabaseModule {
             AppDatabase.MIGRATION_5_6,
             AppDatabase.MIGRATION_6_7,
             AppDatabase.MIGRATION_7_8,
-            AppDatabase.MIGRATION_8_9
+            AppDatabase.MIGRATION_8_9,
+            AppDatabase.MIGRATION_9_10
         )
             .build()
     }
@@ -73,8 +76,17 @@ object DatabaseModule {
     fun provideLoanPaymentDao(database: AppDatabase): LoanPaymentDao = database.loanPaymentDao()
 
     @Provides
+    fun provideLoanMovementDao(database: AppDatabase): LoanMovementDao = database.loanMovementDao()
+
+    @Provides
     fun provideExchangeRateDao(database: AppDatabase): ExchangeRateDao = database.exchangeRateDao()
 
     @Provides
     fun provideUserSettingsDao(database: AppDatabase): UserSettingsDao = database.userSettingsDao()
+
+    @Provides
+    @Singleton
+    fun provideSharedPreferences(@ApplicationContext context: Context): SharedPreferences {
+        return context.getSharedPreferences("myfinances_prefs", Context.MODE_PRIVATE)
+    }
 }

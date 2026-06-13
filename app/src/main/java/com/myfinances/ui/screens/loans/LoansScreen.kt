@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -35,6 +36,7 @@ import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -65,6 +67,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -80,6 +83,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -97,6 +101,7 @@ import java.math.RoundingMode
 import java.text.NumberFormat
 import java.util.Calendar
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -106,6 +111,7 @@ fun LoansScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
@@ -116,6 +122,7 @@ fun LoansScreen(
     }
 
     var showCreateLoan by remember { mutableStateOf(false) }
+    var createLoanError by remember { mutableStateOf<String?>(null) }
     var loanAccountExpanded by remember { mutableStateOf(false) }
     var selectedAccountId by remember { mutableStateOf("") }
     var counterparty by remember { mutableStateOf("") }
@@ -132,6 +139,22 @@ fun LoansScreen(
     var paymentAmountText by remember { mutableStateOf("") }
     var paymentDateEpochSec by remember { mutableStateOf(System.currentTimeMillis() / 1000) }
     var showPaymentDatePicker by remember { mutableStateOf(false) }
+
+    var showHistory by remember { mutableStateOf(false) }
+    var historyLoanId by remember { mutableStateOf("") }
+    var historyLoanName by remember { mutableStateOf("") }
+    var historyLoanCurrency by remember { mutableStateOf("") }
+
+    var showEditLoan by remember { mutableStateOf(false) }
+    var editLoanId by remember { mutableStateOf("") }
+    var editCounterparty by remember { mutableStateOf("") }
+    var editAmountText by remember { mutableStateOf("") }
+    var editNotes by remember { mutableStateOf("") }
+    var editAccountId by remember { mutableStateOf("") }
+    var editAccountExpanded by remember { mutableStateOf(false) }
+    var editCounterpartyError by remember { mutableStateOf<String?>(null) }
+    var editAmountError by remember { mutableStateOf<String?>(null) }
+    var editAccountError by remember { mutableStateOf<String?>(null) }
 
 
     val context = LocalContext.current
@@ -165,6 +188,7 @@ fun LoansScreen(
                     amountText = ""
                     notes = ""
                     loanDateEpochSec = System.currentTimeMillis() / 1000
+                    createLoanError = null
                     showCreateLoan = true
                 }
             ) {
@@ -195,8 +219,11 @@ fun LoansScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                items(state.loans) { loan ->
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 96.dp)
+            ) {
+                items(state.loans, key = { it.id }) { loan ->
                     val paidCents = state.loanPaidCents[loan.id] ?: 0L
                     LoanCard(
                         loan = loan,
@@ -208,6 +235,24 @@ fun LoansScreen(
                             paymentAmountText = ""
                             paymentDateEpochSec = System.currentTimeMillis() / 1000
                             showPayment = true
+                        },
+                        onViewHistory = {
+                            historyLoanId = loan.id
+                            historyLoanName = loan.counterpartyName
+                            historyLoanCurrency = loan.currency
+                            viewModel.loadLoanMovements(loan.id)
+                            showHistory = true
+                        },
+                        onEditLoan = {
+                            editLoanId = loan.id
+                            editCounterparty = loan.counterpartyName
+                            editAmountText = formatAmount(loan.principalCents)
+                            editNotes = loan.notes ?: ""
+                            editAccountId = loan.accountId ?: ""
+                            editCounterpartyError = null
+                            editAmountError = null
+                            editAccountError = null
+                            showEditLoan = true
                         }
                     )
                 }
@@ -225,30 +270,42 @@ fun LoansScreen(
         }
 
         AlertDialog(
-            onDismissRequest = { showCreateLoan = false },
+            onDismissRequest = {
+                showCreateLoan = false
+                createLoanError = null
+            },
             title = { Text(dialogTitle) },
             containerColor = Color.White,
             confirmButton = {
                 Button(onClick = {
-                    val currency = state.accounts.firstOrNull { it.id == selectedAccountId }?.currency.orEmpty()
+                    createLoanError = null
                     val cents = runCatching {
-                        val normalized = amountText.trim().replace(',', '.')
+                        // Eliminar separadores de miles antes de parsear
+                        val withoutThousands = amountText.trim().replace("[.,]".toRegex(), "")
+                        val normalized = withoutThousands.replace(',', '.')
                         BigDecimal(normalized).multiply(BigDecimal(100)).setScale(0, RoundingMode.HALF_UP).longValueExact()
                     }.getOrNull()
 
                     if (selectedAccountId.isNotBlank() && !counterparty.isBlank() && cents != null) {
-                        viewModel.createLoan(
-                            type = loanType,
-                            accountId = selectedAccountId,
-                            counterparty = counterparty.trim(),
-                            principalCents = cents,
-                            occurredAtEpochSec = loanDateEpochSec,
-                            notes = notes.takeIf { it.isNotBlank() }
-                        )
-                        showCreateLoan = false
-                        counterparty = ""
-                        amountText = ""
-                        notes = ""
+                        scope.launch {
+                            val error = viewModel.createLoan(
+                                type = loanType,
+                                accountId = selectedAccountId,
+                                counterparty = counterparty.trim(),
+                                principalCents = cents,
+                                occurredAtEpochSec = loanDateEpochSec,
+                                notes = notes.takeIf { it.isNotBlank() }
+                            )
+                            if (error == null) {
+                                showCreateLoan = false
+                                createLoanError = null
+                                counterparty = ""
+                                amountText = ""
+                                notes = ""
+                            } else {
+                                createLoanError = error
+                            }
+                        }
                     }
                 },
                     shape = MaterialTheme.shapes.extraLarge,
@@ -257,7 +314,10 @@ fun LoansScreen(
             },
             dismissButton = {
                 FilledTonalButton(
-                    onClick = { showCreateLoan = false },
+                    onClick = {
+                        showCreateLoan = false
+                        createLoanError = null
+                    },
                     shape = MaterialTheme.shapes.extraLarge
                 ) { Text("Cancelar") }
             },
@@ -268,6 +328,23 @@ fun LoansScreen(
                         .verticalScroll(rememberScrollState())
                         .imePadding()
                 ) {
+                    // Mostrar error de saldo insuficiente si existe
+                    createLoanError?.let { error ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFEE2E2)),
+                            shape = MaterialTheme.shapes.medium
+                        ) {
+                            Text(
+                                text = error,
+                                color = Color(0xFFDC2626),
+                                modifier = Modifier.padding(12.dp),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+
                     LoanTypeSegmentedTabs(
                         selectedType = loanType,
                         onSelect = { loanType = it }
@@ -339,8 +416,17 @@ fun LoansScreen(
                                     )
                                 } else {
                                     state.accounts.forEach { a ->
+                                        val bal = state.accountBalancesCents[a.id] ?: 0L
                                         DropdownMenuItem(
-                                            text = { Text(a.name) },
+                                            text = {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween
+                                                ) {
+                                                    Text(a.name, modifier = Modifier.weight(1f))
+                                                    Text("Disponible: ${formatMoney(bal, a.currency)}")
+                                                }
+                                            },
                                             onClick = {
                                                 selectedAccountId = a.id
                                                 loanAccountExpanded = false
@@ -689,7 +775,7 @@ fun LoansScreen(
                                                     horizontalArrangement = Arrangement.SpaceBetween
                                                 ) {
                                                     Text(a.name, modifier = Modifier.weight(1f))
-                                                    Text(formatAmount(bal))
+                                                    Text("Disponible: ${formatMoney(bal, a.currency)}")
                                                 }
                                             },
                                             onClick = {
@@ -787,6 +873,335 @@ fun LoansScreen(
         ).apply {
             setOnCancelListener { showPaymentDatePicker = false }
         }.show()
+    }
+
+    if (showHistory) {
+        val movements = state.loanMovements[historyLoanId] ?: emptyList()
+        val loadError = state.loanMovementsError[historyLoanId]
+        val sortedMovements = movements.sortedByDescending { it.occurredAtEpochSec }
+        val loanTypeLabel = if (state.selectedTab == "LENT") "ME DEBEN" else "YO DEBO"
+        
+        AlertDialog(
+            onDismissRequest = { showHistory = false },
+            title = { 
+                Column {
+                    Text(
+                        text = "Historial de movimientos",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = historyLoanName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Surface(
+                            shape = MaterialTheme.shapes.small,
+                            color = if (state.selectedTab == "LENT") Income.copy(alpha = 0.12f) else Expense.copy(alpha = 0.12f)
+                        ) {
+                            Text(
+                                text = loanTypeLabel,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (state.selectedTab == "LENT") Income else Expense
+                            )
+                        }
+                    }
+                }
+            },
+            containerColor = Color.White,
+            confirmButton = {
+                FilledTonalButton(
+                    onClick = { showHistory = false },
+                    shape = MaterialTheme.shapes.extraLarge
+                ) { Text("Cerrar") }
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 400.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    if (loadError != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = null,
+                                    tint = Expense.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(48.dp)
+                                )
+                                Text(
+                                    text = "Error al cargar el historial",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = loadError,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    } else if (sortedMovements.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Payments,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(48.dp)
+                                )
+                                Text(
+                                    text = "No hay movimientos registrados",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    } else {
+                        sortedMovements.forEach { movement ->
+                            MovementItem(
+                                movement = movement,
+                                currency = historyLoanCurrency
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                    }
+                }
+            }
+        )
+    }
+
+    if (showEditLoan) {
+        LaunchedEffect(showEditLoan, state.accounts) {
+            if (showEditLoan && editAccountId.isBlank() && state.accounts.size == 1) {
+                editAccountId = state.accounts.first().id
+            }
+            if (showEditLoan && editAccountId.isBlank()) {
+                editAccountError = "Selecciona una cuenta"
+            } else {
+                editAccountError = null
+            }
+        }
+
+        val isFormValid = editCounterparty.trim().isNotBlank() &&
+                editAmountText.isNotBlank() &&
+                runCatching {
+                    val normalized = editAmountText.trim().replace(',', '.')
+                    BigDecimal(normalized).multiply(BigDecimal(100)).setScale(0, RoundingMode.HALF_UP).longValueExact() > 0
+                }.getOrDefault(false) &&
+                editAccountId.isNotBlank()
+
+        AlertDialog(
+            onDismissRequest = { showEditLoan = false },
+            title = { Text("Editar préstamo") },
+            containerColor = Color.White,
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val counterpartyName = editCounterparty.trim()
+                        val cents = runCatching {
+                            // Eliminar separadores de miles antes de parsear
+                            val withoutThousands = editAmountText.trim().replace("[.,]".toRegex(), "")
+                            val normalized = withoutThousands.replace(',', '.')
+                            BigDecimal(normalized).multiply(BigDecimal(100)).setScale(0, RoundingMode.HALF_UP).longValueExact()
+                        }.getOrNull()
+
+                        viewModel.updateLoan(
+                            loanId = editLoanId,
+                            counterpartyName = counterpartyName,
+                            accountId = editAccountId,
+                            principalCents = cents!!,
+                            notes = editNotes.trim().takeIf { it.isNotBlank() }
+                        )
+                        showEditLoan = false
+                    },
+                    enabled = isFormValid,
+                    shape = MaterialTheme.shapes.extraLarge
+                ) { Text("Guardar") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showEditLoan = false },
+                    shape = MaterialTheme.shapes.extraLarge
+                ) { Text("Cancelar") }
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedTextField(
+                        value = editCounterparty,
+                        onValueChange = {
+                            editCounterparty = it
+                            editCounterpartyError = if (it.trim().isBlank()) "El nombre es obligatorio" else null
+                        },
+                        label = { Text("Nombre de contraparte *") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = MaterialTheme.shapes.extraLarge,
+                        isError = editCounterpartyError != null,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color(0xFFF5F7FA),
+                            unfocusedContainerColor = Color(0xFFF5F7FA),
+                            disabledContainerColor = Color(0xFFF5F7FA),
+                            focusedBorderColor = if (editCounterpartyError != null) Color(0xFFD32F2F) else Color(0xFF2463EB),
+                            unfocusedBorderColor = if (editCounterpartyError != null) Color(0xFFD32F2F) else Color(0xFFD8DFEA)
+                        )
+                    )
+                    val counterpartyError = editCounterpartyError
+                    if (counterpartyError != null) {
+                        Text(
+                            text = counterpartyError,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFFD32F2F)
+                        )
+                    }
+
+                    OutlinedTextField(
+                        value = editAmountText,
+                        onValueChange = {
+                            editAmountText = it
+                            editAmountError = runCatching {
+                                val normalized = it.trim().replace(',', '.')
+                                val cents = BigDecimal(normalized).multiply(BigDecimal(100)).setScale(0, RoundingMode.HALF_UP).longValueExact()
+                                if (cents <= 0) "El monto debe ser mayor a cero" else null
+                            }.getOrNull() ?: if (it.trim().isBlank()) "El monto es obligatorio" else null
+                        },
+                        label = { Text("Monto principal *") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        isError = editAmountError != null,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color(0xFFF5F7FA),
+                            unfocusedContainerColor = Color(0xFFF5F7FA),
+                            disabledContainerColor = Color(0xFFF5F7FA),
+                            focusedBorderColor = if (editAmountError != null) Color(0xFFD32F2F) else Color(0xFF2463EB),
+                            unfocusedBorderColor = if (editAmountError != null) Color(0xFFD32F2F) else Color(0xFFD8DFEA)
+                        )
+                    )
+                    val amountError = editAmountError
+                    if (amountError != null) {
+                        Text(
+                            text = amountError,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFFD32F2F)
+                        )
+                    }
+
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = if (editAccountId.isNotBlank()) {
+                                state.accounts.find { it.id == editAccountId }?.name ?: ""
+                            } else {
+                                ""
+                            },
+                            onValueChange = { },
+                            label = { Text("Cuenta asociada *") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { editAccountExpanded = true },
+                            enabled = false,
+                            singleLine = true,
+                            shape = MaterialTheme.shapes.extraLarge,
+                            isError = editAccountError != null,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFFF5F7FA),
+                                unfocusedContainerColor = Color(0xFFF5F7FA),
+                                disabledContainerColor = Color(0xFFF5F7FA),
+                                focusedBorderColor = if (editAccountError != null) Color(0xFFD32F2F) else Color(0xFF2463EB),
+                                unfocusedBorderColor = if (editAccountError != null) Color(0xFFD32F2F) else Color(0xFFD8DFEA),
+                                disabledBorderColor = if (editAccountError != null) Color(0xFFD32F2F) else if (editAccountId.isNotBlank()) Color(0xFF2463EB) else Color(0xFFD8DFEA)
+                            )
+                        )
+                        DropdownMenu(
+                            expanded = editAccountExpanded,
+                            onDismissRequest = { editAccountExpanded = false },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            state.accounts.forEach { account ->
+                                val bal = state.accountBalancesCents[account.id] ?: 0L
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(account.name, modifier = Modifier.weight(1f))
+                                            Text("Disponible: ${formatMoney(bal, account.currency)}")
+                                        }
+                                    },
+                                    onClick = {
+                                        editAccountId = account.id
+                                        editAccountError = null
+                                        editAccountExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    val accountError = editAccountError
+                    if (accountError != null) {
+                        Text(
+                            text = accountError,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFFD32F2F)
+                        )
+                    }
+
+                    OutlinedTextField(
+                        value = editNotes,
+                        onValueChange = { editNotes = it },
+                        label = { Text("Descripción") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = MaterialTheme.shapes.extraLarge,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color(0xFFF5F7FA),
+                            unfocusedContainerColor = Color(0xFFF5F7FA),
+                            disabledContainerColor = Color(0xFFF5F7FA),
+                            focusedBorderColor = Color(0xFF2463EB),
+                            unfocusedBorderColor = Color(0xFFD8DFEA)
+                        )
+                    )
+
+                    Text(
+                        text = "* Campos obligatorios",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        )
     }
 }
 
@@ -1081,7 +1496,9 @@ private fun LoanCard(
     loan: com.myfinances.data.local.entity.LoanEntity,
     paidCents: Long,
     isLent: Boolean,
-    onRegisterPayment: () -> Unit
+    onRegisterPayment: () -> Unit,
+    onViewHistory: () -> Unit = {},
+    onEditLoan: () -> Unit = {}
 ) {
     val remainingCents = (loan.principalCents - paidCents).coerceAtLeast(0L)
     val remainingText = formatMoney(remainingCents, loan.currency)
@@ -1188,19 +1605,78 @@ private fun LoanCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            FilledTonalButton(
-                onClick = onRegisterPayment,
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.extraLarge,
-                colors = ButtonDefaults.filledTonalButtonColors(containerColor = baseColor.copy(alpha = 0.12f))
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(Icons.Default.AttachMoney, contentDescription = null, tint = baseColor)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = if (isLent) "+ Abono" else "+ Pago",
-                    color = baseColor,
-                    fontWeight = FontWeight.SemiBold
-                )
+                FilledTonalButton(
+                    onClick = onRegisterPayment,
+                    modifier = Modifier.weight(1f),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = ButtonDefaults.filledTonalButtonColors(containerColor = baseColor.copy(alpha = 0.12f)),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Icon(Icons.Default.AttachMoney, contentDescription = null, tint = baseColor, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (isLent) "+ Abono" else "+ Pago",
+                        color = baseColor,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp
+                    )
+                }
+                FilledTonalButton(
+                    onClick = onViewHistory,
+                    modifier = Modifier.weight(1f),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Icon(Icons.Default.Payments, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Historial",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp
+                    )
+                }
+
+                var showMenu by remember { mutableStateOf(false) }
+                Box(modifier = Modifier.wrapContentSize(Alignment.TopEnd)) {
+                    IconButton(
+                        onClick = { showMenu = true },
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Más opciones")
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Ver historial") },
+                            onClick = {
+                                showMenu = false
+                                onViewHistory()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Editar préstamo") },
+                            onClick = {
+                                showMenu = false
+                                onEditLoan()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(if (isLent) "+ Abono" else "+ Pago") },
+                            onClick = {
+                                showMenu = false
+                                onRegisterPayment()
+                            }
+                        )
+                    }
+                }
             }
         }
     }
@@ -1222,4 +1698,107 @@ private fun formatAmount(amountCents: Long): String {
         maximumFractionDigits = 2
     }
     return nf.format(amount)
+}
+
+@Composable
+private fun MovementItem(
+    movement: com.myfinances.ui.model.LoanMovementUiModel,
+    currency: String
+) {
+    val typeColor = when (movement.movementType) {
+        "CREATION" -> Income
+        "TOPUP" -> Color(0xFFF4B400)
+        "PAYMENT_IN" -> Color(0xFF10B981)
+        "PAYMENT_OUT" -> Color(0xFF3B82F6)
+        "ADJUSTMENT" -> Color(0xFF9E9E9E)
+        "CLOSE" -> Color(0xFF8B5CF6)
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    val typeLabel = when (movement.movementType) {
+        "CREATION" -> "Creación"
+        "TOPUP" -> "Aumento"
+        "PAYMENT_IN" -> "Pago recibido"
+        "PAYMENT_OUT" -> "Pago realizado"
+        "ADJUSTMENT" -> "Corrección"
+        "CLOSE" -> "Cierre"
+        else -> movement.movementType
+    }
+
+    val typeSymbol = when (movement.movementType) {
+        "CREATION" -> "C"
+        "TOPUP" -> "+"
+        "PAYMENT_IN" -> "↓"
+        "PAYMENT_OUT" -> "↑"
+        "ADJUSTMENT" -> "≈"
+        "CLOSE" -> "✓"
+        else -> typeLabel.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+    }
+    
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = typeColor.copy(alpha = 0.15f)
+                    ) {
+                        Text(
+                            text = typeSymbol,
+                            modifier = Modifier.padding(6.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = typeColor
+                        )
+                    }
+                    Text(
+                        text = typeLabel,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = typeColor
+                    )
+                }
+                Text(
+                    text = movement.amountFormatted,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = typeColor
+                )
+            }
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = movement.occurredAtFormatted,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            if (!movement.note.isNullOrBlank()) {
+                Text(
+                    text = movement.note,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
 }

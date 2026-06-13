@@ -453,7 +453,7 @@ fun DashboardScreen(
                     ) {
                         ActionButton(
                             icon = Icons.Default.RemoveCircle,
-                            label = "Agregar gasto",
+                            label = "Gastos",
                             supportingText = "",
                             onClick = {
                                 val missing = buildList {
@@ -492,7 +492,7 @@ fun DashboardScreen(
                         )
                         ActionButton(
                             icon = Icons.Default.AddCircle,
-                            label = "Agregar ingreso",
+                            label = "Ingresos",
                             supportingText = "",
                             onClick = {
                                 val missing = buildList {
@@ -531,7 +531,7 @@ fun DashboardScreen(
                         )
                         ActionButton(
                             icon = Icons.Default.SwapHoriz,
-                            label = "Transferencias",
+                            label = "Transferir",
                             supportingText = "",
                             onClick = {
                                 if (!state.hasAccounts || !state.hasTwoAccounts) {
@@ -1892,10 +1892,12 @@ private fun ActionButton(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .fillMaxHeight()
                 .padding(
                     horizontal = if (isPrimary) 10.dp else 12.dp,
                     vertical = if (isPrimary) 12.dp else 12.dp
-                )
+                ),
+            contentAlignment = Alignment.Center
         ) {
             Image(
                 painter = painterResource(id = com.myfinances.R.drawable.ic_launcher),
@@ -1910,7 +1912,7 @@ private fun ActionButton(
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.Center
                 ) {
                     Surface(
                         color = Color.White.copy(alpha = 0.92f),

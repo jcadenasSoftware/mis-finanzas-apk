@@ -1,13 +1,17 @@
 package com.myfinances.ui.viewmodel
 
+import android.content.SharedPreferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.myfinances.data.local.entity.AccountEntity
 import com.myfinances.data.local.entity.LoanEntity
+import com.myfinances.data.local.entity.LoanMovementEntity
 import com.myfinances.data.repository.AccountRepository
 import com.myfinances.data.repository.AuthRepository
+import com.myfinances.data.repository.LoanMovementRepository
 import com.myfinances.data.repository.LoanPaymentRepository
 import com.myfinances.data.repository.LoanRepository
+import com.myfinances.ui.model.LoanMovementUiModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +32,8 @@ data class LoansState(
     val loans: List<LoanEntity> = emptyList(),
     val totalLentRemainingCents: Long = 0L,
     val totalBorrowedRemainingCents: Long = 0L,
+    val loanMovements: Map<String, List<LoanMovementUiModel>> = emptyMap(),
+    val loanMovementsError: Map<String, String?> = emptyMap(),
     val error: String? = null
 )
 
@@ -36,7 +42,9 @@ class LoansViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val accountRepository: AccountRepository,
     private val loanRepository: LoanRepository,
-    private val loanPaymentRepository: LoanPaymentRepository
+    private val loanPaymentRepository: LoanPaymentRepository,
+    private val loanMovementRepository: LoanMovementRepository,
+    private val sharedPreferences: SharedPreferences
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LoansState())
@@ -46,6 +54,7 @@ class LoansViewModel @Inject constructor(
         get() = authRepository.currentUser?.uid
 
     private var lastLoadedUid: String? = null
+    private val observedLoanIds = mutableSetOf<String>()
 
     init {
         viewModelScope.launch {
@@ -59,6 +68,18 @@ class LoansViewModel @Inject constructor(
                 if (userUid != lastLoadedUid) {
                     lastLoadedUid = userUid
                     refresh()
+
+                    // Migración automática de pagos históricos (se ejecuta solo una vez)
+                    val migrationKey = "loan_payment_migration_v1_$userUid"
+                    val migrationCompleted = sharedPreferences.getBoolean(migrationKey, false)
+                    if (!migrationCompleted) {
+                        try {
+                            val result = migrateHistoricalPayments()
+                            sharedPreferences.edit().putBoolean(migrationKey, true).apply()
+                        } catch (e: Exception) {
+                            // Si falla, no marcar como completada para reintentar en el siguiente inicio
+                        }
+                    }
                 }
             }
         }
@@ -134,35 +155,35 @@ class LoansViewModel @Inject constructor(
         }
     }
 
-    fun createLoan(
+    suspend fun createLoan(
         type: String,
         accountId: String,
         counterparty: String,
         principalCents: Long,
         occurredAtEpochSec: Long,
         notes: String?
-    ) {
-        val userUid = uid ?: return
+    ): String? {
+        val userUid = uid ?: return "Usuario no autenticado"
         val currency = _state.value.accounts.firstOrNull { it.id == accountId }?.currency ?: ""
 
-        viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true, error = null)
-            try {
-                loanRepository.create(
-                    userUid = userUid,
-                    type = type,
-                    counterpartyName = counterparty,
-                    accountId = accountId,
-                    currency = currency,
-                    principalCents = principalCents,
-                    occurredAtEpochSec = occurredAtEpochSec,
-                    notes = notes
-                )
-                _state.value = _state.value.copy(isLoading = false)
-                refresh()
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(isLoading = false, error = e.message)
-            }
+        _state.value = _state.value.copy(isLoading = true, error = null)
+        return try {
+            loanRepository.create(
+                userUid = userUid,
+                type = type,
+                counterpartyName = counterparty,
+                accountId = accountId,
+                currency = currency,
+                principalCents = principalCents,
+                occurredAtEpochSec = occurredAtEpochSec,
+                notes = notes
+            )
+            _state.value = _state.value.copy(isLoading = false)
+            refresh()
+            null
+        } catch (e: Exception) {
+            _state.value = _state.value.copy(isLoading = false)
+            e.message ?: "Error al crear el préstamo"
         }
     }
 
@@ -196,7 +217,84 @@ class LoansViewModel @Inject constructor(
         }
     }
 
+    fun updateLoan(
+        loanId: String,
+        counterpartyName: String? = null,
+        accountId: String? = null,
+        principalCents: Long? = null,
+        notes: String? = null
+    ) {
+        val userUid = uid ?: return
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true, error = null)
+            try {
+                loanRepository.updateLoan(
+                    userUid = userUid,
+                    loanId = loanId,
+                    counterpartyName = counterpartyName,
+                    accountId = accountId,
+                    principalCents = principalCents,
+                    notes = notes
+                )
+                _state.value = _state.value.copy(isLoading = false)
+                refresh()
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(isLoading = false, error = e.message)
+            }
+        }
+    }
+
     fun clearError() {
         _state.value = _state.value.copy(error = null)
+    }
+
+    fun loadLoanMovements(loanId: String) {
+        val userUid = uid ?: return
+        viewModelScope.launch {
+            try {
+                val movements = loanMovementRepository.getByLoan(userUid, loanId)
+                val loan = loanRepository.getById(loanId)
+                val currency = loan?.currency ?: "USD"
+                val uiModels = movements.map { entity ->
+                    LoanMovementUiModel.fromEntity(entity, currency)
+                }
+                _state.value = _state.value.copy(
+                    loanMovements = _state.value.loanMovements + (loanId to uiModels),
+                    loanMovementsError = _state.value.loanMovementsError + (loanId to null)
+                )
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(
+                    loanMovementsError = _state.value.loanMovementsError + (loanId to e.message)
+                )
+            }
+        }
+    }
+
+    fun observeLoanMovements(loanId: String) {
+        val userUid = uid ?: return
+        if (loanId in observedLoanIds) return
+        observedLoanIds.add(loanId)
+
+        viewModelScope.launch {
+            try {
+                loanMovementRepository.observeByLoan(userUid, loanId).collectLatest { movements ->
+                    val loan = loanRepository.getById(loanId)
+                    val currency = loan?.currency ?: "USD"
+                    val uiModels = movements.map { entity ->
+                        LoanMovementUiModel.fromEntity(entity, currency)
+                    }
+                    _state.value = _state.value.copy(
+                        loanMovements = _state.value.loanMovements + (loanId to uiModels)
+                    )
+                }
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(error = e.message)
+            }
+        }
+    }
+
+    suspend fun migrateHistoricalPayments(): LoanPaymentRepository.MigrationResult {
+        val userUid = uid ?: return LoanPaymentRepository.MigrationResult(0, 0, 0, "Usuario no autenticado")
+        return loanPaymentRepository.migrateHistoricalPayments(userUid)
     }
 }

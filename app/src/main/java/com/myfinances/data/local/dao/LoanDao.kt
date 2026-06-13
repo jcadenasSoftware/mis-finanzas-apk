@@ -52,6 +52,22 @@ interface LoanDao {
     @Query("SELECT * FROM loans WHERE user_uid = :userUid")
     suspend fun getByUser(userUid: String): List<LoanEntity>
 
+    @Query(
+        """
+        SELECT * FROM loans
+        WHERE user_uid = :userUid
+          AND type = :type
+          AND status = 'OPEN'
+          AND TRIM(LOWER(counterparty_name)) = TRIM(LOWER(:counterpartyName))
+        LIMIT 1
+        """
+    )
+    suspend fun findActiveByCounterpartyAndType(
+        userUid: String,
+        type: String,
+        counterpartyName: String
+    ): LoanEntity?
+
     @Query("DELETE FROM loans WHERE id = :id")
     suspend fun delete(id: String)
 

@@ -205,6 +205,45 @@ fun TransactionsScreen(
     }
 }
 
+private fun formatTransactionNote(kind: String, note: String?): String? {
+    val rawNote = note?.trim().orEmpty()
+    if (rawNote.isBlank()) return null
+
+    val normalizedKind = kind.trim().uppercase()
+    val kindPrefix = when (normalizedKind) {
+        "LOAN_LENT_OUT" -> "Préstamo otorgado a"
+        "LOAN_BORROWED_IN" -> "Dinero recibido de"
+        "LOAN_LENT_TOPUP" -> "Aumento de préstamo otorgado a"
+        "LOAN_BORROWED_TOPUP" -> "Aumento de deuda con"
+        "LOAN_LENT_CORRECTION" -> "Corrección de préstamo otorgado a"
+        "LOAN_BORROWED_CORRECTION" -> "Corrección de deuda con"
+        "LOAN_LENT_CORRECTION_IN" -> "Corrección de préstamo otorgado a"
+        "LOAN_LENT_CORRECTION_OUT" -> "Corrección de préstamo otorgado a"
+        "LOAN_BORROWED_CORRECTION_IN" -> "Corrección de deuda con"
+        "LOAN_BORROWED_CORRECTION_OUT" -> "Corrección de deuda con"
+        "LOAN_REPAYMENT_PRINCIPAL_IN" -> "Pago recibido de"
+        "LOAN_REPAYMENT_PRINCIPAL_OUT" -> "Pago realizado a"
+        else -> null
+    }
+
+    if (kindPrefix.isNullOrBlank()) return rawNote
+
+    val normalizedNote = rawNote.trim()
+    if (!normalizedNote.startsWith(normalizedKind, ignoreCase = true)) {
+        return rawNote
+    }
+
+    val suffix = normalizedNote.substring(normalizedKind.length).trimStart()
+    return when {
+        suffix.isBlank() -> kindPrefix
+        suffix.startsWith(":") -> {
+            val remainder = suffix.removePrefix(":").trimStart()
+            if (remainder.isBlank()) kindPrefix else "$kindPrefix: $remainder"
+        }
+        else -> "$kindPrefix $suffix"
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MonthPickerBottomSheet(
@@ -819,6 +858,9 @@ private fun TransactionItem(
     val primary = MaterialTheme.colorScheme.primary
     val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
     val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
+    val displayNote = remember(transaction.kind, transaction.note) {
+        formatTransactionNote(transaction.kind, transaction.note)
+    }
 
     val iconSpec = remember(transaction.categoryName, transaction.kind) {
         val name = transaction.categoryName.trim().lowercase()
@@ -888,9 +930,9 @@ private fun TransactionItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (!transaction.note.isNullOrBlank()) {
+                if (!displayNote.isNullOrBlank()) {
                     Text(
-                        transaction.note,
+                        displayNote,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2

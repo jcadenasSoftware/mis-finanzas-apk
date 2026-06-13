@@ -10,6 +10,7 @@ import com.myfinances.data.local.dao.CategoryDao
 import com.myfinances.data.local.dao.ExchangeRateDao
 import com.myfinances.data.local.dao.GoalDao
 import com.myfinances.data.local.dao.LoanDao
+import com.myfinances.data.local.dao.LoanMovementDao
 import com.myfinances.data.local.dao.LoanPaymentDao
 import com.myfinances.data.local.dao.TransactionDao
 import com.myfinances.data.local.dao.TransferDao
@@ -21,6 +22,7 @@ import com.myfinances.data.local.entity.CategoryEntity
 import com.myfinances.data.local.entity.ExchangeRateEntity
 import com.myfinances.data.local.entity.GoalEntity
 import com.myfinances.data.local.entity.LoanEntity
+import com.myfinances.data.local.entity.LoanMovementEntity
 import com.myfinances.data.local.entity.LoanPaymentEntity
 import com.myfinances.data.local.entity.TransactionEntity
 import com.myfinances.data.local.entity.TransferEntity
@@ -38,10 +40,11 @@ import com.myfinances.data.local.entity.UserEntity
         GoalEntity::class,
         LoanEntity::class,
         LoanPaymentEntity::class,
+        LoanMovementEntity::class,
         ExchangeRateEntity::class,
         UserSettingsEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -55,6 +58,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun goalDao(): GoalDao
     abstract fun loanDao(): LoanDao
     abstract fun loanPaymentDao(): LoanPaymentDao
+    abstract fun loanMovementDao(): LoanMovementDao
     abstract fun exchangeRateDao(): ExchangeRateDao
     abstract fun userSettingsDao(): UserSettingsDao
 
@@ -239,6 +243,39 @@ abstract class AppDatabase : RoomDatabase() {
 
         val MIGRATION_8_9: Migration = object : Migration(8, 9) {
             override fun migrate(db: SupportSQLiteDatabase) {
+            }
+        }
+
+        val MIGRATION_9_10: Migration = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS loan_movements (
+                        id TEXT NOT NULL,
+                        user_uid TEXT NOT NULL,
+                        loan_id TEXT NOT NULL,
+                        movement_type TEXT NOT NULL,
+                        amount_cents INTEGER NOT NULL,
+                        account_id TEXT,
+                        linked_transaction_id TEXT,
+                        note TEXT,
+                        occurred_at_epoch_sec INTEGER NOT NULL,
+                        created_at_epoch_sec INTEGER NOT NULL,
+                        updated_at_epoch_sec INTEGER NOT NULL,
+                        updated_by TEXT,
+                        PRIMARY KEY(id),
+                        FOREIGN KEY(user_uid) REFERENCES users(uid) ON DELETE CASCADE,
+                        FOREIGN KEY(loan_id) REFERENCES loans(id) ON DELETE CASCADE,
+                        FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE RESTRICT
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_loan_movements_user_uid ON loan_movements(user_uid)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_loan_movements_loan_id ON loan_movements(loan_id)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_loan_movements_account_id ON loan_movements(account_id)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_loan_movements_movement_type ON loan_movements(movement_type)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_loan_movements_occurred_at_epoch_sec ON loan_movements(occurred_at_epoch_sec)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_loan_movements_user_uid_loan_id_occurred_created ON loan_movements(user_uid, loan_id, occurred_at_epoch_sec, created_at_epoch_sec)")
             }
         }
     }
