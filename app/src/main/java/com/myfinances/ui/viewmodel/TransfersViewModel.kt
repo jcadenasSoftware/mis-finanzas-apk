@@ -74,6 +74,16 @@ class TransfersViewModel @Inject constructor(
         }
     }
 
+    private fun normalizeAmountQuery(query: String): Long? {
+        val cleaned = query.trim().replace(" ", "").replace(",", "").replace(".", "")
+        if (cleaned.isBlank()) return null
+        return try {
+            cleaned.toLong()
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     init {
         loadTransfers()
     }
@@ -162,10 +172,12 @@ class TransfersViewModel @Inject constructor(
 
         val q = searchQuery.trim().lowercase()
         if (q.isNotBlank()) {
+            val amountQuery = normalizeAmountQuery(q)
             transfers = transfers.filter {
                 it.fromAccountName.lowercase().contains(q) ||
                     it.toAccountName.lowercase().contains(q) ||
-                    (it.note ?: "").lowercase().contains(q)
+                    (it.note ?: "").lowercase().contains(q) ||
+                    (amountQuery != null && it.amountCents == amountQuery)
             }
         }
 
@@ -307,12 +319,14 @@ class TransfersViewModel @Inject constructor(
                     null
                 }
             }
+
+            val newError = validateBalance(accountId, current.amountText, balance)
             _formState.value = current.copy(
                 fromAccountId = accountId,
                 fromAccountBalanceCents = balance,
                 toAccountId = newToId,
                 toAccountBalanceCents = newToBalance,
-                error = null
+                error = newError
             )
         }
     }
@@ -348,12 +362,14 @@ class TransfersViewModel @Inject constructor(
                     null
                 }
             }
+
+            val newError = validateBalance(newFromId, current.amountText, newFromBalance)
             _formState.value = current.copy(
                 toAccountId = accountId,
                 toAccountBalanceCents = balance,
                 fromAccountId = newFromId,
                 fromAccountBalanceCents = newFromBalance,
-                error = null
+                error = newError
             )
         }
     }
@@ -371,7 +387,19 @@ class TransfersViewModel @Inject constructor(
     }
 
     fun updateFormAmount(amount: String) {
-        _formState.value = _formState.value.copy(amountText = amount, error = null)
+        val form = _formState.value
+        val newError = validateBalance(form.fromAccountId, amount, form.fromAccountBalanceCents)
+        _formState.value = form.copy(amountText = amount, error = newError)
+    }
+
+    private fun validateBalance(accountId: String, amountText: String, balanceCents: Long?): String? {
+        if (accountId.isBlank() || amountText.isBlank()) return null
+        val amountCents = parseAmountToCents(amountText) ?: return null
+        val available = balanceCents
+        if (available != null && amountCents > available) {
+            return "Saldo insuficiente"
+        }
+        return null
     }
 
     fun updateFormNote(note: String) {

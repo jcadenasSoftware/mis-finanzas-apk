@@ -1,6 +1,8 @@
 package com.myfinances.ui.screens.transfers
 
 import android.app.DatePickerDialog
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -13,6 +15,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -26,12 +30,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.myfinances.data.local.entity.AccountEntity
 import com.myfinances.ui.components.CompactHeader
 import com.myfinances.ui.theme.Expense
 import com.myfinances.ui.theme.Income
@@ -40,6 +47,250 @@ import com.myfinances.ui.viewmodel.TransfersViewModel
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
+
+private fun accountDefaultIconKey(accountType: String?): String {
+    return when (accountType?.trim()?.uppercase()) {
+        "CASH" -> "cash"
+        "SAVINGS" -> "savings"
+        "VIRTUAL_WALLET" -> "wallet"
+        "DIGITAL_ACCOUNT" -> "digital"
+        "CREDIT" -> "card"
+        else -> "bank"
+    }
+}
+
+private fun accountIconForKey(iconKey: String?, accountType: String?): androidx.compose.ui.graphics.vector.ImageVector {
+    return when (iconKey?.lowercase() ?: accountDefaultIconKey(accountType)) {
+        "bank" -> Icons.Default.AccountBalance
+        "wallet" -> Icons.Default.AccountBalanceWallet
+        "cash" -> Icons.Default.Money
+        "card" -> Icons.Default.CreditCard
+        "savings" -> Icons.Default.Savings
+        "digital" -> Icons.Default.PhoneAndroid
+        else -> Icons.Default.AccountBalance
+    }
+}
+
+private fun accountAccentColor(account: AccountEntity?): androidx.compose.ui.graphics.Color {
+    val fallback = when (account?.type?.trim()?.uppercase()) {
+        "CASH" -> androidx.compose.ui.graphics.Color(0xFF059669)
+        "SAVINGS" -> androidx.compose.ui.graphics.Color(0xFFD97706)
+        "VIRTUAL_WALLET" -> androidx.compose.ui.graphics.Color(0xFF0891B2)
+        "DIGITAL_ACCOUNT" -> androidx.compose.ui.graphics.Color(0xFFE11D48)
+        "CREDIT" -> androidx.compose.ui.graphics.Color(0xFF7C3AED)
+        else -> androidx.compose.ui.graphics.Color(0xFF2463EB)
+    }
+
+    val stored = account?.colorHex?.takeIf { it.isNotBlank() }?.let { hex ->
+        runCatching { androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(hex)) }.getOrNull()
+    }
+
+    return stored ?: fallback
+}
+
+@Composable
+private fun TransferPreviewCard(
+    amountCents: Long?,
+    amountText: String,
+    fromAccount: AccountEntity?,
+    toAccount: AccountEntity?,
+    fromProjectedBalanceCents: Long?,
+    toProjectedBalanceCents: Long?,
+    currencyFormat: NumberFormat,
+    modifier: Modifier = Modifier
+) {
+    val accent = Transfer
+    val previewAmountText = amountCents?.let { currencyFormat.format(it / 100.0) }
+    val fromLabel = fromAccount?.name?.takeIf { it.isNotBlank() } ?: "Seleccionar origen"
+    val toLabel = toAccount?.name?.takeIf { it.isNotBlank() } ?: "Seleccionar destino"
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Surface(
+                    shape = MaterialTheme.shapes.medium,
+                    color = accent.copy(alpha = 0.12f),
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = null,
+                            tint = accent,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Resumen antes de guardar",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = if (!amountText.isBlank()) "Revisa antes de confirmar" else "Completa el monto para ver el resumen",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "Transferir",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = previewAmountText ?: "—",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = accent,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f))
+
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                TransferAccountSummaryPill(
+                    label = "Desde",
+                    account = fromAccount,
+                    fallbackName = fromLabel,
+                    amountLabel = if (fromAccount != null && fromProjectedBalanceCents != null && fromAccount.name.isNotBlank()) {
+                        "Después: ${currencyFormat.format(fromProjectedBalanceCents / 100.0)}"
+                    } else {
+                        "Saldo disponible"
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+
+                TransferAccountSummaryPill(
+                    label = "Hacia",
+                    account = toAccount,
+                    fallbackName = toLabel,
+                    amountLabel = if (toAccount != null && toProjectedBalanceCents != null && toAccount.name.isNotBlank()) {
+                        "Después: ${currencyFormat.format(toProjectedBalanceCents / 100.0)}"
+                    } else {
+                        "Saldo destino"
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TransferAccountSummaryPill(
+    label: String,
+    account: AccountEntity?,
+    fallbackName: String,
+    amountLabel: String,
+    modifier: Modifier = Modifier
+) {
+    val accent = remember(account?.colorHex, account?.type) { accountAccentColor(account) }
+    val icon = remember(account?.iconKey, account?.type) { accountIconForKey(account?.iconKey, account?.type) }
+    val name = account?.name?.takeIf { it.isNotBlank() } ?: fallbackName
+
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.extraLarge,
+        color = accent.copy(alpha = 0.12f),
+        border = BorderStroke(1.dp, accent.copy(alpha = 0.18f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = accent.copy(alpha = 0.18f),
+                modifier = Modifier.size(34.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = accent,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = amountLabel,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = accent,
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.End,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,6 +348,12 @@ fun AddTransferScreen(
 
     var showFromSheet by remember { mutableStateOf(false) }
     var showToSheet by remember { mutableStateOf(false) }
+    var swapFlip by remember { mutableStateOf(false) }
+    val swapRotation by animateFloatAsState(
+        targetValue = if (swapFlip) 180f else 0f,
+        animationSpec = tween(durationMillis = 220),
+        label = "swapRotation"
+    )
 
     var showDatePicker by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -217,8 +474,9 @@ fun AddTransferScreen(
                 )
 
                 AccountSelectorRow(
+                    account = fromAccount,
                     title = fromAccount?.name ?: "Seleccionar",
-                    supporting = "",
+                    supporting = "Disponible: ${formState.fromAccountBalanceCents?.let { currencyFormat.format(it / 100.0) } ?: "-"}",
                     trailing = formState.fromAccountBalanceCents?.let { currencyFormat.format(it / 100.0) } ?: "-",
                     trailingColor = if ((formState.fromAccountBalanceCents ?: 0L) >= 0) Income else Expense,
                     onClick = { showFromSheet = true }
@@ -226,13 +484,20 @@ fun AddTransferScreen(
 
                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     FilledTonalButton(
-                        onClick = { viewModel.swapAccounts() },
+                        onClick = {
+                            swapFlip = !swapFlip
+                            viewModel.swapAccounts()
+                        },
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
                             contentColor = MaterialTheme.colorScheme.primary
                         )
                     ) {
-                        Icon(Icons.Default.SwapVert, contentDescription = null)
+                        Icon(
+                            Icons.Default.SwapVert,
+                            contentDescription = null,
+                            modifier = Modifier.graphicsLayer(rotationZ = swapRotation)
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Intercambiar")
                     }
@@ -245,8 +510,9 @@ fun AddTransferScreen(
                 )
 
                 AccountSelectorRow(
+                    account = toAccount,
                     title = toAccount?.name ?: "Seleccionar",
-                    supporting = "",
+                    supporting = "Recibe la transferencia",
                     trailing = formState.toAccountBalanceCents?.let { currencyFormat.format(it / 100.0) } ?: "-",
                     trailingColor = MaterialTheme.colorScheme.onSurface,
                     onClick = { showToSheet = true }
@@ -261,6 +527,7 @@ fun AddTransferScreen(
                 OutlinedTextField(
                     value = formState.amountText,
                     onValueChange = { viewModel.updateFormAmount(it) },
+                    isError = !formState.error.isNullOrBlank(),
                     leadingIcon = {
                         Surface(
                             shape = MaterialTheme.shapes.medium,
@@ -278,6 +545,12 @@ fun AddTransferScreen(
                     textStyle = MaterialTheme.typography.headlineLarge.copy(textAlign = TextAlign.Center),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
+                    supportingText = {
+                        Text(
+                            text = formState.error ?: "Escribe el monto exacto a transferir",
+                            color = if (formState.error.isNullOrBlank()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -305,68 +578,15 @@ fun AddTransferScreen(
                     }
                 }
 
-                if (fromAfterCents != null && toAfterCents != null) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Income.copy(alpha = 0.12f)),
-                        border = BorderStroke(1.dp, Income.copy(alpha = 0.18f))
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Surface(shape = CircleShape, color = Income.copy(alpha = 0.20f)) {
-                                    Icon(
-                                        Icons.Default.Check,
-                                        contentDescription = null,
-                                        tint = Income,
-                                        modifier = Modifier.padding(8.dp)
-                                    )
-                                }
-                                Text(
-                                    text = "Así quedarán tus saldos",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = Income,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(fromAccount?.name ?: "Origen", style = MaterialTheme.typography.labelMedium)
-                                    Text(
-                                        text = currencyFormat.format(fromAfterCents / 100.0),
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (fromAfterCents >= 0) Income else Expense
-                                    )
-                                }
-
-                                Icon(Icons.Default.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-
-                                Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                                    Text(toAccount?.name ?: "Destino", style = MaterialTheme.typography.labelMedium)
-                                    Text(
-                                        text = currencyFormat.format(toAfterCents / 100.0),
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Income
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+                TransferPreviewCard(
+                    amountCents = amountCents,
+                    amountText = formState.amountText,
+                    fromAccount = fromAccount,
+                    toAccount = toAccount,
+                    fromProjectedBalanceCents = fromAfterCents,
+                    toProjectedBalanceCents = toAfterCents,
+                    currencyFormat = currencyFormat
+                )
 
                 Box(
                     modifier = Modifier
@@ -397,7 +617,7 @@ fun AddTransferScreen(
                     value = formState.note,
                     onValueChange = { viewModel.updateFormNote(it) },
                     label = { Text("Nota (opcional)") },
-                    leadingIcon = { Icon(Icons.Default.Notes, contentDescription = null) },
+                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.Notes, contentDescription = null) },
                     maxLines = 2,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -456,18 +676,22 @@ fun AddTransferScreen(
 
 @Composable
 private fun AccountSelectorRow(
+    account: AccountEntity?,
     title: String,
     supporting: String,
     trailing: String,
     trailingColor: androidx.compose.ui.graphics.Color,
     onClick: () -> Unit
 ) {
+    val accent = remember(account?.colorHex, account?.type) { accountAccentColor(account) }
+    val icon = remember(account?.iconKey, account?.type) { accountIconForKey(account?.iconKey, account?.type) }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f))
+        border = BorderStroke(1.dp, accent.copy(alpha = 0.16f))
     ) {
         Row(
             modifier = Modifier
@@ -477,24 +701,29 @@ private fun AccountSelectorRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Surface(
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+                shape = CircleShape,
+                color = accent.copy(alpha = 0.14f),
+                modifier = Modifier.size(42.dp)
             ) {
-                Icon(
-                    Icons.Default.AccountBalance,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(10.dp)
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        tint = accent,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 if (supporting.isNotBlank()) {
                     Text(
                         supporting,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
@@ -504,7 +733,9 @@ private fun AccountSelectorRow(
                     text = trailing,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = trailingColor
+                    color = trailingColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
