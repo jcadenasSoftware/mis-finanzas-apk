@@ -363,6 +363,22 @@ class TransactionsViewModel @Inject constructor(
         applyFilters()
     }
 
+    fun setCustomPeriod(fromEpochSec: Long, toEpochSec: Long) {
+        val cal = java.util.Calendar.getInstance()
+        cal.timeInMillis = fromEpochSec * 1000L
+        val year = cal.get(java.util.Calendar.YEAR)
+        val month = cal.get(java.util.Calendar.MONTH) + 1
+
+        _state.value = _state.value.copy(
+            selectedPeriodPreset = TransactionsPeriodPreset.CUSTOM,
+            selectedYear = year,
+            selectedMonth = month,
+            fromEpochSec = minOf(fromEpochSec, toEpochSec),
+            toEpochSec = maxOf(fromEpochSec, toEpochSec)
+        )
+        applyFilters()
+    }
+
     fun filterByCategory(categoryId: String?) {
         _state.value = _state.value.copy(selectedCategoryId = categoryId)
         applyFilters()

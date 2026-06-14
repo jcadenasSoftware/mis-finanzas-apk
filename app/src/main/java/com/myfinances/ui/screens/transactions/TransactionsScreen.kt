@@ -1,5 +1,6 @@
 package com.myfinances.ui.screens.transactions
 
+import android.app.DatePickerDialog
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -11,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -36,6 +38,7 @@ import com.myfinances.ui.theme.Expense
 import com.myfinances.ui.viewmodel.SyncViewModel
 import com.myfinances.ui.viewmodel.TransactionsPeriodPreset
 import com.myfinances.ui.viewmodel.TransactionsViewModel
+import androidx.compose.ui.platform.LocalContext
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -121,8 +124,10 @@ fun TransactionsScreen(
                         monthLabelFormat = monthLabelFormat,
                         onSearch = { viewModel.setSearchQuery(it) },
                         onPreset = { viewModel.setPeriodPreset(it) },
+                        onCustomPeriodSelected = { from, to -> viewModel.setCustomPeriod(from, to) },
                         onMonthSelected = { year, month -> viewModel.setMonth(year, month) },
-                        onAccountSelected = { viewModel.filterByAccount(it) }
+                        onAccountSelected = { viewModel.filterByAccount(it) },
+                        onCategorySelected = { viewModel.filterByCategory(it) }
                     )
                 }
 
@@ -182,12 +187,29 @@ fun TransactionsScreen(
                                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    var lastHeader: String? = null
-                                    items(state.transactions) { transaction ->
-                                        val header = dayHeaderFormat.format(Date(transaction.occurredAtEpochSec * 1000))
-                                        if (lastHeader != header) {
-                                            lastHeader = header
-                                            DateGroupHeader(text = header)
+                                    itemsIndexed(state.transactions) { index, transaction ->
+                                        val headerUi = remember(transaction.occurredAtEpochSec) {
+                                            resolveTransactionDateHeaderUi(
+                                                epochSec = transaction.occurredAtEpochSec,
+                                                dayHeaderFormat = dayHeaderFormat
+                                            )
+                                        }
+                                        val groupKey = remember(transaction.occurredAtEpochSec) {
+                                            transactionDayKey(transaction.occurredAtEpochSec)
+                                        }
+                                        val previousGroupKey = if (index > 0) {
+                                            remember(state.transactions[index - 1].occurredAtEpochSec) {
+                                                transactionDayKey(state.transactions[index - 1].occurredAtEpochSec)
+                                            }
+                                        } else {
+                                            null
+                                        }
+
+                                        if (index == 0 || previousGroupKey != groupKey) {
+                                            DateGroupHeader(
+                                                text = headerUi.text,
+                                                relative = headerUi.relative
+                                            )
                                         }
                                         TransactionItem(
                                             transaction = transaction,
@@ -203,6 +225,179 @@ fun TransactionsScreen(
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CustomPeriodBottomSheet(
+    initialFromEpochSec: Long?,
+    initialToEpochSec: Long?,
+    onDismiss: () -> Unit,
+    onApply: (Long, Long) -> Unit
+) {
+    val context = LocalContext.current
+    val titleFormat = remember { SimpleDateFormat("dd MMM yyyy", Locale("es")) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    val nowMillis = remember { System.currentTimeMillis() }
+    var draftFromEpochSec by remember(initialFromEpochSec) {
+        mutableStateOf(initialFromEpochSec ?: startOfDayEpochSec(nowMillis))
+    }
+    var draftToEpochSec by remember(initialToEpochSec) {
+        mutableStateOf(initialToEpochSec ?: endOfDayEpochSec(nowMillis))
+    }
+    var showFromPicker by remember { mutableStateOf(false) }
+    var showToPicker by remember { mutableStateOf(false) }
+
+    if (showFromPicker) {
+        val cal = Calendar.getInstance().apply { timeInMillis = draftFromEpochSec * 1000L }
+        DatePickerDialog(
+            context,
+            { _, year, month, day ->
+                val picked = Calendar.getInstance().apply {
+                    set(Calendar.YEAR, year)
+                    set(Calendar.MONTH, month)
+                    set(Calendar.DAY_OF_MONTH, day)
+                }
+                picked.set(Calendar.HOUR_OF_DAY, 0)
+                picked.set(Calendar.MINUTE, 0)
+                picked.set(Calendar.SECOND, 0)
+                picked.set(Calendar.MILLISECOND, 0)
+                val from = picked.timeInMillis / 1000L
+                draftFromEpochSec = from
+                if (from > draftToEpochSec) {
+                    draftToEpochSec = endOfDayEpochSec(picked.timeInMillis)
+                }
+                showFromPicker = false
+            },
+            cal.get(Calendar.YEAR),
+            cal.get(Calendar.MONTH),
+            cal.get(Calendar.DAY_OF_MONTH)
+        ).apply {
+            setOnCancelListener { showFromPicker = false }
+        }.show()
+    }
+
+    if (showToPicker) {
+        val cal = Calendar.getInstance().apply { timeInMillis = draftToEpochSec * 1000L }
+        DatePickerDialog(
+            context,
+            { _, year, month, day ->
+                val picked = Calendar.getInstance().apply {
+                    set(Calendar.YEAR, year)
+                    set(Calendar.MONTH, month)
+                    set(Calendar.DAY_OF_MONTH, day)
+                }
+                picked.set(Calendar.HOUR_OF_DAY, 23)
+                picked.set(Calendar.MINUTE, 59)
+                picked.set(Calendar.SECOND, 59)
+                picked.set(Calendar.MILLISECOND, 999)
+                val to = picked.timeInMillis / 1000L
+                draftToEpochSec = to
+                if (to < draftFromEpochSec) {
+                    draftFromEpochSec = startOfDayEpochSec(picked.timeInMillis)
+                }
+                showToPicker = false
+            },
+            cal.get(Calendar.YEAR),
+            cal.get(Calendar.MONTH),
+            cal.get(Calendar.DAY_OF_MONTH)
+        ).apply {
+            setOnCancelListener { showToPicker = false }
+        }.show()
+    }
+
+    fun dateLabel(epochSec: Long): String = titleFormat.format(Date(epochSec * 1000L))
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        ) {
+            Text(
+                text = "Rango personalizado",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Selecciona dos fechas para filtrar las transacciones.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                FilterSelectorChip(
+                    text = "Desde ${dateLabel(draftFromEpochSec)}",
+                    icon = Icons.Default.DateRange,
+                    onClick = { showFromPicker = true },
+                    modifier = Modifier.weight(1f)
+                )
+                FilterSelectorChip(
+                    text = "Hasta ${dateLabel(draftToEpochSec)}",
+                    icon = Icons.Default.DateRange,
+                    onClick = { showToPicker = true },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Cancelar")
+                }
+                Button(
+                    onClick = {
+                        val from = minOf(draftFromEpochSec, draftToEpochSec)
+                        val to = maxOf(draftFromEpochSec, draftToEpochSec)
+                        onApply(from, to)
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Aplicar")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+private fun startOfDayEpochSec(epochMillis: Long): Long {
+    val cal = Calendar.getInstance()
+    cal.timeInMillis = epochMillis
+    cal.set(Calendar.HOUR_OF_DAY, 0)
+    cal.set(Calendar.MINUTE, 0)
+    cal.set(Calendar.SECOND, 0)
+    cal.set(Calendar.MILLISECOND, 0)
+    return cal.timeInMillis / 1000L
+}
+
+private fun endOfDayEpochSec(epochMillis: Long): Long {
+    val cal = Calendar.getInstance()
+    cal.timeInMillis = epochMillis
+    cal.set(Calendar.HOUR_OF_DAY, 23)
+    cal.set(Calendar.MINUTE, 59)
+    cal.set(Calendar.SECOND, 59)
+    cal.set(Calendar.MILLISECOND, 999)
+    return cal.timeInMillis / 1000L
 }
 
 private fun formatTransactionNote(kind: String, note: String?): String? {
@@ -353,33 +548,179 @@ private fun AccountPickerBottomSheet(
                         .fillMaxWidth()
                         .verticalScroll(scrollState)
                 ) {
-                    fun radio(selected: Boolean) = if (selected) Icons.Default.RadioButtonChecked else Icons.Default.RadioButtonUnchecked
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onSelected(null) }
-                            .padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Icon(radio(selectedAccountId == null), contentDescription = null)
-                        Text("Todas las cuentas", style = MaterialTheme.typography.bodyLarge)
-                    }
+                    SelectableSheetRow(
+                        text = "Todas las cuentas",
+                        selected = selectedAccountId == null,
+                        onClick = { onSelected(null) }
+                    )
                     HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
 
                     accounts.forEach { account ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onSelected(account.id) }
-                                .padding(vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Icon(radio(selectedAccountId == account.id), contentDescription = null)
-                            Text(account.name, style = MaterialTheme.typography.bodyLarge)
-                        }
+                        SelectableSheetRow(
+                            text = account.name,
+                            selected = selectedAccountId == account.id,
+                            onClick = { onSelected(account.id) }
+                        )
+                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun SelectableSheetRow(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val rowTint = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else Color.Transparent
+    val iconTint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(rowTint)
+            .clickable { onClick() }
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Icon(
+            imageVector = if (selected) Icons.Default.RadioButtonChecked else Icons.Default.RadioButtonUnchecked,
+            contentDescription = null,
+            tint = iconTint
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PeriodPickerBottomSheet(
+    selectedPreset: TransactionsPeriodPreset,
+    onDismiss: () -> Unit,
+    onSelected: (TransactionsPeriodPreset) -> Unit,
+    onCustomRequested: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scrollState = rememberScrollState()
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        ) {
+            Text(
+                text = "Seleccionar periodo",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 420.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(scrollState)
+                ) {
+                    val options = listOf(
+                        TransactionsPeriodPreset.TODAY to "Hoy",
+                        TransactionsPeriodPreset.WEEK to "Esta semana",
+                        TransactionsPeriodPreset.MONTH to "Este mes",
+                        TransactionsPeriodPreset.CUSTOM to "Personalizado"
+                    )
+
+                    options.forEach { (preset, label) ->
+                        SelectableSheetRow(
+                            text = label,
+                            selected = selectedPreset == preset,
+                            onClick = {
+                                if (preset == TransactionsPeriodPreset.CUSTOM) {
+                                    onCustomRequested()
+                                } else {
+                                    onSelected(preset)
+                                }
+                            }
+                        )
+                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CategoryPickerBottomSheet(
+    categories: List<com.myfinances.data.local.entity.CategoryEntity>,
+    selectedCategoryId: String?,
+    onDismiss: () -> Unit,
+    onSelected: (String?) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scrollState = rememberScrollState()
+    val rootCategories = remember(categories) { categories.filter { it.parentId == null } }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        ) {
+            Text(
+                text = "Seleccionar categoría",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 420.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(scrollState)
+                ) {
+                    SelectableSheetRow(
+                        text = "Todas",
+                        selected = selectedCategoryId == null,
+                        onClick = { onSelected(null) }
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
+
+                    rootCategories.forEach { category ->
+                        SelectableSheetRow(
+                            text = category.name,
+                            selected = selectedCategoryId == category.id,
+                            onClick = { onSelected(category.id) }
+                        )
                         HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
                     }
                 }
@@ -396,8 +737,10 @@ private fun TransactionsFiltersHeader(
     monthLabelFormat: SimpleDateFormat,
     onSearch: (String) -> Unit,
     onPreset: (TransactionsPeriodPreset) -> Unit,
+    onCustomPeriodSelected: (Long, Long) -> Unit,
     onMonthSelected: (Int, Int) -> Unit,
-    onAccountSelected: (String?) -> Unit
+    onAccountSelected: (String?) -> Unit,
+    onCategorySelected: (String?) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -406,6 +749,9 @@ private fun TransactionsFiltersHeader(
     ) {
         var showMonthSheet by remember { mutableStateOf(false) }
         var showAccountsSheet by remember { mutableStateOf(false) }
+        var showPeriodSheet by remember { mutableStateOf(false) }
+        var showCategorySheet by remember { mutableStateOf(false) }
+        var showCustomPeriodSheet by remember { mutableStateOf(false) }
 
         val monthLabel = remember(state.selectedYear, state.selectedMonth) {
             val cal = Calendar.getInstance()
@@ -434,6 +780,45 @@ private fun TransactionsFiltersHeader(
             )
         }
 
+        if (showPeriodSheet) {
+            PeriodPickerBottomSheet(
+                selectedPreset = state.selectedPeriodPreset,
+                onDismiss = { showPeriodSheet = false },
+                onSelected = { preset ->
+                    showPeriodSheet = false
+                    onPreset(preset)
+                },
+                onCustomRequested = {
+                    showPeriodSheet = false
+                    showCustomPeriodSheet = true
+                }
+            )
+        }
+
+        if (showCustomPeriodSheet) {
+            CustomPeriodBottomSheet(
+                initialFromEpochSec = state.fromEpochSec,
+                initialToEpochSec = state.toEpochSec,
+                onDismiss = { showCustomPeriodSheet = false },
+                onApply = { from, to ->
+                    showCustomPeriodSheet = false
+                    onCustomPeriodSelected(from, to)
+                }
+            )
+        }
+
+        if (showCategorySheet) {
+            CategoryPickerBottomSheet(
+                categories = state.categories,
+                selectedCategoryId = state.selectedCategoryId,
+                onDismiss = { showCategorySheet = false },
+                onSelected = { categoryId ->
+                    showCategorySheet = false
+                    onCategorySelected(categoryId)
+                }
+            )
+        }
+
         if (showAccountsSheet) {
             AccountPickerBottomSheet(
                 accounts = state.accounts,
@@ -451,70 +836,65 @@ private fun TransactionsFiltersHeader(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AssistChip(
+            FilterSelectorChip(
+                text = monthLabel,
+                icon = Icons.Default.DateRange,
                 onClick = { showMonthSheet = true },
-                label = { Text(monthLabel) },
-                leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null) }
-            )
-
-            AssistChip(
-                onClick = { showAccountsSheet = true },
-                label = {
-                    val name = state.accounts.firstOrNull { it.id == state.selectedAccountId }?.name ?: "Todas las cuentas"
-                    Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                },
-                leadingIcon = { Icon(Icons.Default.AccountBalanceWallet, contentDescription = null) },
                 modifier = Modifier.weight(1f)
             )
 
-            FilledTonalIconButton(
+            FilterSelectorChip(
+                text = state.accounts.firstOrNull { it.id == state.selectedAccountId }?.name ?: "Todas",
+                icon = Icons.Default.AccountBalanceWallet,
                 onClick = { showAccountsSheet = true },
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(Icons.Default.Tune, contentDescription = "Cuentas")
-            }
+                modifier = Modifier.weight(1f)
+            )
         }
 
-        Spacer(modifier = Modifier.height(2.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // Quick period presets
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        val periodText = when (state.selectedPeriodPreset) {
+            TransactionsPeriodPreset.TODAY -> "Hoy"
+            TransactionsPeriodPreset.WEEK -> "Esta semana"
+            TransactionsPeriodPreset.MONTH -> "Este mes"
+            TransactionsPeriodPreset.CUSTOM -> "Personalizado"
+        }
+
+        val categoryText = state.categories
+            .firstOrNull { it.id == state.selectedCategoryId }
+            ?.name ?: "Todas"
+
+        val rootCategories = remember(state.categories) {
+            state.categories.filter { it.parentId == null }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item {
-                PeriodChip(
-                    text = "Hoy",
-                    selected = state.selectedPeriodPreset == TransactionsPeriodPreset.TODAY,
-                    onClick = { onPreset(TransactionsPeriodPreset.TODAY) }
-                )
-            }
-            item {
-                PeriodChip(
-                    text = "Semana",
-                    selected = state.selectedPeriodPreset == TransactionsPeriodPreset.WEEK,
-                    onClick = { onPreset(TransactionsPeriodPreset.WEEK) }
-                )
-            }
-            item {
-                PeriodChip(
-                    text = "Mes",
-                    selected = state.selectedPeriodPreset == TransactionsPeriodPreset.MONTH,
-                    onClick = { onPreset(TransactionsPeriodPreset.MONTH) }
-                )
-            }
-            item {
-                PeriodChip(
-                    text = "Personalizado",
-                    selected = state.selectedPeriodPreset == TransactionsPeriodPreset.CUSTOM,
-                    onClick = { onPreset(TransactionsPeriodPreset.CUSTOM) }
-                )
-            }
+            // Period selector
+            FilterSelectorChip(
+                text = periodText,
+                icon = Icons.Default.CalendarToday,
+                onClick = { showPeriodSheet = true },
+                modifier = Modifier.weight(1f)
+            )
+
+            // Category selector
+            FilterSelectorChip(
+                text = categoryText,
+                icon = Icons.Default.Category,
+                onClick = { showCategorySheet = true },
+                modifier = Modifier.weight(1f)
+            )
         }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Search
         OutlinedTextField(
@@ -523,7 +903,8 @@ private fun TransactionsFiltersHeader(
             placeholder = {
                 Text(
                     "Buscar transacción, categoría o nota...",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1
                 )
             },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
@@ -534,31 +915,40 @@ private fun TransactionsFiltersHeader(
                 .heightIn(min = 44.dp)
                 .padding(horizontal = 16.dp, vertical = 0.dp)
         )
+
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
 @Composable
-private fun PeriodChip(
+private fun FilterSelectorChip(
     text: String,
-    selected: Boolean,
-    onClick: () -> Unit
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    FilterChip(
-        selected = selected,
+    AssistChip(
         onClick = onClick,
-        label = { Text(text) },
+        label = {
+            Text(
+                text,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        },
+        leadingIcon = {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp)
+            )
+        },
         shape = MaterialTheme.shapes.extraLarge,
-        colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = MaterialTheme.colorScheme.primary,
-            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-            containerColor = MaterialTheme.colorScheme.surface,
-            labelColor = MaterialTheme.colorScheme.onSurface
+        colors = AssistChipDefaults.assistChipColors(
+            leadingIconContentColor = MaterialTheme.colorScheme.primary
         ),
-        border = if (selected) null else BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.20f)
-        ),
-        modifier = Modifier.heightIn(min = 34.dp)
+        modifier = modifier.heightIn(min = 36.dp)
     )
 }
 
@@ -585,7 +975,8 @@ private fun TransactionsSummaryCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
                 text = "Resumen",
@@ -593,8 +984,6 @@ private fun TransactionsSummaryCard(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
-
-            Spacer(modifier = Modifier.height(10.dp))
 
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
@@ -610,34 +999,39 @@ private fun TransactionsSummaryCard(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 10.dp, vertical = 10.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
+                        TransactionsSummaryBalanceRow(
+                            balanceText = (if (balancePositive) "+" else "") + balanceText,
+                            balancePositive = balancePositive
+                        )
+
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f),
+                            thickness = 1.dp
+                        )
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.Top
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            TransactionsSummaryMetricColumn(
-                                title = "Ingresos:",
+                            TransactionsSummaryMetricColumnWithIcon(
+                                title = "Ingresos",
                                 value = incomeText,
                                 accentColor = Income,
+                                icon = Icons.Default.TrendingUp,
                                 modifier = Modifier.weight(1f)
                             )
-                            TransactionsSummaryMetricColumn(
-                                title = "Gastos:",
+                            TransactionsSummaryMetricColumnWithIcon(
+                                title = "Gastos",
                                 value = expenseText,
                                 accentColor = Expense,
+                                icon = Icons.Default.TrendingDown,
                                 modifier = Modifier.weight(1f)
                             )
                         }
-
-                        TransactionsSummaryInlineBalanceMetric(
-                            title = "Balance:",
-                            value = (if (balancePositive) "+" else "") + balanceText,
-                            accentColor = if (balancePositive) Income else Expense,
-                            modifier = Modifier.fillMaxWidth()
-                        )
                     }
                 }
             }
@@ -646,62 +1040,98 @@ private fun TransactionsSummaryCard(
 }
 
 @Composable
-private fun TransactionsSummaryMetricColumn(
+private fun TransactionsSummaryMetricColumnWithIcon(
     title: String,
     value: String,
     accentColor: Color,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier.padding(horizontal = 2.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Text(
-            text = value,
-            fontSize = 16.sp,
-            lineHeight = 17.sp,
-            fontWeight = FontWeight.Bold,
-            color = accentColor,
-            maxLines = 2,
-            overflow = TextOverflow.Clip
-        )
-    }
-}
-
-@Composable
-private fun TransactionsSummaryInlineBalanceMetric(
-    title: String,
-    value: String,
-    accentColor: Color,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier,
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Bottom
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        Surface(
+            shape = MaterialTheme.shapes.small,
+            color = accentColor.copy(alpha = 0.12f),
+            modifier = Modifier.size(28.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = accentColor,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+        Column(
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = value,
+                fontSize = 13.sp,
+                lineHeight = 15.sp,
+                fontWeight = FontWeight.Medium,
+                color = accentColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun TransactionsSummaryBalanceRow(
+    balanceText: String,
+    balancePositive: Boolean
+) {
+    val balanceColor = if (balancePositive) Income else Expense
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Balance",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Surface(
+                shape = MaterialTheme.shapes.small,
+                color = balanceColor.copy(alpha = 0.12f),
+                modifier = Modifier.size(24.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = if (balancePositive) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+                        contentDescription = null,
+                        tint = balanceColor,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+        }
         Text(
-            text = title,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Text(
-            text = value,
-            fontSize = 16.sp,
-            lineHeight = 17.sp,
+            text = balanceText,
+            fontSize = 18.sp,
+            lineHeight = 21.sp,
             fontWeight = FontWeight.Bold,
-            color = accentColor,
-            textAlign = TextAlign.End,
-            modifier = Modifier.weight(1f),
+            color = balanceColor,
             maxLines = 1,
-            overflow = TextOverflow.Clip
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -747,27 +1177,84 @@ private fun TransactionsSummaryBackgroundGraph(
     }
 }
 
+private data class TransactionDateHeaderUi(
+    val text: String,
+    val relative: Boolean
+)
+
+private fun transactionDayKey(epochSec: Long): String {
+    val cal = Calendar.getInstance()
+    cal.timeInMillis = epochSec * 1000
+    return buildString(10) {
+        append(cal.get(Calendar.YEAR))
+        append('-')
+        append(cal.get(Calendar.MONTH) + 1)
+        append('-')
+        append(cal.get(Calendar.DAY_OF_MONTH))
+    }
+}
+
+private fun resolveTransactionDateHeaderUi(
+    epochSec: Long,
+    dayHeaderFormat: SimpleDateFormat
+): TransactionDateHeaderUi {
+    val now = Calendar.getInstance()
+    val target = Calendar.getInstance().apply { timeInMillis = epochSec * 1000 }
+    val yesterday = Calendar.getInstance().apply {
+        timeInMillis = now.timeInMillis
+        add(Calendar.DAY_OF_YEAR, -1)
+    }
+
+    return when {
+        isSameDay(target, now) -> TransactionDateHeaderUi(text = "Hoy", relative = true)
+        isSameDay(target, yesterday) -> TransactionDateHeaderUi(text = "Ayer", relative = true)
+        else -> TransactionDateHeaderUi(
+            text = dayHeaderFormat.format(Date(epochSec * 1000)),
+            relative = false
+        )
+    }
+}
+
+private fun isSameDay(first: Calendar, second: Calendar): Boolean {
+    return first.get(Calendar.YEAR) == second.get(Calendar.YEAR) &&
+        first.get(Calendar.DAY_OF_YEAR) == second.get(Calendar.DAY_OF_YEAR)
+}
+
 @Composable
-private fun DateGroupHeader(text: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 8.dp, bottom = 2.dp)
+private fun DateGroupHeader(
+    text: String,
+    relative: Boolean
+) {
+    val backgroundColor = if (relative) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+    }
+    val contentColor = if (relative) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val borderColor = if (relative) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f)
+    }
+
+    Surface(
+        color = backgroundColor,
+        contentColor = contentColor,
+        shape = MaterialTheme.shapes.large,
+        border = BorderStroke(1.dp, borderColor),
+        modifier = Modifier.padding(top = 10.dp, bottom = 4.dp)
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.labelMedium,
+            style = if (relative) MaterialTheme.typography.labelLarge else MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
         )
     }
-    Spacer(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(1.dp)
-            .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f))
-    )
-    Spacer(modifier = Modifier.height(6.dp))
 }
 
 @Composable
