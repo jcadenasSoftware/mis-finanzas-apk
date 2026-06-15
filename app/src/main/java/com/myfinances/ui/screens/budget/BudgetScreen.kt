@@ -35,8 +35,11 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Savings
+import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -67,11 +70,13 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
@@ -82,6 +87,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -267,34 +273,11 @@ fun BudgetScreen(
         ,
         floatingActionButton = {
             if (selectedTab == 1) {
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    if (showFabMenu) {
-                        BudgetFabAction(
-                            label = "Registrar movimiento",
-                            icon = Icons.Default.AttachMoney,
-                            onClick = {
-                                showFabMenu = false
-                                showQuickMove = true
-                            }
-                        )
-                        BudgetFabAction(
-                            label = "Nueva meta",
-                            icon = Icons.Default.Add,
-                            onClick = {
-                                showFabMenu = false
-                                showCreateGoal = true
-                            }
-                        )
-                    }
-                    FloatingActionButton(onClick = { showFabMenu = !showFabMenu }) {
-                        Icon(
-                            imageVector = if (showFabMenu) Icons.Default.Close else Icons.Default.Add,
-                            contentDescription = "Acciones"
-                        )
-                    }
+                FloatingActionButton(onClick = { showCreateGoal = true }) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Nueva meta"
+                    )
                 }
             }
         }
@@ -343,7 +326,39 @@ fun BudgetScreen(
                         )
                     }
 
+                    val attentionCards = remember(state.monthlyItems) {
+                        state.monthlyItems.mapNotNull { item ->
+                            if (item.limitCents <= 0L) return@mapNotNull null
+                            val progress = item.spentCents.toFloat() / item.limitCents.toFloat()
+                            val severity = monthlyAttentionSeverity(progress, item.limitCents) ?: return@mapNotNull null
+
+                            MonthlyAttentionItem(
+                                categoryId = item.categoryId,
+                                categoryName = item.categoryName,
+                                progress = progress,
+                                severity = severity
+                            )
+                        }.sortedWith(
+                            compareByDescending<MonthlyAttentionItem> { it.progress }
+                                .thenBy { it.categoryName }
+                        ).take(5)
+                    }
+
                     var expandedRootId by remember { mutableStateOf<String?>(null) }
+                    var selectedFilter by rememberSaveable { mutableStateOf(CategoryFilter.ALL) }
+                    var filterExpanded by remember { mutableStateOf(false) }
+
+                    val filteredMonthlyCards by remember(monthlyCards, selectedFilter) {
+                        derivedStateOf {
+                            monthlyCards.filter { shouldShowCategory(it, selectedFilter) }
+                        }
+                    }
+
+                    val budgetInsights by remember(monthlyCards, monthlyProgress, totalLimit, totalSpent) {
+                        derivedStateOf {
+                            generateBudgetInsights(monthlyCards, monthlyProgress, totalLimit, totalSpent)
+                        }
+                    }
 
                     LazyColumn(
                         modifier = Modifier
@@ -375,6 +390,12 @@ fun BudgetScreen(
                             )
                         }
 
+                        if (budgetInsights.isNotEmpty()) {
+                            item {
+                                InsightsSection(insights = budgetInsights, currencyFormat = currencyFormat)
+                            }
+                        }
+
                         if (monthlyCards.isEmpty()) {
                             item {
                                 MonthlyEmptyState(
@@ -393,15 +414,57 @@ fun BudgetScreen(
                                 )
                             }
                         } else {
-                            item {
-                                Text(
-                                    "Tus categorías",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
+                            if (attentionCards.isNotEmpty()) {
+                                item {
+                                    AttentionNeededSection(items = attentionCards)
+                                }
                             }
 
-                            items(monthlyCards, key = { "budget_${it.categoryId}" }) { model ->
+                            item {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        "Tus categorías",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+
+                                    Box {
+                                        AssistChip(
+                                            onClick = { filterExpanded = true },
+                                            label = { Text(selectedFilter.label) },
+                                            leadingIcon = {
+                                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = null)
+                                            },
+                                            colors = AssistChipDefaults.assistChipColors(
+                                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                                labelColor = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        )
+
+                                        DropdownMenu(
+                                            expanded = filterExpanded,
+                                            onDismissRequest = { filterExpanded = false },
+                                            modifier = Modifier.background(Color.White)
+                                        ) {
+                                            CategoryFilter.entries.forEach { filter ->
+                                                DropdownMenuItem(
+                                                    text = { Text(filter.label) },
+                                                    onClick = {
+                                                        selectedFilter = filter
+                                                        filterExpanded = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            items(filteredMonthlyCards, key = { "budget_${it.categoryId}" }) { model ->
                                 val children = state.monthlySubcategoryItemsByRootId[model.categoryId].orEmpty()
                                 val isExpanded = expandedRootId == model.categoryId
                                 MonthlyCategoryBudgetCard(
@@ -447,12 +510,14 @@ fun BudgetScreen(
                             Text(err, color = MaterialTheme.colorScheme.error)
                         }
 
-                        GoalsGlobalSummaryCard(
-                            totalSavedCents = totalSavedCents,
-                            totalTargetCents = totalTargetCents,
-                            progress = totalProgress,
-                            currencyFormat = currencyFormat
-                        )
+                        if (state.goals.size > 1) {
+                            GoalsGlobalSummaryCard(
+                                totalSavedCents = totalSavedCents,
+                                totalTargetCents = totalTargetCents,
+                                progress = totalProgress,
+                                currencyFormat = currencyFormat
+                            )
+                        }
 
                         if (state.goals.isEmpty()) {
                             Text(
@@ -641,7 +706,6 @@ fun BudgetScreen(
 
         AlertDialog(
             onDismissRequest = { showCreateGoal = false },
-            title = { Text("Nueva meta") },
             containerColor = Color.White,
             text = {
                 Column(
@@ -649,8 +713,38 @@ fun BudgetScreen(
                         .fillMaxWidth()
                         .verticalScroll(rememberScrollState())
                         .imePadding(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    GoalDialogHeader(
+                        title = "Nueva meta",
+                        subtitle = "Define un objetivo de ahorro."
+                    )
+                    OutlinedTextField(
+                        value = goalAmountText,
+                        onValueChange = { goalAmountText = it },
+                        label = { Text("Monto objetivo") },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.AttachMoney,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(64.dp),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color(0xFFF5F7FA),
+                            unfocusedContainerColor = Color(0xFFF5F7FA),
+                            disabledContainerColor = Color(0xFFF5F7FA),
+                            focusedBorderColor = Color(0xFF2463EB),
+                            unfocusedBorderColor = Color(0xFFD8DFEA)
+                        )
+                    )
                     OutlinedTextField(
                         value = goalName,
                         onValueChange = { goalName = it },
@@ -666,30 +760,13 @@ fun BudgetScreen(
                             unfocusedBorderColor = Color(0xFFD8DFEA)
                         )
                     )
-                    OutlinedTextField(
-                        value = goalAmountText,
-                        onValueChange = { goalAmountText = it },
-                        label = { Text("Monto objetivo") },
-                        leadingIcon = { Icon(Icons.Default.AttachMoney, contentDescription = null) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.extraLarge,
-                        textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color(0xFFF5F7FA),
-                            unfocusedContainerColor = Color(0xFFF5F7FA),
-                            disabledContainerColor = Color(0xFFF5F7FA),
-                            focusedBorderColor = Color(0xFF2463EB),
-                            unfocusedBorderColor = Color(0xFFD8DFEA)
-                        )
-                    )
 
                     OutlinedTextField(
                         value = allCurrencies.find { it.first == selectedCurrency }?.second ?: "",
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Moneda") },
+                        placeholder = { Text("Selecciona moneda") },
                         trailingIcon = {
                             IconButton(
                                 onClick = {
@@ -697,7 +774,7 @@ fun BudgetScreen(
                                     if (!currencyExpanded) currencyQuery = ""
                                 }
                             ) {
-                                Icon(Icons.Default.Savings, contentDescription = null)
+                                Icon(Icons.Default.Savings, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -776,7 +853,6 @@ fun BudgetScreen(
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Fecha objetivo") },
-                        leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
                         trailingIcon = {
                             IconButton(onClick = { showDatePicker = true }) {
                                 Icon(Icons.Default.CalendarToday, contentDescription = null)
@@ -871,14 +947,50 @@ fun BudgetScreen(
 
         AlertDialog(
             onDismissRequest = { showDeposit = false },
-            title = { Text("Depositar a meta") },
             containerColor = Color.White,
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Text(goal?.name ?: "")
+                    GoalDialogHeader(
+                        title = "Depositar a meta",
+                        subtitle = "Agrega dinero a esta meta."
+                    )
+
+                    Text(
+                        text = goal?.name ?: "",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    OutlinedTextField(
+                        value = amountText,
+                        onValueChange = { amountText = it },
+                        label = { Text("Monto") },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.AttachMoney,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(64.dp),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color(0xFFF5F7FA),
+                            unfocusedContainerColor = Color(0xFFF5F7FA),
+                            disabledContainerColor = Color(0xFFF5F7FA),
+                            focusedBorderColor = Color(0xFF2463EB),
+                            unfocusedBorderColor = Color(0xFFD8DFEA)
+                        )
+                    )
 
                     Box(modifier = Modifier.fillMaxWidth()) {
                         val selected = fromAccounts.find { it.id == fromAccountId }
@@ -888,12 +1000,21 @@ fun BudgetScreen(
                             onValueChange = {},
                             readOnly = true,
                             label = { Text("Cuenta origen") },
+                            placeholder = { Text("Selecciona cuenta") },
                             trailingIcon = {
                                 IconButton(onClick = { fromExpanded = true }) {
                                     Icon(Icons.Default.Savings, contentDescription = null)
                                 }
                             },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.extraLarge,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color.White,
+                                unfocusedContainerColor = Color.White,
+                                disabledContainerColor = Color.White,
+                                focusedBorderColor = Color(0xFF2463EB),
+                                unfocusedBorderColor = Color(0xFFD8DFEA)
+                            )
                         )
                         DropdownMenu(
                             expanded = fromExpanded,
@@ -914,16 +1035,6 @@ fun BudgetScreen(
                     }
 
                     OutlinedTextField(
-                        value = amountText,
-                        onValueChange = { amountText = it },
-                        label = { Text("Monto") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        leadingIcon = { Icon(Icons.Default.AttachMoney, contentDescription = null) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
                         value = dateFormat.format(Date(occurredAtEpochSec * 1000)),
                         onValueChange = {},
                         readOnly = true,
@@ -933,7 +1044,9 @@ fun BudgetScreen(
                                 Icon(Icons.Default.CalendarToday, contentDescription = null)
                             }
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showDatePicker = true },
                         shape = MaterialTheme.shapes.extraLarge,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = Color.White,
@@ -1027,14 +1140,50 @@ fun BudgetScreen(
 
         AlertDialog(
             onDismissRequest = { showWithdraw = false },
-            title = { Text("Retirar de meta") },
             containerColor = Color.White,
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Text(goal?.name ?: "")
+                    GoalDialogHeader(
+                        title = "Retirar de meta",
+                        subtitle = "Retira dinero de esta meta."
+                    )
+
+                    Text(
+                        text = goal?.name ?: "",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    OutlinedTextField(
+                        value = amountText,
+                        onValueChange = { amountText = it },
+                        label = { Text("Monto") },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.AttachMoney,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(64.dp),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color(0xFFF5F7FA),
+                            unfocusedContainerColor = Color(0xFFF5F7FA),
+                            disabledContainerColor = Color(0xFFF5F7FA),
+                            focusedBorderColor = Color(0xFF2463EB),
+                            unfocusedBorderColor = Color(0xFFD8DFEA)
+                        )
+                    )
 
                     Box(modifier = Modifier.fillMaxWidth()) {
                         val selected = toAccounts.find { it.id == toAccountId }
@@ -1044,12 +1193,21 @@ fun BudgetScreen(
                             onValueChange = {},
                             readOnly = true,
                             label = { Text("Cuenta destino") },
+                            placeholder = { Text("Selecciona cuenta") },
                             trailingIcon = {
                                 IconButton(onClick = { toExpanded = true }) {
                                     Icon(Icons.Default.Savings, contentDescription = null)
                                 }
                             },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.extraLarge,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color.White,
+                                unfocusedContainerColor = Color.White,
+                                disabledContainerColor = Color.White,
+                                focusedBorderColor = Color(0xFF2463EB),
+                                unfocusedBorderColor = Color(0xFFD8DFEA)
+                            )
                         )
                         DropdownMenu(
                             expanded = toExpanded,
@@ -1070,21 +1228,10 @@ fun BudgetScreen(
                     }
 
                     OutlinedTextField(
-                        value = amountText,
-                        onValueChange = { amountText = it },
-                        label = { Text("Monto") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        leadingIcon = { Icon(Icons.Default.AttachMoney, contentDescription = null) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
                         value = dateFormat.format(Date(occurredAtEpochSec * 1000)),
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Fecha") },
-                        leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
                         trailingIcon = {
                             IconButton(onClick = { showDatePicker = true }) {
                                 Icon(Icons.Default.CalendarToday, contentDescription = null)
@@ -1394,11 +1541,8 @@ private fun GoalModernCard(
     val suggestedDailyCents = remember(remainingCents, daysLeft) {
         if (remainingCents <= 0L) 0L else (remainingCents / daysLeft.toLong()).coerceAtLeast(0L)
     }
-    val motivationalLabel = when {
-        progress >= 0.75f -> "Vas muy bien"
-        progress >= 0.35f -> "Vas a mitad de camino"
-        else -> "Aún falta bastante"
-    }
+    val (motivationalTitle, motivationalDescription) = getMotivationalMessage(progress)
+    val timeRemainingText = getTimeRemainingText(targetDateEpochSec)
 
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
@@ -1460,11 +1604,21 @@ private fun GoalModernCard(
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold
                 )
-                Text(
-                    text = "\uD83D\uDCC5 $dateText",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        text = "📅 $timeRemainingText",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = dateText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                }
             }
 
             Surface(
@@ -1478,24 +1632,16 @@ private fun GoalModernCard(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        motivationalLabel,
+                        motivationalTitle,
                         fontWeight = FontWeight.Bold,
                         color = pctColor,
                         style = MaterialTheme.typography.bodyMedium
                     )
-                    if (remainingCents > 0L) {
-                        val dailyText = currencyFormat.format(suggestedDailyCents / 100.0)
-                        Text(
-                            "Si ahorras $dailyText/día lo logras en $daysLeft día(s)",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Text(
-                            "Sugerido mensual: ${currencyFormat.format(suggestedMonthlyCents / 100.0)} (en $monthsLeft mes(es))",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
+                    Text(
+                        motivationalDescription,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
             }
 
@@ -1531,10 +1677,292 @@ private fun goalProgressColor(progress: Float): Color {
     }
 }
 
+private fun getMotivationalMessage(progress: Float): Pair<String, String> {
+    val pct = (progress * 100).toInt()
+    return when {
+        progress >= 0.9f -> {
+            "🔥 Último esfuerzo" to "Estás muy cerca de completar esta meta."
+        }
+        progress >= 0.75f -> {
+            "🚀 Excelente avance" to "Ya recorriste tres cuartas partes del camino. Tu meta está cada vez más cerca."
+        }
+        progress >= 0.5f -> {
+            "🎯 Vas por buen camino" to "Ya completaste el $pct% de tu meta. Manteniendo tu ritmo actual podrás alcanzarla antes de la fecha objetivo."
+        }
+        progress >= 0.35f -> {
+            "📈 Buen progreso" to "Ya has avanzado significativamente. Continúa así para lograr tu meta."
+        }
+        else -> {
+            "🌱 Comienza el camino" to "Cada pequeño aporte te acerca a tu objetivo. ¡Sigue adelante!"
+        }
+    }
+}
+
+private fun getTimeRemainingText(targetDateEpochSec: Long): String {
+    val nowEpochSec = System.currentTimeMillis() / 1000
+    val secondsLeft = (targetDateEpochSec - nowEpochSec).coerceAtLeast(0)
+    val daysLeft = (secondsLeft / 86400).toInt()
+    val monthsLeft = daysLeft / 30
+
+    return when {
+        monthsLeft >= 12 -> "${monthsLeft / 12} año(s) restante(s)"
+        monthsLeft >= 1 -> "$monthsLeft mes(es) restante(s)"
+        daysLeft >= 1 -> "$daysLeft día(s) restante(s)"
+        else -> "Último día"
+    }
+}
+
+@Composable
+private fun GoalDialogHeader(
+    title: String,
+    subtitle: String,
+    intentColor: Color? = null
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = intentColor ?: MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
 private enum class MonthlyStatus(val label: String, val priority: Int) {
-    OK("Bien", 1),
-    RISK("En riesgo", 2),
-    EXCEEDED("Excedido", 3)
+    OK("Dentro del presupuesto", 1),
+    RISK("Cerca del límite", 2),
+    NEAR_LIMIT("Casi excedido", 3),
+    EXCEEDED("Presupuesto excedido", 4)
+}
+
+private enum class CategoryFilter(val label: String) {
+    ALL("Todas"),
+    AT_RISK("En riesgo"),
+    EXCEEDED("Excedidas"),
+    NO_BUDGET("Sin presupuesto")
+}
+
+private enum class InsightType(val priority: Int, val label: String, val color: Color) {
+    RISK(1, "Crítico", Color(0xFFEF4444)),
+    WARNING(2, "Advertencia", Color(0xFFF97316)),
+    SAVING(3, "Positivo", Color(0xFF16A34A)),
+    TREND(4, "Tendencia", Color(0xFF2463EB)),
+    PROJECTION(5, "Proyección", Color(0xFF8B5CF6))
+}
+
+private data class BudgetInsight(
+    val type: InsightType,
+    val title: String,
+    val description: String,
+    val icon: ImageVector,
+    val monetaryDifference: Long? = null,
+    val percentage: Int? = null
+)
+
+private fun generateExceededCategoryInsights(items: List<MonthlyCategoryCardModel>): List<BudgetInsight> {
+    return items
+        .filter { it.status == MonthlyStatus.EXCEEDED }
+        .sortedByDescending { it.progress }
+        .take(1)
+        .map { item ->
+            val pct = (item.progress * 100).toInt()
+            val excessCents = item.spentCents - item.limitCents
+            BudgetInsight(
+                type = InsightType.RISK,
+                title = item.categoryName,
+                description = "Alcanzó el $pct% de su presupuesto",
+                icon = Icons.Default.Warning,
+                monetaryDifference = excessCents,
+                percentage = pct
+            )
+        }
+}
+
+private fun generateNearLimitCategoryInsights(items: List<MonthlyCategoryCardModel>): List<BudgetInsight> {
+    return items
+        .filter { it.status == MonthlyStatus.NEAR_LIMIT }
+        .sortedByDescending { it.progress }
+        .take(1)
+        .map { item ->
+            val pct = (item.progress * 100).toInt()
+            val remainingCents = item.limitCents - item.spentCents
+            BudgetInsight(
+                type = InsightType.WARNING,
+                title = item.categoryName,
+                description = "Está al $pct% de su presupuesto",
+                icon = Icons.Default.Info,
+                monetaryDifference = remainingCents,
+                percentage = pct
+            )
+        }
+}
+
+private fun generateMonthlyConsumptionInsight(progress: Float, totalLimitCents: Long, totalSpentCents: Long): BudgetInsight? {
+    if (totalLimitCents <= 0L) return null
+    val pct = (progress * 100).toInt()
+    val remainingCents = totalLimitCents - totalSpentCents
+    return BudgetInsight(
+        type = InsightType.TREND,
+        title = "Consumo mensual",
+        description = "Ya consumiste el $pct% del presupuesto",
+        icon = Icons.Default.AttachMoney,
+        monetaryDifference = remainingCents,
+        percentage = pct
+    )
+}
+
+private fun generateEndOfMonthProjectionInsight(progress: Float, totalLimitCents: Long, totalSpentCents: Long): BudgetInsight? {
+    if (totalLimitCents <= 0L) return null
+    val pct = (progress * 100).toInt()
+    val projectedPct = (pct * 2).coerceAtMost(999)
+    val projectedExcessCents = (totalSpentCents * 2) - totalLimitCents
+    return BudgetInsight(
+        type = InsightType.PROJECTION,
+        title = "Proyección fin de mes",
+        description = "Si continúas a este ritmo utilizarás el $projectedPct%",
+        icon = Icons.Default.TrendingUp,
+        monetaryDifference = if (projectedExcessCents > 0) projectedExcessCents else null,
+        percentage = projectedPct
+    )
+}
+
+private fun generateBudgetInsights(
+    items: List<MonthlyCategoryCardModel>,
+    progress: Float,
+    totalLimitCents: Long,
+    totalSpentCents: Long
+): List<BudgetInsight> {
+    val insights = mutableListOf<BudgetInsight>()
+
+    insights.addAll(generateExceededCategoryInsights(items))
+    insights.addAll(generateNearLimitCategoryInsights(items))
+
+    generateMonthlyConsumptionInsight(progress, totalLimitCents, totalSpentCents)?.let { insights.add(it) }
+    generateEndOfMonthProjectionInsight(progress, totalLimitCents, totalSpentCents)?.let { insights.add(it) }
+
+    return insights
+        .sortedBy { it.type.priority }
+        .take(3)
+}
+
+@Composable
+private fun InsightsSection(insights: List<BudgetInsight>, currencyFormat: NumberFormat) {
+    if (insights.isEmpty()) return
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = "🧠 Resumen inteligente",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                insights.forEach { insight ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = insight.type.color.copy(alpha = 0.08f)
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            insight.type.color.copy(alpha = 0.20f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = insight.type.color.copy(alpha = 0.15f)
+                            ) {
+                                Icon(
+                                    imageVector = insight.icon,
+                                    contentDescription = null,
+                                    tint = insight.type.color,
+                                    modifier = Modifier.padding(8.dp).size(20.dp)
+                                )
+                            }
+
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Text(
+                                    text = insight.title,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = insight.description,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                insight.percentage?.let { pct ->
+                                    Text(
+                                        text = "$pct%",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = insight.type.color
+                                    )
+                                }
+                                insight.monetaryDifference?.let { diffCents ->
+                                    val sign = if (diffCents >= 0) "+" else ""
+                                    val diffValue = currencyFormat.format(diffCents / 100.0)
+                                    Text(
+                                        text = "$sign$diffValue",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (diffCents >= 0) MaterialTheme.colorScheme.onSurfaceVariant else insight.type.color,
+                                        fontWeight = if (diffCents < 0) FontWeight.SemiBold else FontWeight.Normal
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun shouldShowCategory(model: MonthlyCategoryCardModel, filter: CategoryFilter): Boolean {
+    return when (filter) {
+        CategoryFilter.ALL -> true
+        CategoryFilter.AT_RISK -> model.status == MonthlyStatus.RISK || model.status == MonthlyStatus.NEAR_LIMIT
+        CategoryFilter.EXCEEDED -> model.status == MonthlyStatus.EXCEEDED
+        CategoryFilter.NO_BUDGET -> model.limitCents <= 0L
+    }
 }
 
 private data class MonthlyCategoryCardModel(
@@ -1546,20 +1974,135 @@ private data class MonthlyCategoryCardModel(
     val status: MonthlyStatus
 )
 
+private enum class MonthlyAttentionSeverity(val label: String, val color: Color) {
+    WARNING("Advertencia", Color(0xFFF59E0B)),
+    EXCEEDED("Excedida", Color(0xFFEF4444))
+}
+
+private data class MonthlyAttentionItem(
+    val categoryId: String,
+    val categoryName: String,
+    val progress: Float,
+    val severity: MonthlyAttentionSeverity
+)
+
 private fun monthlyStatus(progress: Float, limitCents: Long): MonthlyStatus {
     if (limitCents <= 0L) return MonthlyStatus.OK
     return when {
         progress > 1f -> MonthlyStatus.EXCEEDED
+        progress >= 0.9f -> MonthlyStatus.NEAR_LIMIT
         progress >= 0.7f -> MonthlyStatus.RISK
         else -> MonthlyStatus.OK
     }
 }
 
+private fun monthlyAttentionSeverity(progress: Float, limitCents: Long): MonthlyAttentionSeverity? {
+    if (limitCents <= 0L) return null
+    return when {
+        progress >= 1f -> MonthlyAttentionSeverity.EXCEEDED
+        progress >= 0.9f -> MonthlyAttentionSeverity.WARNING
+        else -> null
+    }
+}
+
 private fun monthlyStatusColor(status: MonthlyStatus): Color {
     return when (status) {
-        MonthlyStatus.OK -> Color(0xFF2463EB)
+        MonthlyStatus.OK -> Color(0xFF16A34A)
         MonthlyStatus.RISK -> Color(0xFFF59E0B)
+        MonthlyStatus.NEAR_LIMIT -> Color(0xFFF97316)
         MonthlyStatus.EXCEEDED -> Color(0xFFEF4444)
+    }
+}
+
+@Composable
+private fun AttentionNeededSection(
+    items: List<MonthlyAttentionItem>
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = "⚠ Requieren atención",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items.forEach { item ->
+                AttentionNeededItemRow(item = item)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AttentionNeededItemRow(
+    item: MonthlyAttentionItem
+) {
+    val pct = (item.progress * 100).toInt().coerceAtLeast(0)
+    val color = item.severity.color
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            color.copy(alpha = 0.18f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = color.copy(alpha = 0.12f)
+            ) {
+                Box(
+                    modifier = Modifier.size(12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .background(color, CircleShape)
+                    )
+                }
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.categoryName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = item.severity.label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = color
+                )
+            }
+
+            Surface(
+                shape = MaterialTheme.shapes.extraLarge,
+                color = color.copy(alpha = 0.12f)
+            ) {
+                Text(
+                    text = "$pct%",
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                    color = color,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+        }
     }
 }
 
@@ -1595,6 +2138,7 @@ private fun MonthlyGlobalSummaryCard(
     val status = monthlyStatus(progress, totalLimitCents)
     val statusColor = monthlyStatusColor(status)
     val pct = (progress * 100).toInt().coerceAtLeast(0)
+    val availableColor = if (availableCents >= 0L) Color(0xFF16A34A) else Color(0xFFEF4444)
     val noDecimals = remember(currencyFormat) {
         (currencyFormat.clone() as NumberFormat).apply {
             maximumFractionDigits = 0
@@ -1605,37 +2149,47 @@ private fun MonthlyGlobalSummaryCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 2.dp),
         shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Este mes",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Resumen mensual",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = formatMonthKey(monthKey),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
 
                 Box {
                     AssistChip(
                         onClick = { monthExpanded = true },
                         label = {
-                            Text(
-                                formatMonthKey(monthKey),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            Text("Cambiar mes", maxLines = 1, overflow = TextOverflow.Ellipsis)
                         },
                         leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
                         trailingIcon = { Icon(Icons.Default.KeyboardArrowDown, contentDescription = null) },
@@ -1671,143 +2225,105 @@ private fun MonthlyGlobalSummaryCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
             Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
                 shape = MaterialTheme.shapes.extraLarge,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    MonthlySummaryBackgroundGraph(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .padding(horizontal = 6.dp, vertical = 6.dp)
-                    )
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Surface(
+                        color = statusColor.copy(alpha = 0.10f),
+                        shape = MaterialTheme.shapes.extraLarge
                     ) {
-                        // Row 1: Presupuesto and Gastado
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Presupuesto", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(
-                                    noDecimals.format(totalLimitCents / 100.0),
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    softWrap = false
-                                )
-                            }
-                            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                                Text("Gastado", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(
-                                    noDecimals.format(totalSpentCents / 100.0),
-                                    fontWeight = FontWeight.Bold,
-                                    color = statusColor,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    softWrap = false
-                                )
-                            }
-                        }
+                        Text(
+                            text = status.label,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            color = statusColor,
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
 
-                        // Row 2: Disponible centered
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Disponible", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(
-                                    noDecimals.format(availableCents / 100.0),
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (availableCents >= 0L) Color(0xFF16A34A) else Color(0xFFEF4444),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    softWrap = false
-                                )
-                            }
-                        }
-
-                        // Progress bar and percentage
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            LinearProgressIndicator(
-                                progress = { progress.coerceAtLeast(0f).coerceAtMost(1f) },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(10.dp)
-                                    .clip(MaterialTheme.shapes.extraLarge),
-                                color = statusColor,
-                                trackColor = Color(0xFFE9EEF6)
-                            )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Column(modifier = Modifier.weight(1.35f)) {
                             Text(
-                                "$pct%",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold,
+                                text = "Gastado",
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            Text(
+                                text = noDecimals.format(totalSpentCents / 100.0),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = statusColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                softWrap = false
+                            )
+                            Text(
+                                text = "de Presupuesto Total",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Clip,
+                                softWrap = false
+                            )
                         }
+
+                        Column(
+                            modifier = Modifier.weight(0.85f),
+                            horizontalAlignment = Alignment.End
+                        ) {
+                            Text(
+                                text = "Disponible",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = noDecimals.format(availableCents / 100.0),
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = availableColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                softWrap = false
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        LinearProgressIndicator(
+                            progress = { progress.coerceAtLeast(0f).coerceAtMost(1f) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(8.dp)
+                                .clip(MaterialTheme.shapes.extraLarge),
+                            color = statusColor,
+                            trackColor = Color(0xFFE9EEF6)
+                        )
+                        Text(
+                            text = "$pct%",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun MonthlySummaryBackgroundGraph(
-    modifier: Modifier = Modifier
-) {
-    val primaryOverlay = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
-    Canvas(modifier = modifier) {
-        val width = size.width
-        val height = size.height
-
-        // Curved line path
-        val linePath = androidx.compose.ui.graphics.Path().apply {
-            moveTo(0f, height * 0.78f)
-            cubicTo(
-                width * 0.18f, height * 0.55f,
-                width * 0.36f, height * 0.88f,
-                width * 0.52f, height * 0.62f
-            )
-            cubicTo(
-                width * 0.68f, height * 0.38f,
-                width * 0.82f, height * 0.66f,
-                width, height * 0.3f
-            )
-        }
-
-        drawPath(
-            path = linePath,
-            color = primaryOverlay,
-            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 4f)
-        )
-
-        // Decorative circles (bubbles)
-        drawCircle(
-            color = Income.copy(alpha = 0.08f),
-            radius = width * 0.18f,
-            center = Offset(width * 0.15f, height * 0.2f)
-        )
-        drawCircle(
-            color = Expense.copy(alpha = 0.06f),
-            radius = width * 0.14f,
-            center = Offset(width * 0.82f, height * 0.78f)
-        )
     }
 }
 
@@ -1833,6 +2349,11 @@ private fun MonthlyCategoryBudgetCard(
             "Excediste por ${currencyFormat.format((-availableCents) / 100.0)}"
         }
     }
+    val spentBudgetLabel = if (model.limitCents > 0L) {
+        "${currencyFormat.format(model.spentCents / 100.0)} / ${currencyFormat.format(model.limitCents / 100.0)}"
+    } else {
+        currencyFormat.format(model.spentCents / 100.0)
+    }
 
     Card(
         modifier = Modifier
@@ -1847,54 +2368,22 @@ private fun MonthlyCategoryBudgetCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = statusColor.copy(alpha = 0.10f)
-                    ) {
-                        Box(
-                            modifier = Modifier.size(36.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                model.categoryName.take(1).uppercase(),
-                                fontWeight = FontWeight.Bold,
-                                color = statusColor
-                            )
-                        }
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            model.categoryName,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        val topLine = if (model.limitCents > 0L) {
-                            "${currencyFormat.format(model.spentCents / 100.0)} / ${currencyFormat.format(model.limitCents / 100.0)}"
-                        } else {
-                            currencyFormat.format(model.spentCents / 100.0)
-                        }
-                        Text(
-                            topLine,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                Text(
+                    model.categoryName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
 
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Surface(
@@ -1903,16 +2392,23 @@ private fun MonthlyCategoryBudgetCard(
                     ) {
                         Text(
                             "$pct%",
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             color = statusColor,
                             fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.labelLarge
+                            style = MaterialTheme.typography.labelMedium
                         )
                     }
 
                     if (children.isEmpty()) {
-                        IconButton(onClick = onEditRoot) {
-                            Icon(Icons.Default.Edit, contentDescription = "Editar límite")
+                        IconButton(
+                            onClick = onEditRoot,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Edit,
+                                contentDescription = "Editar límite",
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
                     }
                 }
@@ -1922,18 +2418,30 @@ private fun MonthlyCategoryBudgetCard(
                 progress = { model.progress.coerceAtLeast(0f).coerceAtMost(1f) },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(10.dp)
+                    .height(6.dp)
                     .clip(MaterialTheme.shapes.extraLarge),
                 color = statusColor,
                 trackColor = Color(0xFFE9EEF6)
             )
 
-            Text(
-                availableLabel,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (model.status == MonthlyStatus.EXCEEDED) Color(0xFFEF4444) else MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = if (model.status == MonthlyStatus.EXCEEDED) FontWeight.SemiBold else FontWeight.Normal
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    spentBudgetLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Text(
+                    availableLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (model.status == MonthlyStatus.EXCEEDED) Color(0xFFEF4444) else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (model.status == MonthlyStatus.EXCEEDED) FontWeight.SemiBold else FontWeight.Normal
+                )
+            }
 
             if (expanded && children.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(2.dp))
