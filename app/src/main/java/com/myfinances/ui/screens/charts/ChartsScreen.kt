@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -84,7 +85,7 @@ fun ChartsScreen(
             CompactHeader(
                 title = {
                     Text(
-                        text = "Gráficos",
+                        text = "Resumen financiero",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -126,6 +127,13 @@ fun ChartsScreen(
                 }
 
                 item {
+                    ChartsInsightsCard(
+                        monthIndex = state.selectedMonthIndex,
+                        insights = state.insights
+                    )
+                }
+
+                item {
                     ChartsFiltersChipsBar(
                         state = state,
                         onOpenFilters = { showFilters = true },
@@ -135,7 +143,8 @@ fun ChartsScreen(
                         onAccount = { viewModel.updateAccount(it) },
                         onMonth = { viewModel.updateMonthIndex(it) },
                         onRootCategory = { viewModel.updateRootCategory(it) },
-                        onSubCategory = { viewModel.updateSubCategory(it) }
+                        onSubCategory = { viewModel.updateSubCategory(it) },
+                        isTrendTab = state.selectedDashboardTab == ChartsDashboardTab.TREND
                     )
                 }
 
@@ -163,12 +172,11 @@ fun ChartsScreen(
 
                     ChartsDashboardTab.TREND -> {
                         item {
-                            val lineColor = if (state.selectedKind == ChartsKind.INCOME) Income else Expense
                             ChartsTrendCard(
                                 year = state.selectedYear,
-                                data = state.trendByMonthCents,
-                                currencyFormat = currencyFormat,
-                                lineColor = lineColor
+                                incomeData = state.trendIncomeByMonthCents,
+                                expenseData = state.trendExpenseByMonthCents,
+                                currencyFormat = currencyFormat
                             )
                         }
                     }
@@ -221,13 +229,6 @@ fun ChartsScreen(
                         }
                     }
                 } else {
-                    item {
-                        ChartsInsightsCard(
-                            monthIndex = state.selectedMonthIndex,
-                            insights = state.insights
-                        )
-                    }
-
                     itemsIndexed(visibleItems) { index, item ->
                         val canExpand = state.selectedDashboardTab == ChartsDashboardTab.CATEGORIES &&
                             state.selectedView == ChartsViewMode.ROOT
@@ -295,7 +296,8 @@ fun ChartsScreen(
             onAccount = { viewModel.updateAccount(it) },
             onMonth = { viewModel.updateMonthIndex(it) },
             onRootCategory = { viewModel.updateRootCategory(it) },
-            onSubCategory = { viewModel.updateSubCategory(it) }
+            onSubCategory = { viewModel.updateSubCategory(it) },
+            isTrendTab = state.selectedDashboardTab == ChartsDashboardTab.TREND
         )
     }
 }
@@ -312,74 +314,103 @@ private fun ChartsInsightsCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f))
     ) {
-        Column(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(14.dp)
         ) {
-            Text(
-                if (monthIndex in 1..12) "Insights de este mes" else "Insights",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold
-            )
+            val isCompact = maxWidth < 420.dp
+            val items = insights.take(2)
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                insights.take(2).forEach { insight ->
-                    val (icon, tint, bg) = when (insight.tone) {
-                        com.myfinances.ui.viewmodel.ChartsInsightTone.POSITIVE ->
-                            Triple(Icons.Filled.TrendingUp, Income, Income.copy(alpha = 0.12f))
-                        com.myfinances.ui.viewmodel.ChartsInsightTone.NEGATIVE ->
-                            Triple(Icons.Filled.TrendingDown, Expense, Expense.copy(alpha = 0.12f))
-                        com.myfinances.ui.viewmodel.ChartsInsightTone.NEUTRAL ->
-                            Triple(Icons.Filled.Insights, Primary, Primary.copy(alpha = 0.10f))
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    if (monthIndex in 1..12) "Insights de este mes" else "Insights",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                if (isCompact) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        items.forEach { insight ->
+                            InsightCardItem(
+                                insight = insight,
+                                modifier = Modifier.fillMaxWidth(),
+                                compact = true
+                            )
+                        }
                     }
-
-                    Card(
-                        modifier = Modifier.weight(1f),
-                        colors = CardDefaults.cardColors(containerColor = bg),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .background(bg, CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(icon, contentDescription = null, tint = tint)
-                            }
-                            Column(
+                        items.forEach { insight ->
+                            InsightCardItem(
+                                insight = insight,
                                 modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                Text(
-                                    insight.title,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    insight.subtitle,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
+                                compact = false
+                            )
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InsightCardItem(
+    insight: com.myfinances.ui.viewmodel.ChartsInsight,
+    modifier: Modifier = Modifier,
+    compact: Boolean
+) {
+    val (icon, tint, bg) = when (insight.tone) {
+        com.myfinances.ui.viewmodel.ChartsInsightTone.POSITIVE ->
+            Triple(Icons.Filled.TrendingUp, Income, Income.copy(alpha = 0.12f))
+        com.myfinances.ui.viewmodel.ChartsInsightTone.NEGATIVE ->
+            Triple(Icons.Filled.TrendingDown, Expense, Expense.copy(alpha = 0.12f))
+        com.myfinances.ui.viewmodel.ChartsInsightTone.NEUTRAL ->
+            Triple(Icons.Filled.Insights, Primary, Primary.copy(alpha = 0.10f))
+    }
+
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = bg),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(if (compact) 32.dp else 36.dp)
+                    .background(bg, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = tint)
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    insight.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = if (compact) 3 else 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    insight.subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = if (compact) 3 else 2,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }
@@ -598,7 +629,8 @@ private fun ChartsFiltersChipsBar(
     onAccount: (String?) -> Unit,
     onMonth: (Int) -> Unit,
     onRootCategory: (String?) -> Unit,
-    onSubCategory: (String?) -> Unit
+    onSubCategory: (String?) -> Unit,
+    isTrendTab: Boolean = false
 ) {
     val monthLabel = state.months.getOrNull(state.selectedMonthIndex) ?: "TOTAL"
     val monthText = if (state.selectedMonthIndex == 0) {
@@ -607,7 +639,6 @@ private fun ChartsFiltersChipsBar(
         "${monthLabel} ${state.selectedYear}"
     }
     val kindText = state.selectedKind.label
-    val viewText = state.selectedView.label
     val accountText = state.accounts.firstOrNull { it.id == state.selectedAccountId }?.name ?: "Todas las cuentas"
 
     val rootCategoryLabel = state.rootCategories.firstOrNull { it.id == state.selectedRootCategoryId }?.name
@@ -639,15 +670,15 @@ private fun ChartsFiltersChipsBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(10.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
                 modifier = Modifier
                     .weight(1f)
                     .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 DropdownChip(
@@ -660,25 +691,18 @@ private fun ChartsFiltersChipsBar(
                     leadingIcon = { Icon(Icons.Filled.DateRange, contentDescription = null) }
                 )
 
-                DropdownChip(
-                    label = kindText,
-                    options = state.kinds.map { it.label },
-                    onSelected = { selected ->
-                        state.kinds.firstOrNull { it.label == selected }?.let(onKind)
-                    },
-                    leadingIcon = { Icon(Icons.Filled.Label, contentDescription = null) }
-                )
+                if (!isTrendTab) {
+                    DropdownChip(
+                        label = kindText,
+                        options = state.kinds.map { it.label },
+                        onSelected = { selected ->
+                            state.kinds.firstOrNull { it.label == selected }?.let(onKind)
+                        },
+                        leadingIcon = { Icon(Icons.Filled.Label, contentDescription = null) }
+                    )
+                }
 
-                DropdownChip(
-                    label = viewText,
-                    options = state.views.map { it.label },
-                    onSelected = { selected ->
-                        state.views.firstOrNull { it.label == selected }?.let(onView)
-                    },
-                    leadingIcon = { Icon(Icons.Filled.PieChart, contentDescription = null) }
-                )
-
-                if (state.selectedView == ChartsViewMode.SUB) {
+                if (!isTrendTab && state.selectedView == ChartsViewMode.SUB) {
                     DropdownChip(
                         label = rootCategoryLabel,
                         options = buildList {
@@ -728,16 +752,14 @@ private fun ChartsFiltersChipsBar(
                     leadingIcon = { Icon(Icons.Filled.AccountBalanceWallet, contentDescription = null) }
                 )
 
-                DropdownChip(
-                    label = state.selectedYear.toString(),
-                    options = state.years.map { it.toString() },
-                    onSelected = { selected -> onYear(selected.toInt()) },
-                    leadingIcon = { Icon(Icons.Filled.Event, contentDescription = null) }
-                )
-            }
-
-            IconButton(onClick = onOpenFilters) {
-                Icon(Icons.Filled.Tune, contentDescription = "Más filtros")
+                if (!isTrendTab) {
+                    DropdownChip(
+                        label = state.selectedYear.toString(),
+                        options = state.years.map { it.toString() },
+                        onSelected = { selected -> onYear(selected.toInt()) },
+                        leadingIcon = { Icon(Icons.Filled.Event, contentDescription = null) }
+                    )
+                }
             }
         }
     }
@@ -755,9 +777,15 @@ private fun DropdownChip(
     Box {
         AssistChip(
             onClick = { expanded = true },
-            label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelSmall) },
             leadingIcon = leadingIcon,
-            trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null) }
+            trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null, modifier = Modifier.size(16.dp)) },
+            colors = AssistChipDefaults.assistChipColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                labelColor = MaterialTheme.colorScheme.onSurface
+            ),
+            border = null,
+            shape = MaterialTheme.shapes.small
         )
 
         DropdownMenu(
@@ -799,15 +827,32 @@ private fun ChartsDashboardToggle(
         SingleChoiceSegmentedButtonRow(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(10.dp)
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            space = 4.dp
         ) {
             options.forEachIndexed { index, tab ->
                 SegmentedButton(
                     selected = selected == tab,
                     onClick = { onSelect(tab) },
-                    shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size)
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                    colors = SegmentedButtonDefaults.colors(
+                        activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        inactiveContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    icon = {
+                        Icon(
+                            imageVector = when (tab) {
+                                ChartsDashboardTab.CATEGORIES -> Icons.Default.PieChart
+                                ChartsDashboardTab.TREND -> Icons.Default.ShowChart
+                            },
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 ) {
-                    Text(tab.label)
+                    Text(tab.label, style = MaterialTheme.typography.labelSmall)
                 }
             }
         }
@@ -823,57 +868,135 @@ private fun ChartsDonutCard(
     selectedItemId: String?,
     onToggleSelectedItem: (String) -> Unit
 ) {
+    val top3 = remember(items) { items.take(3) }
+    
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f))
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Box(
-                modifier = Modifier.size(140.dp),
-                contentAlignment = Alignment.Center
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                ChartsDonut(
-                    items = items,
-                    ringBaseColor = ringColor,
-                    selectedItemId = selectedItemId,
-                    onToggleSelectedItem = onToggleSelectedItem,
-                    modifier = Modifier.fillMaxSize()
-                )
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        "Total",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                Box(
+                    modifier = Modifier.size(80.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    ChartsDonut(
+                        items = items,
+                        ringBaseColor = ringColor,
+                        selectedItemId = selectedItemId,
+                        onToggleSelectedItem = onToggleSelectedItem,
+                        modifier = Modifier.fillMaxSize()
                     )
+                }
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     Text(
-                        currencyFormat.format(totalCents / 100.0),
+                        "Distribución",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold
                     )
+                    Text(
+                        "Top categorías",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Total",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            currencyFormat.format(totalCents / 100.0),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = ringColor
+                        )
+                    }
                 }
             }
 
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Text(
-                    "Distribución",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    "Toca en Filtros para cambiar mes, cuenta y tipo.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f),
+                thickness = 1.dp
+            )
+
+            if (top3.isNotEmpty()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    top3.forEachIndexed { index, item ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .background(
+                                            color = ringColor.copy(alpha = 0.12f),
+                                            shape = CircleShape
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                "${index + 1}",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Medium,
+                                color = ringColor
+                                    )
+                                }
+                                Text(
+                                    item.name,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "${String.format(Locale("es"), "%.1f", item.percent * 100)}%",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    currencyFormat.format(item.amountCents / 100.0),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = ringColor
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -984,10 +1107,23 @@ private fun chartsDateRangeEpochSec(year: Int, monthIndex: Int): Pair<Long?, Lon
 @Composable
 private fun ChartsTrendCard(
     year: Int,
-    data: List<Long>,
-    currencyFormat: NumberFormat,
-    lineColor: Color
+    incomeData: List<Long>,
+    expenseData: List<Long>,
+    currencyFormat: NumberFormat
 ) {
+    val monthlyBalances = remember(incomeData, expenseData) {
+        incomeData.zip(expenseData).map { (income, expense) -> income - expense }
+    }
+    val bestMonthIndex = remember(monthlyBalances) {
+        monthlyBalances.indices.maxByOrNull { monthlyBalances[it] }
+    }
+    val worstMonthIndex = remember(monthlyBalances) {
+        monthlyBalances.indices.minByOrNull { monthlyBalances[it] }
+    }
+    val positiveMonths = monthlyBalances.count { it > 0 }
+    val negativeMonths = monthlyBalances.count { it < 0 }
+    val months = listOf("Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic")
+    
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -996,47 +1132,156 @@ private fun ChartsTrendCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            Text(
+                "Evolución financiera ${year}",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    "Tendencia ${year}",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
-                )
-                val total = data.sum()
-                Text(
-                    currencyFormat.format(total / 100.0),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = lineColor
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(
+                                color = Income,
+                                shape = CircleShape
+                            )
+                    )
+                    Text(
+                        "Ingresos",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(
+                                color = Expense,
+                                shape = CircleShape
+                            )
+                    )
+                    Text(
+                        "Gastos",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
+            
             ChartsLineChart(
-                data = data,
-                lineColor = lineColor,
+                incomeData = incomeData,
+                expenseData = expenseData,
                 currencyFormat = currencyFormat,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(180.dp)
+                    .height(200.dp)
             )
+            
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f),
+                thickness = 1.dp
+            )
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                if (bestMonthIndex != null) {
+                    Column {
+                        Text(
+                            "Mejor mes",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            months[bestMonthIndex],
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Income
+                        )
+                    }
+                }
+                if (worstMonthIndex != null) {
+                    Column(
+                        horizontalAlignment = Alignment.End
+                    ) {
+                        Text(
+                            "Peor mes",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            months[worstMonthIndex],
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Expense
+                        )
+                    }
+                }
+            }
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        "Meses positivos",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "$positiveMonths",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Income
+                    )
+                }
+                Column(
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Text(
+                        "Meses negativos",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "$negativeMonths",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Expense
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
 private fun ChartsLineChart(
-    data: List<Long>,
-    lineColor: Color,
+    incomeData: List<Long>,
+    expenseData: List<Long>,
     currencyFormat: NumberFormat,
     modifier: Modifier = Modifier
 ) {
-    val values = remember(data) { data.takeIf { it.isNotEmpty() } ?: listOf(0L) }
+    val incomeValues = remember(incomeData) { incomeData.takeIf { it.isNotEmpty() } ?: listOf(0L) }
+    val expenseValues = remember(expenseData) { expenseData.takeIf { it.isNotEmpty() } ?: listOf(0L) }
     val months = remember {
         listOf("Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic")
     }
@@ -1046,6 +1291,7 @@ private fun ChartsLineChart(
     val tooltipTitleColorArgb = MaterialTheme.colorScheme.onSurface.toArgb()
     val tooltipSurfaceColorArgb = MaterialTheme.colorScheme.surface.toArgb()
     val tooltipBorderColorArgb = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.22f).toArgb()
+    val verticalLineColorArgb = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f).toArgb()
 
     fun niceCeil(value: Double): Double {
         if (value <= 0.0) return 0.0
@@ -1061,7 +1307,9 @@ private fun ChartsLineChart(
         return niceF * base
     }
 
-    val maxValue = remember(values) { values.maxOrNull()?.toDouble() ?: 0.0 }
+    val maxIncome = remember(incomeValues) { incomeValues.maxOrNull()?.toDouble() ?: 0.0 }
+    val maxExpense = remember(expenseValues) { expenseValues.maxOrNull()?.toDouble() ?: 0.0 }
+    val maxValue = remember(maxIncome, maxExpense) { maxOf(maxIncome, maxExpense) }
     val niceMax = remember(maxValue) {
         niceCeil(maxValue).coerceAtLeast(1.0)
     }
@@ -1073,13 +1321,13 @@ private fun ChartsLineChart(
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
 
     Canvas(
-        modifier = modifier.pointerInput(values, niceMax) {
+        modifier = modifier.pointerInput(incomeValues, niceMax) {
             detectTapGestures { tap ->
                 val w = size.width
                 val leftPad = 44f
                 val rightPad = 10f
                 val usableW = (w - leftPad - rightPad).coerceAtLeast(1f)
-                val count = values.size
+                val count = incomeValues.size
                 val dx = if (count <= 1) 0f else usableW / (count - 1).toFloat()
                 val x0 = leftPad
 
@@ -1098,7 +1346,7 @@ private fun ChartsLineChart(
         val usableW = (w - leftPad - rightPad).coerceAtLeast(1f)
         val usableH = (h - topPad - bottomPad).coerceAtLeast(1f)
 
-        val count = values.size
+        val count = incomeValues.size
         val dx = if (count <= 1) 0f else usableW / (count - 1).toFloat()
 
         fun yFor(v: Double): Float {
@@ -1156,24 +1404,44 @@ private fun ChartsLineChart(
             )
         }
 
-        var last: Offset? = null
+        var lastIncome: Offset? = null
         for (i in 0 until count) {
             val x = leftPad + dx * i
-            val y = yFor(values[i].toDouble())
+            val y = yFor(incomeValues[i].toDouble())
             val cur = Offset(x, y)
-            val prev = last
+            val prev = lastIncome
             if (prev != null) {
                 drawLine(
-                    color = lineColor,
+                    color = Income,
                     start = prev,
                     end = cur,
-                    strokeWidth = 5f,
+                    strokeWidth = 3f,
                     cap = StrokeCap.Round
                 )
             }
             val isSelected = selectedIndex == i
-            drawCircle(color = lineColor, radius = if (isSelected) 7f else 5f, center = cur)
-            last = cur
+            drawCircle(color = Income, radius = if (isSelected) 6f else 4f, center = cur)
+            lastIncome = cur
+        }
+
+        var lastExpense: Offset? = null
+        for (i in 0 until count) {
+            val x = leftPad + dx * i
+            val y = yFor(expenseValues[i].toDouble())
+            val cur = Offset(x, y)
+            val prev = lastExpense
+            if (prev != null) {
+                drawLine(
+                    color = Expense,
+                    start = prev,
+                    end = cur,
+                    strokeWidth = 3f,
+                    cap = StrokeCap.Round
+                )
+            }
+            val isSelected = selectedIndex == i
+            drawCircle(color = Expense, radius = if (isSelected) 6f else 4f, center = cur)
+            lastExpense = cur
         }
 
         // X-axis month labels (every 2 months to avoid clutter)
@@ -1195,27 +1463,32 @@ private fun ChartsLineChart(
         // Tooltip for selected point
         selectedIndex?.let { idx ->
             val x = leftPad + dx * idx
-            val v = values.getOrNull(idx)?.toDouble() ?: 0.0
-            val y = yFor(v)
+            val incomeV = incomeValues.getOrNull(idx)?.toDouble() ?: 0.0
+            val expenseV = expenseValues.getOrNull(idx)?.toDouble() ?: 0.0
+            val y = yFor(incomeV)
 
             drawLine(
-                color = lineColor.copy(alpha = 0.25f),
+                color = Color(verticalLineColorArgb),
                 start = Offset(x, topPad),
                 end = Offset(x, topPad + usableH),
-                strokeWidth = 2f
+                strokeWidth = 1f
             )
 
             val month = months.getOrNull(idx) ?: ""
             val title = month
-            val amount = currencyFormat.format(v / 100.0)
+            val incomeAmount = currencyFormat.format(incomeV / 100.0)
+            val expenseAmount = currencyFormat.format(expenseV / 100.0)
+            val balanceAmount = currencyFormat.format((incomeV - expenseV) / 100.0)
 
-            val padX = 10f
-            val padY = 8f
-            val lineGap = 16f
+            val padX = 12f
+            val padY = 10f
+            val lineGap = 18f
             val titleW = tooltipTextPaint.measureText(title)
-            val amountW = tooltipSubPaint.measureText(amount)
-            val boxW = max(titleW, amountW) + padX * 2
-            val boxH = padY * 2 + lineGap * 2
+            val incomeW = tooltipSubPaint.measureText(incomeAmount)
+            val expenseW = tooltipSubPaint.measureText(expenseAmount)
+            val balanceW = tooltipSubPaint.measureText(balanceAmount)
+            val boxW = max(titleW, max(incomeW, max(expenseW, balanceW))) + padX * 2
+            val boxH = padY * 2 + lineGap * 4
 
             val preferLeft = x > w * 0.55f
             val boxLeft = (if (preferLeft) x - boxW - 10f else x + 10f)
@@ -1227,16 +1500,39 @@ private fun ChartsLineChart(
             drawContext.canvas.nativeCanvas.drawRoundRect(boxRect, 16f, 16f, tooltipBgPaint)
             drawContext.canvas.nativeCanvas.drawRoundRect(boxRect, 16f, 16f, tooltipBorderPaint)
 
+            val incomeTextPaint = android.graphics.Paint().apply {
+                isAntiAlias = true
+                color = Income.toArgb()
+                textSize = 11.sp.toPx()
+            }
+            val expenseTextPaint = android.graphics.Paint().apply {
+                isAntiAlias = true
+                color = Expense.toArgb()
+                textSize = 11.sp.toPx()
+            }
+            
             drawContext.canvas.nativeCanvas.drawText(
                 title,
                 boxLeft + padX,
-                boxTop + padY + 12f,
+                boxTop + padY + 14f,
                 tooltipTextPaint
             )
             drawContext.canvas.nativeCanvas.drawText(
-                amount,
+                "Ingresos: $incomeAmount",
                 boxLeft + padX,
-                boxTop + padY + 12f + lineGap,
+                boxTop + padY + 14f + lineGap,
+                incomeTextPaint
+            )
+            drawContext.canvas.nativeCanvas.drawText(
+                "Gastos: $expenseAmount",
+                boxLeft + padX,
+                boxTop + padY + 14f + lineGap * 2,
+                expenseTextPaint
+            )
+            drawContext.canvas.nativeCanvas.drawText(
+                "Balance: $balanceAmount",
+                boxLeft + padX,
+                boxTop + padY + 14f + lineGap * 3,
                 tooltipSubPaint
             )
         }
@@ -1254,7 +1550,8 @@ private fun ChartsFiltersBottomSheet(
     onAccount: (String?) -> Unit,
     onMonth: (Int) -> Unit,
     onRootCategory: (String?) -> Unit,
-    onSubCategory: (String?) -> Unit
+    onSubCategory: (String?) -> Unit,
+    isTrendTab: Boolean = false
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1310,90 +1607,92 @@ private fun ChartsFiltersBottomSheet(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    DropdownField(
-                        label = "Año",
-                        value = state.selectedYear.toString(),
-                        options = state.years.map { it.toString() },
-                        onSelected = { onYear(it.toInt()) },
-                        modifier = Modifier.weight(1f)
-                    )
+                if (!isTrendTab) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        DropdownField(
+                            label = "Año",
+                            value = state.selectedYear.toString(),
+                            options = state.years.map { it.toString() },
+                            onSelected = { onYear(it.toInt()) },
+                            modifier = Modifier.weight(1f)
+                        )
 
-                    DropdownField(
-                        label = "Tipo",
-                        value = state.selectedKind.label,
-                        options = state.kinds.map { it.label },
-                        onSelected = { label ->
-                            val k = state.kinds.firstOrNull { it.label == label } ?: ChartsKind.EXPENSE
-                            onKind(k)
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    DropdownField(
-                        label = "Vista",
-                        value = state.selectedView.label,
-                        options = state.views.map { it.label },
-                        onSelected = { label ->
-                            val v = state.views.firstOrNull { it.label == label } ?: ChartsViewMode.ROOT
-                            onView(v)
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    DropdownField(
-                        label = "Mes",
-                        value = state.months.getOrNull(state.selectedMonthIndex) ?: "TOTAL",
-                        options = state.months,
-                        onSelected = { label -> onMonth(state.months.indexOf(label).coerceAtLeast(0)) },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                val accountLabel = state.accounts.firstOrNull { it.id == state.selectedAccountId }?.name
-                    ?: "(Todas las cuentas)"
-                DropdownField(
-                    label = "Cuenta",
-                    value = accountLabel,
-                    options = listOf("(Todas las cuentas)") + state.accounts.map { it.name },
-                    onSelected = { label ->
-                        val id = state.accounts.firstOrNull { it.name == label }?.id
-                        onAccount(id)
+                        DropdownField(
+                            label = "Tipo",
+                            value = state.selectedKind.label,
+                            options = state.kinds.map { it.label },
+                            onSelected = { label ->
+                                val k = state.kinds.firstOrNull { it.label == label } ?: ChartsKind.EXPENSE
+                                onKind(k)
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
                     }
-                )
 
-                if (state.selectedView == ChartsViewMode.SUB) {
-                    val rootLabel = state.rootCategories.firstOrNull { it.id == state.selectedRootCategoryId }?.name
-                        ?: "(Todas las categorías)"
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        DropdownField(
+                            label = "Vista",
+                            value = state.selectedView.label,
+                            options = state.views.map { it.label },
+                            onSelected = { label ->
+                                val v = state.views.firstOrNull { it.label == label } ?: ChartsViewMode.ROOT
+                                onView(v)
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        DropdownField(
+                            label = "Mes",
+                            value = state.months.getOrNull(state.selectedMonthIndex) ?: "TOTAL",
+                            options = state.months,
+                            onSelected = { label -> onMonth(state.months.indexOf(label).coerceAtLeast(0)) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    val accountLabel = state.accounts.firstOrNull { it.id == state.selectedAccountId }?.name
+                        ?: "(Todas las cuentas)"
                     DropdownField(
-                        label = "Categoría",
-                        value = rootLabel,
-                        options = listOf("(Todas las categorías)") + state.rootCategories.map { it.name },
+                        label = "Cuenta",
+                        value = accountLabel,
+                        options = listOf("(Todas las cuentas)") + state.accounts.map { it.name },
                         onSelected = { label ->
-                            val id = state.rootCategories.firstOrNull { it.name == label }?.id
-                            onRootCategory(id)
+                            val id = state.accounts.firstOrNull { it.name == label }?.id
+                            onAccount(id)
                         }
                     )
 
-                    val subLabel = state.subCategories.firstOrNull { it.id == state.selectedSubCategoryId }?.name
-                        ?: "(Todas las subcategorías)"
-                    DropdownField(
-                        label = "Subcategoría",
-                        value = subLabel,
-                        options = listOf("(Todas las subcategorías)") + state.subCategories.map { it.name },
-                        onSelected = { label ->
-                            val id = state.subCategories.firstOrNull { it.name == label }?.id
-                            onSubCategory(id)
-                        }
-                    )
+                    if (state.selectedView == ChartsViewMode.SUB) {
+                        val rootLabel = state.rootCategories.firstOrNull { it.id == state.selectedRootCategoryId }?.name
+                            ?: "(Todas las categorías)"
+                        DropdownField(
+                            label = "Categoría",
+                            value = rootLabel,
+                            options = listOf("(Todas las categorías)") + state.rootCategories.map { it.name },
+                            onSelected = { label ->
+                                val id = state.rootCategories.firstOrNull { it.name == label }?.id
+                                onRootCategory(id)
+                            }
+                        )
+
+                        val subLabel = state.subCategories.firstOrNull { it.id == state.selectedSubCategoryId }?.name
+                            ?: "(Todas las subcategorías)"
+                        DropdownField(
+                            label = "Subcategoría",
+                            value = subLabel,
+                            options = listOf("(Todas las subcategorías)") + state.subCategories.map { it.name },
+                            onSelected = { label ->
+                                val id = state.subCategories.firstOrNull { it.name == label }?.id
+                                onSubCategory(id)
+                            }
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))

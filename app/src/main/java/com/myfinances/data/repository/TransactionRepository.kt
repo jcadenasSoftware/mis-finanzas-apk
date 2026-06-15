@@ -424,4 +424,8 @@ class TransactionRepository @Inject constructor(
             // Log error
         }
     }
+
+    suspend fun getYearsWithTransactions(userUid: String): List<Int> {
+        return transactionDao.getYearsWithTransactions(userUid)
+    }
 }

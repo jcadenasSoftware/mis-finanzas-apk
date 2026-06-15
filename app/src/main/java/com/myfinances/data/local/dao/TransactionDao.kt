@@ -324,4 +324,12 @@ interface TransactionDao {
         currency: String,
         month: String
     ): List<CategorySpentResult>
+
+    @Query("""
+        SELECT DISTINCT CAST(strftime('%Y', datetime(t.occurred_at_epoch_sec, 'unixepoch')) AS INTEGER) AS year
+        FROM transactions t
+        WHERE t.user_uid = :userUid
+        ORDER BY year DESC
+    """)
+    suspend fun getYearsWithTransactions(userUid: String): List<Int>
 }

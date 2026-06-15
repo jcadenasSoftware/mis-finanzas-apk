@@ -89,6 +89,8 @@ data class ChartsState(
     val summaryExpenseCents: Long = 0,
     val summaryBalanceCents: Long = 0,
     val trendByMonthCents: List<Long> = emptyList(),
+    val trendIncomeByMonthCents: List<Long> = emptyList(),
+    val trendExpenseByMonthCents: List<Long> = emptyList(),
     val top3: List<ChartsItem> = emptyList(),
     val comparison: ChartsComparison? = null,
     val insights: List<ChartsInsight> = emptyList(),
@@ -106,10 +108,7 @@ class ChartsViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(
         ChartsState(
-            years = buildList {
-                val current = LocalDate.now().year
-                for (y in current downTo (current - 5)) add(y)
-            },
+            years = emptyList(),
             months = listOf(
                 "TOTAL",
                 "ENERO",
@@ -133,7 +132,35 @@ class ChartsViewModel @Inject constructor(
         get() = authRepository.currentUser?.uid
 
     init {
+        loadYears()
         load()
+    }
+
+    private fun loadYears() {
+        val uid = userUid ?: return
+        viewModelScope.launch {
+            try {
+                val yearsWithTransactions = transactionRepository.getYearsWithTransactions(uid)
+                if (yearsWithTransactions.isEmpty()) {
+                    val current = LocalDate.now().year
+                    _state.value = _state.value.copy(
+                        years = listOf(current),
+                        selectedYear = current
+                    )
+                } else {
+                    _state.value = _state.value.copy(
+                        years = yearsWithTransactions,
+                        selectedYear = yearsWithTransactions.firstOrNull() ?: LocalDate.now().year
+                    )
+                }
+            } catch (e: Exception) {
+                val current = LocalDate.now().year
+                _state.value = _state.value.copy(
+                    years = listOf(current),
+                    selectedYear = current
+                )
+            }
+        }
     }
 
     fun load() {
@@ -360,6 +387,8 @@ class ChartsViewModel @Inject constructor(
 
                 val incomeRows = transactionRepository.getMonthlyTotalsByRootCategory(uid, accountId, year, ChartsKind.INCOME.kind)
                 val expenseRows = transactionRepository.getMonthlyTotalsByRootCategory(uid, accountId, year, ChartsKind.EXPENSE.kind)
+                val incomeTrend = buildTrendFromRootRows(incomeRows)
+                val expenseTrend = buildTrendFromRootRows(expenseRows)
                 val incomeTotal = sumForMonthIndexFromRootRows(incomeRows, monthIndex)
                 val expenseTotal = sumForMonthIndexFromRootRows(expenseRows, monthIndex)
                 val balanceTotal = incomeTotal - expenseTotal
@@ -399,6 +428,8 @@ class ChartsViewModel @Inject constructor(
                     summaryExpenseCents = expenseTotal,
                     summaryBalanceCents = balanceTotal,
                     trendByMonthCents = trend,
+                    trendIncomeByMonthCents = incomeTrend,
+                    trendExpenseByMonthCents = expenseTrend,
                     top3 = top3,
                     comparison = comparison,
                     insights = insights,
