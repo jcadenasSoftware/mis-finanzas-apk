@@ -21,7 +21,10 @@ data class SettingsState(
     val countryCode: String = "CO",
     val baseCurrency: String = "COP",
     val rates: List<ExchangeRateEntity> = emptyList(),
-    val error: String? = null
+    val error: String? = null,
+    val userDisplayName: String = "",
+    val userEmail: String = "",
+    val userPhotoUrl: String? = null
 )
 
 @HiltViewModel
@@ -45,6 +48,13 @@ class SettingsViewModel @Inject constructor(
                     _state.value = SettingsState()
                     return@collectLatest
                 }
+
+                // Update user info
+                _state.value = _state.value.copy(
+                    userDisplayName = user.displayName ?: "",
+                    userEmail = user.email ?: "",
+                    userPhotoUrl = user.photoUrl?.toString()
+                )
 
                 exchangeRateRepository.observeAll(userUid).collectLatest { rates ->
                     _state.value = _state.value.copy(rates = rates)

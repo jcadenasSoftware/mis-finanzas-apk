@@ -50,6 +50,7 @@ import com.myfinances.ui.screens.loans.LoansScreen
 import com.myfinances.ui.screens.login.LoginScreen
 import com.myfinances.ui.screens.onboarding.OnboardingScreen
 import com.myfinances.ui.screens.reports.ReportsScreen
+import com.myfinances.ui.screens.settings.PrivacyAndDataScreen
 import com.myfinances.ui.screens.settings.PrivacyPolicyScreen
 import com.myfinances.ui.screens.settings.SettingsScreen
 import com.myfinances.ui.screens.transactions.AddTransactionScreen
@@ -393,6 +394,9 @@ fun AppNavHost(
         composable(NavRoutes.Settings.route) {
             SettingsScreen(
                 onNavigateBack = { navController.popBackStack() },
+                onNavigateToPrivacyAndData = {
+                    navController.navigate(NavRoutes.PrivacyAndData.route)
+                },
                 onNavigateToPrivacyPolicy = {
                     navController.navigate("privacy_policy")
                 }
@@ -402,6 +406,15 @@ fun AppNavHost(
         composable("privacy_policy") {
             PrivacyPolicyScreen(
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(NavRoutes.PrivacyAndData.route) {
+            PrivacyAndDataScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToPrivacyPolicy = {
+                    navController.navigate("privacy_policy")
+                }
             )
         }
 

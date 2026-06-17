@@ -1,89 +1,97 @@
 package com.myfinances.ui.screens.settings
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Policy
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MonetizationOn
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import com.myfinances.ui.components.CompactHeader
+import com.myfinances.ui.components.SettingsSection
+import com.myfinances.ui.components.SettingsItem
+import com.myfinances.ui.components.UserAccountHeader
+import com.myfinances.ui.components.SyncStatus
 import com.myfinances.ui.util.CountryCurrency
-import com.myfinances.ui.viewmodel.PrivacyAndDataViewModel
 import com.myfinances.ui.viewmodel.SettingsViewModel
+import com.myfinances.ui.viewmodel.SyncViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToPrivacyAndData: () -> Unit,
     onNavigateToPrivacyPolicy: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
-    privacyViewModel: PrivacyAndDataViewModel = hiltViewModel()
+    syncViewModel: SyncViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+    val versionName = packageInfo.versionName
+    val versionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+        packageInfo.longVersionCode.toInt()
+    } else {
+        @Suppress("DEPRECATION")
+        packageInfo.versionCode
+    }
+
     val state by viewModel.state.collectAsState()
-    val privacyState by privacyViewModel.state.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
+    val isSyncing by syncViewModel.isSyncing.collectAsState()
+    val syncError by syncViewModel.error.collectAsState()
+    val snackbarHostState = androidx.compose.material3.SnackbarHostState()
 
-    LaunchedEffect(state.error) {
-        state.error?.let { snackbarHostState.showSnackbar(it) }
+    val syncStatus = if (isSyncing) SyncStatus.SYNCING else SyncStatus.SYNCED
+
+    val isLoggedIn = state.userEmail.isNotBlank()
+    val syncStatusText = when {
+        !isLoggedIn -> "Sin sesión"
+        syncError != null -> "Error de sincronización"
+        isSyncing -> "Sincronizando"
+        else -> "Sincronizado"
     }
-    LaunchedEffect(privacyState.message) {
-        privacyState.message?.let { snackbarHostState.showSnackbar(it) }
+    val syncStatusSubtitle = when {
+        !isLoggedIn -> "Inicia sesión para activar respaldo en la nube"
+        syncError != null -> "Tus datos siguen seguros en este dispositivo"
+        isSyncing -> "Estamos actualizando tu información"
+        else -> "Tus datos están respaldados y al día"
     }
 
-    var showDeleteConfirm by remember { mutableStateOf(false) }
-    var countryExpanded by remember { mutableStateOf(false) }
-
-    var showAddRate by remember { mutableStateOf(false) }
-    var rateFrom by remember { mutableStateOf("USD") }
-    var rateTo by remember { mutableStateOf(state.baseCurrency) }
-    var rateValue by remember { mutableStateOf("") }
+    var showCountryDialog by remember { mutableStateOf(false) }
+    var showCurrencyDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -107,315 +115,322 @@ fun SettingsScreen(
         Column(
             modifier = Modifier
                 .padding(padding)
-                .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            // País y Moneda
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    Text(
-                        text = "Regional",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
+            Spacer(modifier = Modifier.height(16.dp))
 
-                    Text("País")
-                    Box {
-                        OutlinedTextField(
-                            value = CountryCurrency.displayName(state.countryCode),
-                            onValueChange = {},
-                            readOnly = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Box(
-                            modifier = Modifier
-                                .matchParentSize()
-                                .clickable { countryExpanded = true }
-                        )
-                        DropdownMenu(
-                            expanded = countryExpanded,
-                            onDismissRequest = { countryExpanded = false },
-                            modifier = Modifier.background(Color.White)
-                        ) {
-                            CountryCurrency.options.forEach { opt ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Column {
-                                            Text(
-                                                text = opt.displayName,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                            Text(
-                                                text = opt.suggestedCurrency,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                    },
-                                    onClick = {
-                                        countryExpanded = false
-                                        viewModel.saveCountry(opt.code)
-                                    }
-                                )
+            // User Account Header
+            UserAccountHeader(
+                displayName = state.userDisplayName.ifBlank { "Usuario" },
+                email = state.userEmail,
+                photoUrl = state.userPhotoUrl,
+                syncStatus = syncStatus,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // General Section
+            SettingsSection(
+                title = "General",
+                items = listOf(
+                    SettingsItem(
+                        icon = Icons.Default.LocationOn,
+                        title = "País",
+                        subtitle = CountryCurrency.displayNameWithCode(state.countryCode),
+                        onClick = { showCountryDialog = true }
+                    ),
+                    SettingsItem(
+                        icon = Icons.Default.MonetizationOn,
+                        title = "Moneda base",
+                        subtitle = CountryCurrency.currencyDisplayNameWithCode(state.baseCurrency),
+                        onClick = { showCurrencyDialog = true }
+                    )
+                ),
+                modifier = Modifier.padding(bottom = 20.dp)
+            )
+
+            // Data & Privacy Section
+            SettingsSection(
+                title = "Datos y privacidad",
+                items = listOf(
+                    SettingsItem(
+                        icon = Icons.Default.Lock,
+                        title = "Privacidad y datos",
+                        subtitle = "Gestiona tu información personal",
+                        onClick = onNavigateToPrivacyAndData
+                    ),
+                    SettingsItem(
+                        icon = Icons.Default.Description,
+                        title = "Política de privacidad",
+                        subtitle = "Consulta cómo protegemos tus datos",
+                        onClick = onNavigateToPrivacyPolicy
+                    )
+                ),
+                modifier = Modifier.padding(bottom = 20.dp)
+            )
+
+            // Backup and Sync Section
+            val syncIcon = when {
+                !isLoggedIn -> Icons.Default.Person
+                syncError != null -> Icons.Default.ErrorOutline
+                isSyncing -> Icons.Default.Cloud
+                else -> Icons.Default.CloudDone
+            }
+
+            SettingsSection(
+                title = "Respaldo y sincronización",
+                items = listOf(
+                    SettingsItem(
+                        icon = syncIcon,
+                        title = "Estado de sincronización",
+                        subtitle = syncStatusSubtitle,
+                        onClick = { },
+                        showChevron = false
+                    ),
+                    SettingsItem(
+                        icon = Icons.Default.Person,
+                        title = "Cuenta conectada",
+                        subtitle = if (isLoggedIn) "Conectada" else "No iniciada",
+                        onClick = { },
+                        showChevron = false
+                    )
+                ),
+                modifier = Modifier.padding(bottom = 20.dp)
+            )
+
+            // About Section
+            SettingsSection(
+                title = "Acerca de",
+                items = listOf(
+                    SettingsItem(
+                        icon = Icons.Default.Info,
+                        title = "Versión",
+                        subtitle = "$versionName ($versionCode)",
+                        onClick = { },
+                        showChevron = false
+                    ),
+                    SettingsItem(
+                        icon = Icons.Default.Email,
+                        title = "Contacto",
+                        subtitle = "servicios@jcadenas.com",
+                        onClick = {
+                            val success = openEmailClient(
+                                context = context,
+                                to = "servicios@jcadenas.com",
+                                subject = "Consulta sobre Xpendz"
+                            )
+                            if (!success) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        message = "No hay aplicación de correo instalada"
+                                    )
+                                }
                             }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    OutlinedTextField(
-                        value = state.baseCurrency,
-                        onValueChange = { viewModel.saveBaseCurrency(it.trim().uppercase()) },
-                        label = { Text("Moneda base (ISO)") },
-                        modifier = Modifier.fillMaxWidth()
+                        },
+                        showChevron = true
+                    ),
+                    SettingsItem(
+                        icon = Icons.Default.BugReport,
+                        title = "Reportar problema",
+                        subtitle = "Envíanos feedback o reporta un error",
+                        onClick = {
+                            val body = """
+                                |Describe el problema:
+                                |
+                                |
+                                |Pasos para reproducir:
+                                |
+                                |
+                                |Resultado esperado:
+                                |
+                                |
+                                |Resultado obtenido:
+                                |
+                                |
+                                |${getDeviceInfo()}
+                                |""".trimMargin()
+                            val success = openEmailClient(
+                                context = context,
+                                to = "servicios@jcadenas.com",
+                                subject = "Reporte de problema - Xpendz",
+                                body = body
+                            )
+                            if (!success) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        message = "No hay aplicación de correo instalada"
+                                    )
+                                }
+                            }
+                        },
+                        showChevron = true
                     )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Tasas manuales
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("Tasas manuales")
-                Button(onClick = {
-                    rateTo = state.baseCurrency
-                    showAddRate = true
-                }) {
-                    Text("Agregar")
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            LazyColumn(modifier = Modifier.height(if (state.rates.isEmpty()) 0.dp else (state.rates.size * 52).coerceAtMost(200).dp)) {
-                items(state.rates) { r ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("${r.fromCurrency} -> ${r.toCurrency}: ${r.rate}")
-                        IconButton(onClick = { viewModel.deleteRate(r.id) }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Eliminar")
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-            HorizontalDivider()
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Política de privacidad
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Policy,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                        Text(
-                            text = "Política de privacidad",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    Text(
-                        text = "Consulta cómo recopilamos, usamos y protegemos tu información personal.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
-                    OutlinedButton(
-                        onClick = onNavigateToPrivacyPolicy,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Description,
-                            contentDescription = null,
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                        Text("Ver política de privacidad")
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Eliminar datos
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = null,
-                            tint = Color(0xFFDC2626),
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                        Text(
-                            text = "Eliminar datos",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFDC2626)
-                        )
-                    }
-                    Text(
-                        text = "Elimina permanentemente todos tus datos de la aplicación y del servidor. Esta acción no se puede deshacer.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
-                    Button(
-                        onClick = { showDeleteConfirm = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Warning,
-                            contentDescription = null,
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                        Text("Eliminar todos mis datos")
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
+                ),
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
         }
     }
 
-    // Delete confirmation dialog
-    if (showDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            containerColor = Color.White,
-            icon = {
-                Icon(
-                    Icons.Default.Warning,
-                    contentDescription = null,
-                    tint = Color(0xFFDC2626)
-                )
-            },
-            title = { Text("¿Eliminar todos tus datos?") },
-            text = {
-                Column {
-                    Text("Esta acción eliminará permanentemente:")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("• Todas las transacciones")
-                    Text("• Todas las transferencias")
-                    Text("• Todas las cuentas")
-                    Text("• Todas las categorías")
-                    Text("• Todas las metas")
-                    Text("• Todos los presupuestos")
-                    Text("• Todos los préstamos")
-                    Text("• Configuración personal")
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        "Esta acción no se puede deshacer.",
-                        color = Color(0xFFDC2626),
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        privacyViewModel.deleteAllUserData { showDeleteConfirm = false }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
-                ) {
-                    Text("Sí, eliminar todo")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("Cancelar")
-                }
+    // Country Selection Dialog
+    if (showCountryDialog) {
+        CountrySelectionDialog(
+            currentCountryCode = state.countryCode,
+            onDismiss = { showCountryDialog = false },
+            onCountrySelected = { countryCode ->
+                viewModel.saveCountry(countryCode)
+                showCountryDialog = false
             }
         )
     }
 
-    if (showAddRate) {
-        AlertDialog(
-            onDismissRequest = { showAddRate = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    val parsed = rateValue.toDoubleOrNull()
-                    if (parsed != null) {
-                        viewModel.upsertRate(rateFrom.trim().uppercase(), rateTo.trim().uppercase(), parsed)
-                        showAddRate = false
-                        rateValue = ""
-                    }
-                }) {
-                    Text("Guardar")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddRate = false }) {
-                    Text("Cancelar")
-                }
-            },
-            title = { Text("Nueva tasa") },
-            text = {
-                Column {
-                    OutlinedTextField(
-                        value = rateFrom,
-                        onValueChange = { rateFrom = it },
-                        label = { Text("Desde (ISO)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = rateTo,
-                        onValueChange = { rateTo = it },
-                        label = { Text("Hacia (ISO)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = rateValue,
-                        onValueChange = { rateValue = it },
-                        label = { Text("Tasa") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
+    // Currency Selection Dialog
+    if (showCurrencyDialog) {
+        CurrencySelectionDialog(
+            currentCurrency = state.baseCurrency,
+            onDismiss = { showCurrencyDialog = false },
+            onCurrencySelected = { currency ->
+                viewModel.saveBaseCurrency(currency)
+                showCurrencyDialog = false
             }
         )
     }
+}
+
+private fun openEmailClient(
+    context: Context,
+    to: String,
+    subject: String,
+    body: String = ""
+): Boolean {
+    return try {
+        val intent = Intent(Intent.ACTION_SENDTO).apply {
+            data = Uri.parse("mailto:")
+            putExtra(Intent.EXTRA_EMAIL, arrayOf(to))
+            putExtra(Intent.EXTRA_SUBJECT, subject)
+            if (body.isNotEmpty()) {
+                putExtra(Intent.EXTRA_TEXT, body)
+            }
+        }
+        context.startActivity(intent)
+        true
+    } catch (e: ActivityNotFoundException) {
+        false
+    }
+}
+
+private fun getDeviceInfo(): String {
+    return """
+        |
+        |Versión de la app: ${android.os.Build.VERSION.RELEASE} (SDK ${android.os.Build.VERSION.SDK_INT})
+        |Modelo del dispositivo: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}
+        |Android: ${android.os.Build.VERSION.RELEASE}
+        |""".trimMargin()
+}
+
+@Composable
+fun CountrySelectionDialog(
+    currentCountryCode: String,
+    onDismiss: () -> Unit,
+    onCountrySelected: (String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(text = "Seleccionar país")
+        },
+        text = {
+            LazyColumn(
+                modifier = Modifier.heightIn(max = 400.dp)
+            ) {
+                items(CountryCurrency.options) { country ->
+                    val isSelected = country.code == currentCountryCode
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onCountrySelected(country.code)
+                            }
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = isSelected,
+                            onClick = { onCountrySelected(country.code) }
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = country.displayName,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+@Composable
+fun CurrencySelectionDialog(
+    currentCurrency: String,
+    onDismiss: () -> Unit,
+    onCurrencySelected: (String) -> Unit
+) {
+    val availableCurrencies = listOf(
+        "COP", "MXN", "ARS", "CLP", "PEN", "BOB", "PYG", "UYU", "VES",
+        "BRL", "PAB", "CRC", "GTQ", "HNL", "NIO", "DOP", "CUP", "USD", "EUR"
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(text = "Seleccionar moneda base")
+        },
+        text = {
+            LazyColumn(
+                modifier = Modifier.heightIn(max = 400.dp)
+            ) {
+                items(availableCurrencies) { currency ->
+                    val isSelected = currency == currentCurrency
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onCurrencySelected(currency)
+                            }
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = isSelected,
+                            onClick = { onCurrencySelected(currency) }
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = currency,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                            Text(
+                                text = CountryCurrency.currencyDisplayName(currency),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
 }
