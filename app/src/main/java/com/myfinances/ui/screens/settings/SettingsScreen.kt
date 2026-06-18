@@ -41,6 +41,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import com.myfinances.ui.components.CompactHeader
+import com.myfinances.ui.components.HamburgerMenu
+import com.myfinances.ui.components.HamburgerMenuButton
 import com.myfinances.ui.components.SettingsSection
 import com.myfinances.ui.components.SettingsItem
 import com.myfinances.ui.components.UserAccountHeader
@@ -55,11 +57,16 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToPrivacyAndData: () -> Unit,
     onNavigateToPrivacyPolicy: () -> Unit,
+    onNavigateToCharts: () -> Unit,
+    onNavigateToBudget: () -> Unit,
+    onNavigateToReports: () -> Unit,
+    onLogout: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
     syncViewModel: SyncViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var showHamburgerMenu by remember { mutableStateOf(false) }
     val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
     val versionName = packageInfo.versionName
     val versionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
@@ -108,6 +115,21 @@ fun SettingsScreen(
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
                     }
                 },
+                actions = {
+                    Box {
+                        HamburgerMenuButton(onClick = { showHamburgerMenu = true })
+                        HamburgerMenu(
+                            expanded = showHamburgerMenu,
+                            onDismissRequest = { showHamburgerMenu = false },
+                            onNavigateToCharts = onNavigateToCharts,
+                            onNavigateToBudget = onNavigateToBudget,
+                            onNavigateToReports = onNavigateToReports,
+                            onNavigateToSettings = { },
+                            onLogout = onLogout,
+                            currentScreen = "settings"
+                        )
+                    }
+                }
             )
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }

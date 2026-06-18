@@ -37,6 +37,8 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.myfinances.R
 import com.myfinances.ui.components.AddAccountDialog
 import com.myfinances.ui.components.CompactHeader
+import com.myfinances.ui.components.HamburgerMenu
+import com.myfinances.ui.components.HamburgerMenuButton
 import com.myfinances.ui.components.SyncSwipeRefresh
 import com.myfinances.ui.theme.Income
 import com.myfinances.ui.theme.Expense
@@ -46,6 +48,20 @@ import com.myfinances.ui.viewmodel.DashboardBalancePoint
 import com.myfinances.ui.viewmodel.DashboardMonthlyHistoryItem
 import com.myfinances.ui.viewmodel.SyncViewModel
 import java.text.NumberFormat
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateDpAsState
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -249,73 +265,17 @@ fun DashboardScreen(
                 },
                 actions = {
                     Box {
-                        IconButton(onClick = { showHamburgerMenu = true }) {
-                            Icon(
-                                Icons.Default.Menu,
-                                contentDescription = "Menú",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        DropdownMenu(
+                        HamburgerMenuButton(onClick = { showHamburgerMenu = true })
+                        HamburgerMenu(
                             expanded = showHamburgerMenu,
                             onDismissRequest = { showHamburgerMenu = false },
-                            modifier = androidx.compose.ui.Modifier
-                                .clip(MaterialTheme.shapes.large)
-                                .background(Color.White)
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Gráficos") },
-                                leadingIcon = { Icon(Icons.Default.BarChart, contentDescription = null) },
-                                onClick = {
-                                    showHamburgerMenu = false
-                                    onNavigateToCharts()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Presupuesto") },
-                                leadingIcon = { Icon(Icons.Default.AccountBalance, contentDescription = null) },
-                                onClick = {
-                                    showHamburgerMenu = false
-                                    onNavigateToBudget()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Reportes PDF") },
-                                leadingIcon = { Icon(Icons.Default.PictureAsPdf, contentDescription = null) },
-                                onClick = {
-                                    showHamburgerMenu = false
-                                    onNavigateToReports()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Configuración") },
-                                leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null) },
-                                onClick = {
-                                    showHamburgerMenu = false
-                                    onNavigateToSettings()
-                                }
-                            )
-                            HorizontalDivider(modifier = androidx.compose.ui.Modifier.padding(vertical = 4.dp))
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        "Cerrar sesión",
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Default.PowerSettingsNew,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.error
-                                    )
-                                },
-                                onClick = {
-                                    showHamburgerMenu = false
-                                    showLogoutConfirmation = true
-                                }
-                            )
-                        }
+                            onNavigateToCharts = onNavigateToCharts,
+                            onNavigateToBudget = onNavigateToBudget,
+                            onNavigateToReports = onNavigateToReports,
+                            onNavigateToSettings = onNavigateToSettings,
+                            onLogout = { showLogoutConfirmation = true },
+                            currentScreen = "dashboard"
+                        )
                     }
                 }
             )
@@ -983,7 +943,7 @@ private fun RankedAccountCard(
                         tonalElevation = 0.dp
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Renombrar") },
+                            text = { Text("Editar") },
                             onClick = {
                                 showMenu = false
                                 showRenameDialog = true
@@ -1057,15 +1017,117 @@ private fun RankedAccountCard(
         AlertDialog(
             onDismissRequest = { showRenameDialog = false },
             title = { Text("Editar cuenta") },
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
+                    Text(
+                        text = "Personaliza la información de esta cuenta",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    // Vista previa de cuenta
+                    val previewColor = remember(selectedColorHex) {
+                        if (selectedColorHex.isNotBlank()) {
+                            runCatching { Color(android.graphics.Color.parseColor(selectedColorHex)) }.getOrNull() ?: accent
+                        } else {
+                            accent
+                        }
+                    }
+                    val previewIcon = remember(selectedIconKey, selectedType) {
+                        accountIconForKey(selectedIconKey, selectedType)
+                    }
+                    val previewTypeLabel = remember(selectedType) {
+                        accountTypeLabel(selectedType)
+                    }
+
+                    // Animaciones sutiles
+                    val animatedPreviewColor by animateColorAsState(
+                        targetValue = previewColor,
+                        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                        label = "previewColor"
+                    )
+                    val animatedBorderColor by animateColorAsState(
+                        targetValue = animatedPreviewColor.copy(alpha = 0.14f),
+                        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                        label = "borderColor"
+                    )
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        border = CardDefaults.outlinedCardBorder().copy(
+                            width = 1.dp,
+                            brush = androidx.compose.ui.graphics.SolidColor(animatedBorderColor)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Surface(
+                                modifier = Modifier.size(46.dp),
+                                shape = MaterialTheme.shapes.extraLarge,
+                                color = animatedPreviewColor.copy(alpha = 0.12f)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Crossfade(
+                                        targetState = previewIcon,
+                                        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+                                        label = "iconCrossfade"
+                                    ) { icon ->
+                                        Icon(
+                                            imageVector = icon,
+                                            contentDescription = null,
+                                            tint = animatedPreviewColor,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(
+                                    text = newName.ifBlank { accountWithBalance.account.name },
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                AnimatedContent(
+                                    targetState = previewTypeLabel,
+                                    transitionSpec = {
+                                        fadeIn(animationSpec = tween(150)) togetherWith
+                                            fadeOut(animationSpec = tween(150)) using
+                                            SizeTransform(clip = false)
+                                    },
+                                    label = "typeLabel"
+                                ) { label ->
+                                    Text(
+                                        text = "$label  •  ${accountWithBalance.account.currency}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     OutlinedTextField(
                         value = newName,
                         onValueChange = { newName = it },
-                        label = { Text("Nombre") },
+                        label = { Text("Nombre de la cuenta") },
+                        placeholder = { Text("Ej: Mi cuenta principal") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -1076,7 +1138,7 @@ private fun RankedAccountCard(
                     ) {
                         OutlinedTextField(
                             value = accountTypes.find { it.first == selectedType }?.second ?: "",
-                            onValueChange = {},
+                            onValueChange = {} ,
                             readOnly = true,
                             label = { Text("Tipo de cuenta") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeExpanded) },
@@ -1120,32 +1182,67 @@ private fun RankedAccountCard(
                     Text(text = "Color", style = MaterialTheme.typography.labelLarge)
                     LazyRow(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(colorOptions) { (hex, _) ->
                             val c = runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrNull() ?: accent
                             val selected = selectedColorHex.equals(hex, ignoreCase = true)
+
+                            val animatedScale by animateFloatAsState(
+                                targetValue = if (selected) 1.05f else 1f,
+                                animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+                                label = "colorScale"
+                            )
+
+                            val animatedBorderWidth by animateDpAsState(
+                                targetValue = if (selected) 3.dp else 1.dp,
+                                animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+                                label = "borderWidth"
+                            )
+
+                            val animatedBorderColor by animateColorAsState(
+                                targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                                animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+                                label = "borderColor"
+                            )
+
                             Surface(
                                 modifier = Modifier
-                                    .size(34.dp)
+                                    .size(40.dp)
+                                    .graphicsLayer {
+                                        scaleX = animatedScale
+                                        scaleY = animatedScale
+                                    }
                                     .clip(MaterialTheme.shapes.extraLarge)
                                     .border(
-                                        width = if (selected) 2.dp else 1.dp,
-                                        color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                                        width = animatedBorderWidth,
+                                        color = animatedBorderColor,
                                         shape = MaterialTheme.shapes.extraLarge
                                     )
                                     .clickable { selectedColorHex = hex },
                                 color = c,
-                                tonalElevation = 0.dp,
-                                shadowElevation = if (selected) 8.dp else 2.dp
+                                tonalElevation = if (selected) 1.dp else 0.dp
                             ) {
-                                if (selected) {
-                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    androidx.compose.animation.AnimatedVisibility(
+                                        visible = selected,
+                                        enter = fadeIn(animationSpec = tween(150)) + scaleIn(
+                                            animationSpec = tween(200, easing = FastOutSlowInEasing),
+                                            initialScale = 0.8f
+                                        ),
+                                        exit = fadeOut(animationSpec = tween(150)) + scaleOut(
+                                            animationSpec = tween(150, easing = FastOutSlowInEasing),
+                                            targetScale = 0.8f
+                                        )
+                                    ) {
                                         Icon(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = null,
                                             tint = Color.White,
-                                            modifier = Modifier.size(18.dp)
+                                            modifier = Modifier.size(20.dp)
                                         )
                                     }
                                 }
@@ -1155,7 +1252,7 @@ private fun RankedAccountCard(
                 }
             },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         if (newName.isNotBlank()) {
                             val iconKey = selectedIconKey.ifBlank { null }
@@ -1163,12 +1260,14 @@ private fun RankedAccountCard(
                             onRename(newName, selectedType, iconKey, colorHex)
                             showRenameDialog = false
                         }
-                    }
-                ) { Text("Guardar") }
+                    },
+                    enabled = newName.isNotBlank()
+                ) { Text("Guardar cambios") }
             },
             dismissButton = {
                 TextButton(onClick = { showRenameDialog = false }) { Text("Cancelar") }
-            }
+            },
+            shape = MaterialTheme.shapes.extraLarge
         )
     }
 

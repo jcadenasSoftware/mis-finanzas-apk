@@ -96,6 +96,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.myfinances.data.local.entity.BudgetEntity
 import com.myfinances.ui.components.CompactHeader
+import com.myfinances.ui.components.HamburgerMenu
+import com.myfinances.ui.components.HamburgerMenuButton
 import com.myfinances.ui.components.SyncSwipeRefresh
 import com.myfinances.ui.theme.Income
 import com.myfinances.ui.theme.Expense
@@ -113,6 +115,10 @@ import java.util.Locale
 @Composable
 fun BudgetScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToCharts: () -> Unit,
+    onNavigateToReports: () -> Unit,
+    onNavigateToSettings: () -> Unit,
+    onLogout: () -> Unit,
     initialTab: String = "",
     viewModel: BudgetViewModel = hiltViewModel()
 ) {
@@ -126,6 +132,7 @@ fun BudgetScreen(
     var selectedTab by remember { mutableIntStateOf(initialTabIndex) }
     val tabs = listOf("Mensual", "Metas")
     val state by viewModel.state.collectAsState()
+    var showHamburgerMenu by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("es", "CO")) }
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale("es")) }
@@ -266,6 +273,21 @@ fun BudgetScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                    }
+                },
+                actions = {
+                    Box {
+                        HamburgerMenuButton(onClick = { showHamburgerMenu = true })
+                        HamburgerMenu(
+                            expanded = showHamburgerMenu,
+                            onDismissRequest = { showHamburgerMenu = false },
+                            onNavigateToCharts = onNavigateToCharts,
+                            onNavigateToBudget = { },
+                            onNavigateToReports = onNavigateToReports,
+                            onNavigateToSettings = onNavigateToSettings,
+                            onLogout = onLogout,
+                            currentScreen = "budget"
+                        )
                     }
                 }
             )

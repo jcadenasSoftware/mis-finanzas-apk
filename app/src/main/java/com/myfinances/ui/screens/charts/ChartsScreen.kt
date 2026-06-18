@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.myfinances.ui.components.CompactHeader
+import com.myfinances.ui.components.HamburgerMenu
+import com.myfinances.ui.components.HamburgerMenuButton
 import com.myfinances.ui.components.SyncSwipeRefresh
 import com.myfinances.ui.theme.Expense
 import com.myfinances.ui.theme.Income
@@ -66,12 +68,17 @@ fun ChartsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToTransactions: (route: String) -> Unit,
     onNavigateToAddTransaction: () -> Unit,
+    onNavigateToBudget: () -> Unit,
+    onNavigateToReports: () -> Unit,
+    onNavigateToSettings: () -> Unit,
+    onLogout: () -> Unit,
     viewModel: ChartsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("es", "CO")) }
 
     var showFilters by remember { mutableStateOf(false) }
+    var showHamburgerMenu by remember { mutableStateOf(false) }
 
     val syncViewModel: SyncViewModel = hiltViewModel()
     val syncVersion by syncViewModel.syncVersion.collectAsState()
@@ -93,6 +100,21 @@ fun ChartsScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                    }
+                },
+                actions = {
+                    Box {
+                        HamburgerMenuButton(onClick = { showHamburgerMenu = true })
+                        HamburgerMenu(
+                            expanded = showHamburgerMenu,
+                            onDismissRequest = { showHamburgerMenu = false },
+                            onNavigateToCharts = { },
+                            onNavigateToBudget = onNavigateToBudget,
+                            onNavigateToReports = onNavigateToReports,
+                            onNavigateToSettings = onNavigateToSettings,
+                            onLogout = onLogout,
+                            currentScreen = "charts"
+                        )
                     }
                 }
             )

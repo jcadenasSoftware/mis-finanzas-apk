@@ -1,6 +1,9 @@
 package com.myfinances.ui.components
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -43,7 +46,10 @@ fun AccountCard(
     var showMenu by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
-    
+
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("es", "CO")) }
     val isGoalAccount = account.name.contains("meta", ignoreCase = true) || account.type.equals("SAVINGS", ignoreCase = true)
     val accountIconColor = when {
@@ -58,15 +64,23 @@ fun AccountCard(
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = { }
+            ),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = if (isPressed) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.08f) else Color.White
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 5.dp),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isPressed) 2.dp else 5.dp
+        ),
         shape = MaterialTheme.shapes.large,
         border = CardDefaults.outlinedCardBorder().copy(
             width = 1.dp,
-            brush = SolidColor(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+            brush = SolidColor(MaterialTheme.colorScheme.primary.copy(alpha = if (isPressed) 0.15f else 0.08f))
         )
     ) {
         Row(
@@ -135,7 +149,7 @@ fun AccountCard(
                     onDismissRequest = { showMenu = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Renombrar") },
+                        text = { Text("Editar") },
                         onClick = {
                             showMenu = false
                             showRenameDialog = true

@@ -2,6 +2,7 @@ package com.myfinances.ui.screens.reports
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -29,6 +30,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import com.myfinances.ui.components.HamburgerMenu
+import com.myfinances.ui.components.HamburgerMenuButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -38,7 +41,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -57,10 +62,15 @@ import androidx.compose.foundation.Canvas
 @Composable
 fun ReportsScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToCharts: () -> Unit,
+    onNavigateToBudget: () -> Unit,
+    onNavigateToSettings: () -> Unit,
+    onLogout: () -> Unit,
     viewModel: PrivacyAndDataViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showHamburgerMenu by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -81,6 +91,21 @@ fun ReportsScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                    }
+                },
+                actions = {
+                    Box {
+                        HamburgerMenuButton(onClick = { showHamburgerMenu = true })
+                        HamburgerMenu(
+                            expanded = showHamburgerMenu,
+                            onDismissRequest = { showHamburgerMenu = false },
+                            onNavigateToCharts = onNavigateToCharts,
+                            onNavigateToBudget = onNavigateToBudget,
+                            onNavigateToReports = { },
+                            onNavigateToSettings = onNavigateToSettings,
+                            onLogout = onLogout,
+                            currentScreen = "reports"
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

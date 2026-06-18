@@ -29,6 +29,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.myfinances.data.local.entity.CategoryEntity
 import com.myfinances.ui.components.CompactHeader
+import com.myfinances.ui.components.HamburgerMenu
+import com.myfinances.ui.components.HamburgerMenuButton
 import com.myfinances.ui.components.SyncSwipeRefresh
 import com.myfinances.ui.theme.Expense
 import com.myfinances.ui.theme.Income
@@ -43,6 +45,11 @@ import java.util.Locale
 @Composable
 fun CategoriesScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToCharts: () -> Unit,
+    onNavigateToBudget: () -> Unit,
+    onNavigateToReports: () -> Unit,
+    onNavigateToSettings: () -> Unit,
+    onLogout: () -> Unit,
     viewModel: CategoriesViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -53,6 +60,7 @@ fun CategoriesScreen(
     }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var showSearch by rememberSaveable { mutableStateOf(false) }
+    var showHamburgerMenu by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -106,6 +114,19 @@ fun CategoriesScreen(
                         }
                     }) {
                         Icon(Icons.Default.Search, contentDescription = "Buscar")
+                    }
+                    Box {
+                        HamburgerMenuButton(onClick = { showHamburgerMenu = true })
+                        HamburgerMenu(
+                            expanded = showHamburgerMenu,
+                            onDismissRequest = { showHamburgerMenu = false },
+                            onNavigateToCharts = onNavigateToCharts,
+                            onNavigateToBudget = onNavigateToBudget,
+                            onNavigateToReports = onNavigateToReports,
+                            onNavigateToSettings = onNavigateToSettings,
+                            onLogout = onLogout,
+                            currentScreen = "categories"
+                        )
                     }
                 }
             )

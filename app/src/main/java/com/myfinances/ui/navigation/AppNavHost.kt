@@ -9,10 +9,15 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.ReceiptLong
-import androidx.compose.material.icons.filled.MoneyOff
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -57,6 +62,8 @@ import com.myfinances.ui.screens.transactions.AddTransactionScreen
 import com.myfinances.ui.screens.transactions.TransactionsScreen
 import com.myfinances.ui.screens.transfers.AddTransferScreen
 import com.myfinances.ui.screens.transfers.TransfersScreen
+import com.myfinances.ui.components.HamburgerMenu
+import com.myfinances.ui.components.HamburgerMenuButton
 import com.myfinances.ui.viewmodel.AuthViewModel
 import com.myfinances.ui.viewmodel.OnboardingViewModel
 import com.myfinances.work.BudgetAlertHelper
@@ -124,29 +131,18 @@ fun AppNavHost(
         bottomBar = {
             if (showBottomBar) {
                 Surface(
-                    color = Color.White,
-                    shadowElevation = 8.dp,
-                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
-                ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.White,
-                                    Color(0xFF1E6DFF).copy(alpha = 0.06f)
-                                )
-                            )
-                        )
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 3.dp,
+                    shadowElevation = 0.dp,
+                    shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                 ) {
                     NavigationBar(
                         modifier = Modifier.fillMaxWidth(),
                         tonalElevation = 0.dp,
-                        containerColor = Color.Transparent
+                        containerColor = MaterialTheme.colorScheme.surface
                     ) {
                         val itemColors = NavigationBarItemDefaults.colors(
-                            indicatorColor = Color.Transparent,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f),
                             selectedIconColor = MaterialTheme.colorScheme.primary,
                             selectedTextColor = MaterialTheme.colorScheme.primary,
                             unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -211,12 +207,11 @@ fun AppNavHost(
                                     launchSingleTop = true
                                 }
                             },
-                            icon = { Icon(imageVector = Icons.Default.MoneyOff, contentDescription = "Préstamos") },
+                            icon = { Icon(imageVector = Icons.Default.AccountBalanceWallet, contentDescription = "Préstamos") },
                             label = { Text("Préstamos", maxLines = 1, fontSize = 10.sp) },
                             colors = itemColors
                         )
                     }
-                }
                 }
             }
         }
@@ -290,15 +285,33 @@ fun AppNavHost(
         ) { backStackEntry ->
             val tab = backStackEntry.arguments?.getString("tab") ?: ""
             BudgetScreen(
-                onNavigateBack = { navController.popBackStack() }
-                ,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToCharts = { navController.navigate(NavRoutes.Charts.route) },
+                onNavigateToReports = { navController.navigate(NavRoutes.Reports.route) },
+                onNavigateToSettings = { navController.navigate(NavRoutes.Settings.route) },
+                onLogout = {
+                    authViewModel.signOut()
+                    navController.navigate(NavRoutes.Login.route) {
+                        popUpTo(NavRoutes.Dashboard.route) { inclusive = true }
+                    }
+                },
                 initialTab = tab
             )
         }
 
         composable(NavRoutes.Loans.route) {
             LoansScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToCharts = { navController.navigate(NavRoutes.Charts.route) },
+                onNavigateToBudget = { navController.navigate(NavRoutes.Budget.route) },
+                onNavigateToReports = { navController.navigate(NavRoutes.Reports.route) },
+                onNavigateToSettings = { navController.navigate(NavRoutes.Settings.route) },
+                onLogout = {
+                    authViewModel.signOut()
+                    navController.navigate(NavRoutes.Login.route) {
+                        popUpTo(NavRoutes.Dashboard.route) { inclusive = true }
+                    }
+                }
             )
         }
 
@@ -321,6 +334,16 @@ fun AppNavHost(
                 onAddTransaction = { navController.navigate(NavRoutes.AddTransaction.route) },
                 onEditTransaction = { id ->
                     navController.navigate(NavRoutes.EditTransaction.createRoute(id))
+                },
+                onNavigateToCharts = { navController.navigate(NavRoutes.Charts.route) },
+                onNavigateToBudget = { navController.navigate(NavRoutes.Budget.route) },
+                onNavigateToReports = { navController.navigate(NavRoutes.Reports.route) },
+                onNavigateToSettings = { navController.navigate(NavRoutes.Settings.route) },
+                onLogout = {
+                    authViewModel.signOut()
+                    navController.navigate(NavRoutes.Login.route) {
+                        popUpTo(NavRoutes.Dashboard.route) { inclusive = true }
+                    }
                 },
                 initialAccountId = accountId,
                 initialCategoryId = categoryId,
@@ -379,7 +402,17 @@ fun AppNavHost(
 
         composable(NavRoutes.Categories.route) {
             CategoriesScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToCharts = { navController.navigate(NavRoutes.Charts.route) },
+                onNavigateToBudget = { navController.navigate(NavRoutes.Budget.route) },
+                onNavigateToReports = { navController.navigate(NavRoutes.Reports.route) },
+                onNavigateToSettings = { navController.navigate(NavRoutes.Settings.route) },
+                onLogout = {
+                    authViewModel.signOut()
+                    navController.navigate(NavRoutes.Login.route) {
+                        popUpTo(NavRoutes.Dashboard.route) { inclusive = true }
+                    }
+                }
             )
         }
 
@@ -387,7 +420,16 @@ fun AppNavHost(
             ChartsScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToTransactions = { route -> navController.navigate(route) },
-                onNavigateToAddTransaction = { navController.navigate(NavRoutes.AddTransaction.route) }
+                onNavigateToAddTransaction = { navController.navigate(NavRoutes.AddTransaction.route) },
+                onNavigateToBudget = { navController.navigate(NavRoutes.Budget.route) },
+                onNavigateToReports = { navController.navigate(NavRoutes.Reports.route) },
+                onNavigateToSettings = { navController.navigate(NavRoutes.Settings.route) },
+                onLogout = {
+                    authViewModel.signOut()
+                    navController.navigate(NavRoutes.Login.route) {
+                        popUpTo(NavRoutes.Dashboard.route) { inclusive = true }
+                    }
+                }
             )
         }
 
@@ -399,6 +441,15 @@ fun AppNavHost(
                 },
                 onNavigateToPrivacyPolicy = {
                     navController.navigate("privacy_policy")
+                },
+                onNavigateToCharts = { navController.navigate(NavRoutes.Charts.route) },
+                onNavigateToBudget = { navController.navigate(NavRoutes.Budget.route) },
+                onNavigateToReports = { navController.navigate(NavRoutes.Reports.route) },
+                onLogout = {
+                    authViewModel.signOut()
+                    navController.navigate(NavRoutes.Login.route) {
+                        popUpTo(NavRoutes.Dashboard.route) { inclusive = true }
+                    }
                 }
             )
         }
@@ -420,7 +471,16 @@ fun AppNavHost(
 
         composable(NavRoutes.Reports.route) {
             ReportsScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToCharts = { navController.navigate(NavRoutes.Charts.route) },
+                onNavigateToBudget = { navController.navigate(NavRoutes.Budget.route) },
+                onNavigateToSettings = { navController.navigate(NavRoutes.Settings.route) },
+                onLogout = {
+                    authViewModel.signOut()
+                    navController.navigate(NavRoutes.Login.route) {
+                        popUpTo(NavRoutes.Dashboard.route) { inclusive = true }
+                    }
+                }
             )
         }
         }

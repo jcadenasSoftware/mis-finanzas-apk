@@ -91,6 +91,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.myfinances.ui.components.CompactHeader
+import com.myfinances.ui.components.HamburgerMenu
+import com.myfinances.ui.components.HamburgerMenuButton
 import com.myfinances.ui.components.SyncSwipeRefresh
 import com.myfinances.ui.theme.Expense
 import com.myfinances.ui.theme.Income
@@ -107,11 +109,17 @@ import kotlinx.coroutines.launch
 @Composable
 fun LoansScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToCharts: () -> Unit,
+    onNavigateToBudget: () -> Unit,
+    onNavigateToReports: () -> Unit,
+    onNavigateToSettings: () -> Unit,
+    onLogout: () -> Unit,
     viewModel: LoansViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    var showHamburgerMenu by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
@@ -177,6 +185,21 @@ fun LoansScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
+                actions = {
+                    Box {
+                        HamburgerMenuButton(onClick = { showHamburgerMenu = true })
+                        HamburgerMenu(
+                            expanded = showHamburgerMenu,
+                            onDismissRequest = { showHamburgerMenu = false },
+                            onNavigateToCharts = onNavigateToCharts,
+                            onNavigateToBudget = onNavigateToBudget,
+                            onNavigateToReports = onNavigateToReports,
+                            onNavigateToSettings = onNavigateToSettings,
+                            onLogout = onLogout,
+                            currentScreen = "loans"
+                        )
+                    }
+                }
             )
         },
         floatingActionButton = {

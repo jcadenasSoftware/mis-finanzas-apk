@@ -32,6 +32,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.myfinances.data.local.dao.TransactionWithDetails
 import com.myfinances.ui.components.CompactHeader
+import com.myfinances.ui.components.HamburgerMenu
+import com.myfinances.ui.components.HamburgerMenuButton
 import com.myfinances.ui.components.SyncSwipeRefresh
 import com.myfinances.ui.theme.Income
 import com.myfinances.ui.theme.Expense
@@ -49,6 +51,11 @@ fun TransactionsScreen(
     onNavigateBack: () -> Unit,
     onAddTransaction: () -> Unit,
     onEditTransaction: (String) -> Unit,
+    onNavigateToCharts: () -> Unit,
+    onNavigateToBudget: () -> Unit,
+    onNavigateToReports: () -> Unit,
+    onNavigateToSettings: () -> Unit,
+    onLogout: () -> Unit,
     initialAccountId: String? = null,
     initialCategoryId: String? = null,
     initialFromEpochSec: Long? = null,
@@ -58,6 +65,7 @@ fun TransactionsScreen(
     val state by viewModel.state.collectAsState()
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("es", "CO")) }
     val monthLabelFormat = remember { SimpleDateFormat("MMMM yyyy", Locale("es")) }
+    var showHamburgerMenu by remember { mutableStateOf(false) }
 
     val syncViewModel: SyncViewModel = hiltViewModel()
     val syncVersion by syncViewModel.syncVersion.collectAsState()
@@ -92,6 +100,21 @@ fun TransactionsScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                    }
+                },
+                actions = {
+                    Box {
+                        HamburgerMenuButton(onClick = { showHamburgerMenu = true })
+                        HamburgerMenu(
+                            expanded = showHamburgerMenu,
+                            onDismissRequest = { showHamburgerMenu = false },
+                            onNavigateToCharts = onNavigateToCharts,
+                            onNavigateToBudget = onNavigateToBudget,
+                            onNavigateToReports = onNavigateToReports,
+                            onNavigateToSettings = onNavigateToSettings,
+                            onLogout = onLogout,
+                            currentScreen = "transactions"
+                        )
                     }
                 }
             )
