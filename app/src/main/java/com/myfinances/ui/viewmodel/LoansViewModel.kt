@@ -23,6 +23,9 @@ import javax.inject.Inject
 
 data class LoansState(
     val isLoading: Boolean = false,
+    val isSavingLoan: Boolean = false,
+    val isSavingPayment: Boolean = false,
+    val isSavingEdit: Boolean = false,
     val selectedTab: String = "LENT", // LENT or BORROWED
     val accounts: List<AccountEntity> = emptyList(),
     val accountBalancesCents: Map<String, Long> = emptyMap(),
@@ -163,10 +166,13 @@ class LoansViewModel @Inject constructor(
         occurredAtEpochSec: Long,
         notes: String?
     ): String? {
+        // Protección contra doble clic
+        if (_state.value.isSavingLoan) return null
+        
         val userUid = uid ?: return "Usuario no autenticado"
         val currency = _state.value.accounts.firstOrNull { it.id == accountId }?.currency ?: ""
 
-        _state.value = _state.value.copy(isLoading = true, error = null)
+        _state.value = _state.value.copy(isLoading = true, isSavingLoan = true, error = null)
         return try {
             loanRepository.create(
                 userUid = userUid,
@@ -178,19 +184,22 @@ class LoansViewModel @Inject constructor(
                 occurredAtEpochSec = occurredAtEpochSec,
                 notes = notes
             )
-            _state.value = _state.value.copy(isLoading = false)
+            _state.value = _state.value.copy(isLoading = false, isSavingLoan = false)
             refresh()
             null
         } catch (e: Exception) {
-            _state.value = _state.value.copy(isLoading = false)
+            _state.value = _state.value.copy(isLoading = false, isSavingLoan = false)
             e.message ?: "Error al crear el préstamo"
         }
     }
 
     fun registerPayment(loanId: String, accountId: String, principalCents: Long, occurredAtEpochSec: Long, note: String?) {
+        // Protección contra doble clic
+        if (_state.value.isSavingPayment) return
+        
         val userUid = uid ?: return
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true, error = null)
+            _state.value = _state.value.copy(isLoading = true, isSavingPayment = true, error = null)
             try {
                 loanPaymentRepository.create(
                     userUid = userUid,
@@ -209,10 +218,10 @@ class LoansViewModel @Inject constructor(
                     }
                 }
 
-                _state.value = _state.value.copy(isLoading = false)
+                _state.value = _state.value.copy(isLoading = false, isSavingPayment = false)
                 refresh()
             } catch (e: Exception) {
-                _state.value = _state.value.copy(isLoading = false, error = e.message)
+                _state.value = _state.value.copy(isLoading = false, isSavingPayment = false, error = e.message)
             }
         }
     }
@@ -224,9 +233,12 @@ class LoansViewModel @Inject constructor(
         principalCents: Long? = null,
         notes: String? = null
     ) {
+        // Protección contra doble clic
+        if (_state.value.isSavingEdit) return
+        
         val userUid = uid ?: return
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true, error = null)
+            _state.value = _state.value.copy(isLoading = true, isSavingEdit = true, error = null)
             try {
                 loanRepository.updateLoan(
                     userUid = userUid,
@@ -236,10 +248,10 @@ class LoansViewModel @Inject constructor(
                     principalCents = principalCents,
                     notes = notes
                 )
-                _state.value = _state.value.copy(isLoading = false)
+                _state.value = _state.value.copy(isLoading = false, isSavingEdit = false)
                 refresh()
             } catch (e: Exception) {
-                _state.value = _state.value.copy(isLoading = false, error = e.message)
+                _state.value = _state.value.copy(isLoading = false, isSavingEdit = false, error = e.message)
             }
         }
     }

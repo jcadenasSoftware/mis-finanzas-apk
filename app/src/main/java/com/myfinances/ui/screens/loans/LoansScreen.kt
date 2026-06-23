@@ -52,6 +52,7 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -301,6 +302,9 @@ fun LoansScreen(
             containerColor = Color.White,
             confirmButton = {
                 Button(onClick = {
+                    // Protección adicional contra doble clic
+                    if (state.isSavingLoan) return@Button
+                    
                     createLoanError = null
                     val cents = runCatching {
                         // Eliminar separadores de miles antes de parsear
@@ -331,9 +335,26 @@ fun LoansScreen(
                         }
                     }
                 },
+                    enabled = !state.isSavingLoan,
                     shape = MaterialTheme.shapes.extraLarge,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2463EB))
-                ) { Text("Guardar") }
+                ) {
+                    if (state.isSavingLoan) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = Color.White
+                            )
+                            Text("Guardando...")
+                        }
+                    } else {
+                        Text("Guardar")
+                    }
+                }
             },
             dismissButton = {
                 FilledTonalButton(
@@ -573,6 +594,9 @@ fun LoansScreen(
             containerColor = Color.White,
             confirmButton = {
                 Button(onClick = {
+                    // Protección adicional contra doble clic
+                    if (state.isSavingPayment) return@Button
+                    
                     val cents = runCatching {
                         val normalized = paymentAmountText.trim().replace(',', '.')
                         BigDecimal(normalized).multiply(BigDecimal(100)).setScale(0, RoundingMode.HALF_UP).longValueExact()
@@ -595,9 +619,26 @@ fun LoansScreen(
                         paymentAmountText = ""
                     }
                 },
+                    enabled = !state.isSavingPayment,
                     shape = MaterialTheme.shapes.extraLarge,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2463EB))
-                ) { Text("Guardar") }
+                ) {
+                    if (state.isSavingPayment) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = Color.White
+                            )
+                            Text("Guardando...")
+                        }
+                    } else {
+                        Text("Guardar")
+                    }
+                }
             },
             dismissButton = {
                 FilledTonalButton(
@@ -1046,6 +1087,9 @@ fun LoansScreen(
             confirmButton = {
                 Button(
                     onClick = {
+                        // Protección adicional contra doble clic
+                        if (state.isSavingEdit) return@Button
+                        
                         val counterpartyName = editCounterparty.trim()
                         val cents = runCatching {
                             // Eliminar separadores de miles antes de parsear
@@ -1063,9 +1107,25 @@ fun LoansScreen(
                         )
                         showEditLoan = false
                     },
-                    enabled = isFormValid,
+                    enabled = isFormValid && !state.isSavingEdit,
                     shape = MaterialTheme.shapes.extraLarge
-                ) { Text("Guardar") }
+                ) {
+                    if (state.isSavingEdit) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = Color.White
+                            )
+                            Text("Guardando...")
+                        }
+                    } else {
+                        Text("Guardar")
+                    }
+                }
             },
             dismissButton = {
                 TextButton(
