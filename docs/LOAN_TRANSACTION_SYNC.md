@@ -395,6 +395,28 @@ BUILD SUCCESSFUL in 2m 6s
 
 ---
 
+## Migración de Base de Datos
+
+### Versión 10 → 11
+**Archivo**: `AppDatabase.kt` y `DatabaseModule.kt`
+
+**Cambios**:
+- Incrementado versión de base de datos de 10 a 11
+- Agregado `MIGRATION_10_11` que:
+  - Agrega columna `linked_transaction_id TEXT` a la tabla `loan_payments`
+  - Crea índice `index_loan_payments_linked_transaction_id` para búsquedas eficientes
+- Agregado `MIGRATION_10_11` a la lista de migraciones en `DatabaseModule`
+
+**SQL de migración**:
+```sql
+ALTER TABLE loan_payments ADD COLUMN linked_transaction_id TEXT;
+CREATE INDEX IF NOT EXISTS index_loan_payments_linked_transaction_id ON loan_payments(linked_transaction_id);
+```
+
+**Nota**: La migración usa try-catch para evitar errores si la columna ya existe (para instalaciones nuevas).
+
+---
+
 ## Conclusión
 
 La implementación resuelve la inconsistencia financiera donde editar/eliminar abonos desde Transacciones no actualizaba el estado del préstamo. La solución:
