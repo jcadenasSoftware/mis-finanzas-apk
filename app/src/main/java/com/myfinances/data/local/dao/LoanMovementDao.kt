@@ -81,4 +81,10 @@ interface LoanMovementDao {
 
     @Query("DELETE FROM loan_movements WHERE user_uid = :userUid")
     suspend fun deleteAllByUser(userUid: String)
+
+    @Query("SELECT * FROM loan_movements WHERE linked_transaction_id = :transactionId")
+    suspend fun getByLinkedTransactionId(transactionId: String): LoanMovementEntity?
+
+    @Query("DELETE FROM loan_movements WHERE linked_transaction_id = :transactionId")
+    suspend fun deleteByLinkedTransactionId(transactionId: String)
 }

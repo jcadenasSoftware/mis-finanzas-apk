@@ -31,7 +31,8 @@ class TransactionRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val deviceIdProvider: DeviceIdProvider,
     private val loanPaymentRepositoryProvider: javax.inject.Provider<LoanPaymentRepository>,
-    private val loanRepositoryProvider: javax.inject.Provider<LoanRepository>
+    private val loanRepositoryProvider: javax.inject.Provider<LoanRepository>,
+    private val loanMovementRepositoryProvider: javax.inject.Provider<LoanMovementRepository>
 ) {
     private fun signedAmountDeltaCents(kind: String, amountCents: Long): Long {
         val k = kind.trim().uppercase()
@@ -265,6 +266,18 @@ class TransactionRepository @Inject constructor(
             }
         }
 
+        // Sincronizar con LoanMovement si existe un movimiento vinculado
+        val movement = loanMovementRepositoryProvider.get().updateByTransaction(
+            transactionId = transactionId,
+            amountCents = amountCents,
+            occurredAtEpochSec = occurredAtEpochSec,
+            note = note
+        )
+        // Recalcular estado del préstamo si se actualizó el movimiento
+        if (movement != null) {
+            loanRepositoryProvider.get().recalculateLoanStatus(userUid, movement.loanId)
+        }
+
         return updated
     }
 
@@ -287,6 +300,13 @@ class TransactionRepository @Inject constructor(
             if (payment != null) {
                 loanRepositoryProvider.get().recalculateLoanStatus(userUid, payment.loanId)
             }
+        }
+
+        // Sincronizar con LoanMovement si existe un movimiento vinculado
+        val movement = loanMovementRepositoryProvider.get().deleteByTransaction(transactionId)
+        // Recalcular estado del préstamo si se eliminó el movimiento
+        if (movement != null) {
+            loanRepositoryProvider.get().recalculateLoanStatus(userUid, movement.loanId)
         }
     }
 

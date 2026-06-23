@@ -35,6 +35,7 @@ import kotlinx.serialization.Serializable
         Index("account_id"),
         Index("movement_type"),
         Index("occurred_at_epoch_sec"),
+        Index("linked_transaction_id"),
         Index(
             value = ["user_uid", "loan_id", "occurred_at_epoch_sec", "created_at_epoch_sec"],
             name = "index_loan_movements_user_uid_loan_id_occurred_created"

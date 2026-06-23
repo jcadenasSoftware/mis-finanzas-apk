@@ -194,4 +194,48 @@ class LoanMovementRepository @Inject constructor(
             Log.e("LoanMovementRepository", "Error deleting all from Firestore", e)
         }
     }
+
+    suspend fun updateByTransaction(
+        transactionId: String,
+        amountCents: Long,
+        occurredAtEpochSec: Long,
+        note: String?
+    ): LoanMovementEntity? {
+        val movement = loanMovementDao.getByLinkedTransactionId(transactionId) ?: return null
+        
+        val now = System.currentTimeMillis() / 1000
+        val updatedMovement = movement.copy(
+            amountCents = amountCents,
+            occurredAtEpochSec = occurredAtEpochSec,
+            note = note,
+            updatedAtEpochSec = now,
+            updatedBy = deviceIdProvider.get()
+        )
+        loanMovementDao.update(updatedMovement)
+        syncToFirestore(movement.userUid, updatedMovement)
+        return updatedMovement
+    }
+
+    suspend fun deleteByTransaction(transactionId: String): LoanMovementEntity? {
+        val movement = loanMovementDao.getByLinkedTransactionId(transactionId) ?: return null
+        
+        loanMovementDao.delete(movement.id)
+        deleteFromFirestore(movement.userUid, movement.loanId, movement.id)
+        return movement
+    }
+
+    private suspend fun deleteFromFirestore(userUid: String, loanId: String, movementId: String) {
+        try {
+            firestore.collection("users")
+                .document(userUid)
+                .collection("loans")
+                .document(loanId)
+                .collection("movements")
+                .document(movementId)
+                .delete()
+                .await()
+        } catch (e: Exception) {
+            Log.e("LoanMovementRepository", "Error deleting movement from Firestore", e)
+        }
+    }
 }
