@@ -389,7 +389,13 @@ class LoanRepository @Inject constructor(
 
         // Calcular saldo pendiente para reconciliar estado
         val paidCents = loanPaymentRepository.sumPrincipalByLoan(userUid, loanId)
-        val pendingCents = kotlin.math.max(0L, newPrincipal - paidCents)
+        
+        // Validación obligatoria: nuevo monto no puede ser menor que los pagos ya realizados
+        if (newPrincipal < paidCents) {
+            throw IllegalArgumentException("No puedes establecer un monto inferior al total ya abonado.")
+        }
+        
+        val pendingCents = newPrincipal - paidCents
         val newStatus = if (pendingCents <= 0L) "CLOSED" else "OPEN"
 
         val updated = existing.copy(

@@ -37,6 +37,8 @@ import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -164,6 +166,7 @@ fun LoansScreen(
     var editCounterpartyError by remember { mutableStateOf<String?>(null) }
     var editAmountError by remember { mutableStateOf<String?>(null) }
     var editAccountError by remember { mutableStateOf<String?>(null) }
+    var editLoanData by remember { mutableStateOf<com.myfinances.ui.viewmodel.LoansViewModel.LoanEditData?>(null) }
 
 
     val context = LocalContext.current
@@ -1070,6 +1073,10 @@ fun LoansScreen(
             } else {
                 editAccountError = null
             }
+            // Cargar datos del préstamo para mostrar información actual
+            if (showEditLoan && editLoanId.isNotBlank()) {
+                editLoanData = viewModel.getLoanEditData(editLoanId)
+            }
         }
 
         val isFormValid = editCounterparty.trim().isNotBlank() &&
@@ -1085,6 +1092,17 @@ fun LoansScreen(
             title = { Text("Editar préstamo") },
             containerColor = Color.White,
             confirmButton = {
+                val currentCents = runCatching {
+                    val withoutThousands = editAmountText.trim().replace("[.,]".toRegex(), "")
+                    val normalized = withoutThousands.replace(',', '.')
+                    BigDecimal(normalized).multiply(BigDecimal(100)).setScale(0, RoundingMode.HALF_UP).longValueExact()
+                }.getOrNull()
+                val editData = editLoanData
+                val newPendingCents = editData?.let { data ->
+                    currentCents?.let { viewModel.calculateNewPending(it, data.paidCents) }
+                }
+                val isNewAmountValid = currentCents != null && editData != null && currentCents >= editData.paidCents
+                
                 Button(
                     onClick = {
                         // Protección adicional contra doble clic
@@ -1107,7 +1125,7 @@ fun LoansScreen(
                         )
                         showEditLoan = false
                     },
-                    enabled = isFormValid && !state.isSavingEdit,
+                    enabled = isFormValid && isNewAmountValid && !state.isSavingEdit,
                     shape = MaterialTheme.shapes.extraLarge
                 ) {
                     if (state.isSavingEdit) {
@@ -1134,12 +1152,189 @@ fun LoansScreen(
                 ) { Text("Cancelar") }
             },
             text = {
+                val currentCents = runCatching {
+                    val withoutThousands = editAmountText.trim().replace("[.,]".toRegex(), "")
+                    val normalized = withoutThousands.replace(',', '.')
+                    BigDecimal(normalized).multiply(BigDecimal(100)).setScale(0, RoundingMode.HALF_UP).longValueExact()
+                }.getOrNull()
+                val editData = editLoanData
+                val newPendingCents = editData?.let { data ->
+                    currentCents?.let { viewModel.calculateNewPending(it, data.paidCents) }
+                }
+                val isNewAmountValid = currentCents != null && editData != null && currentCents >= editData.paidCents
+                
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    // Tarjeta de información actual
+                    editData?.let { data ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color(0xFFF0F9FF)
+                            ),
+                            shape = MaterialTheme.shapes.extraLarge
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "Información actual",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = Color(0xFF0369A1),
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        "Monto original",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        formatMoney(data.originalPrincipalCents, data.currency),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        "Total abonado",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        formatMoney(data.paidCents, data.currency),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        "Saldo pendiente",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        formatMoney(data.pendingCents, data.currency),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (state.selectedTab == "LENT") Income else Expense
+                                    )
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        "Progreso",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        "${data.progressPercent}%",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(4.dp))
+                        
+                        // Preview del nuevo saldo cuando cambia el monto
+                        if (currentCents != null && currentCents != data.originalPrincipalCents) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isNewAmountValid) Color(0xFFECFDF5) else Color(0xFFFEF2F2)
+                                ),
+                                shape = MaterialTheme.shapes.extraLarge
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(14.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isNewAmountValid) Icons.Default.CheckCircle else Icons.Default.Error,
+                                            contentDescription = null,
+                                            tint = if (isNewAmountValid) Color(0xFF059669) else Color(0xFFDC2626),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Text(
+                                            "Nuevo saldo pendiente",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = if (isNewAmountValid) Color(0xFF059669) else Color(0xFFDC2626)
+                                        )
+                                    }
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            "Nuevo saldo",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            formatMoney(newPendingCents ?: 0L, data.currency),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isNewAmountValid) Color(0xFF059669) else Color(0xFFDC2626)
+                                        )
+                                    }
+                                    val newProgress = currentCents?.let { viewModel.calculateNewProgress(it, data.paidCents) }
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            "Nuevo progreso",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            "${newProgress}%",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                    if (!isNewAmountValid) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "No puedes establecer un monto inferior al total ya abonado.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = Color(0xFFDC2626)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                    
                     OutlinedTextField(
                         value = editCounterparty,
                         onValueChange = {

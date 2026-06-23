@@ -256,6 +256,48 @@ class LoansViewModel @Inject constructor(
         }
     }
 
+    suspend fun getLoanEditData(loanId: String): LoanEditData? {
+        val userUid = uid ?: return null
+        val loan = loanRepository.getById(loanId) ?: return null
+        val paidCents = loanPaymentRepository.sumPrincipalByLoan(userUid, loanId)
+        val pendingCents = (loan.principalCents - paidCents).coerceAtLeast(0L)
+        val progressPercent = if (loan.principalCents > 0) {
+            ((paidCents * 100) / loan.principalCents).toInt()
+        } else {
+            0
+        }
+        
+        return LoanEditData(
+            originalPrincipalCents = loan.principalCents,
+            paidCents = paidCents,
+            pendingCents = pendingCents,
+            progressPercent = progressPercent,
+            currency = loan.currency,
+            status = loan.status
+        )
+    }
+
+    fun calculateNewPending(newPrincipalCents: Long, paidCents: Long): Long {
+        return (newPrincipalCents - paidCents).coerceAtLeast(0L)
+    }
+
+    fun calculateNewProgress(newPrincipalCents: Long, paidCents: Long): Int {
+        return if (newPrincipalCents > 0) {
+            ((paidCents * 100) / newPrincipalCents).toInt().coerceIn(0, 100)
+        } else {
+            0
+        }
+    }
+
+    data class LoanEditData(
+        val originalPrincipalCents: Long,
+        val paidCents: Long,
+        val pendingCents: Long,
+        val progressPercent: Int,
+        val currency: String,
+        val status: String
+    )
+
     fun clearError() {
         _state.value = _state.value.copy(error = null)
     }
