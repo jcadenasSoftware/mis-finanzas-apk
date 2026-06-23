@@ -29,7 +29,9 @@ class TransactionRepository @Inject constructor(
     private val transactionDao: TransactionDao,
     private val accountDao: AccountDao,
     private val firestore: FirebaseFirestore,
-    private val deviceIdProvider: DeviceIdProvider
+    private val deviceIdProvider: DeviceIdProvider,
+    private val loanPaymentRepositoryProvider: javax.inject.Provider<LoanPaymentRepository>,
+    private val loanRepositoryProvider: javax.inject.Provider<LoanRepository>
 ) {
     private fun signedAmountDeltaCents(kind: String, amountCents: Long): Long {
         val k = kind.trim().uppercase()
@@ -248,12 +250,44 @@ class TransactionRepository @Inject constructor(
         )
         transactionDao.update(updated)
         syncToFirestore(userUid, updated)
+
+        // Sincronizar con LoanPayment si es una transacción de préstamo
+        if (isLoanRepaymentTransaction(updated.kind)) {
+            val payment = loanPaymentRepositoryProvider.get().updateByTransaction(
+                transactionId = transactionId,
+                principalCents = amountCents,
+                occurredAtEpochSec = occurredAtEpochSec,
+                note = note
+            )
+            // Recalcular estado del préstamo si se actualizó el pago
+            if (payment != null) {
+                loanRepositoryProvider.get().recalculateLoanStatus(userUid, payment.loanId)
+            }
+        }
+
         return updated
     }
 
+    private fun isLoanRepaymentTransaction(kind: String): Boolean {
+        val normalizedKind = kind.trim().uppercase()
+        return normalizedKind == "LOAN_REPAYMENT_PRINCIPAL_IN" || 
+               normalizedKind == "LOAN_REPAYMENT_PRINCIPAL_OUT"
+    }
+
     suspend fun delete(userUid: String, transactionId: String) {
+        val existing = transactionDao.getById(transactionId)
+        
         transactionDao.delete(transactionId)
         deleteFromFirestore(userUid, transactionId)
+
+        // Sincronizar con LoanPayment si es una transacción de préstamo
+        if (existing != null && isLoanRepaymentTransaction(existing.kind)) {
+            val payment = loanPaymentRepositoryProvider.get().deleteByTransaction(transactionId)
+            // Recalcular estado del préstamo si se eliminó el pago
+            if (payment != null) {
+                loanRepositoryProvider.get().recalculateLoanStatus(userUid, payment.loanId)
+            }
+        }
     }
 
     suspend fun deleteAllByUser(userUid: String) {

@@ -33,7 +33,8 @@ import kotlinx.serialization.Serializable
         Index("user_uid"),
         Index("loan_id"),
         Index("account_id"),
-        Index("occurred_at_epoch_sec")
+        Index("occurred_at_epoch_sec"),
+        Index("linked_transaction_id")
     ]
 )
 @Serializable
@@ -51,6 +52,8 @@ data class LoanPaymentEntity(
     @ColumnInfo(name = "occurred_at_epoch_sec")
     val occurredAtEpochSec: Long,
     val note: String?,
+    @ColumnInfo(name = "linked_transaction_id")
+    val linkedTransactionId: String?,
     @ColumnInfo(name = "created_at_epoch_sec")
     val createdAtEpochSec: Long,
     @ColumnInfo(name = "updated_at_epoch_sec")

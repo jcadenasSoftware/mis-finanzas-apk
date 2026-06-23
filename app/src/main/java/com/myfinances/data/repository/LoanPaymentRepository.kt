@@ -55,6 +55,7 @@ class LoanPaymentRepository @Inject constructor(
             principalCents = principalCents,
             occurredAtEpochSec = occurredAtEpochSec,
             note = note,
+            linkedTransactionId = null, // Se llenará después de crear la transacción
             createdAtEpochSec = now,
             updatedAtEpochSec = now,
             updatedBy = deviceIdProvider.get()
@@ -81,6 +82,14 @@ class LoanPaymentRepository @Inject constructor(
                 else -> "Pago de préstamo: ${loan.counterpartyName}"
             }
         )
+
+        // Actualizar payment con linkedTransactionId
+        val updatedPayment = payment.copy(
+            linkedTransactionId = tx.id,
+            updatedAtEpochSec = now
+        )
+        loanPaymentDao.update(updatedPayment)
+        syncToFirestore(userUid, updatedPayment)
 
         // Crear movimiento de pago en loan_movements (siguiendo lógica de Desktop)
         val movementType = when (loan.type) {
@@ -121,6 +130,48 @@ class LoanPaymentRepository @Inject constructor(
             batch.commit().await()
         } catch (e: Exception) {
             Log.e("LoanPaymentRepository", "Error deleting all from Firestore", e)
+        }
+    }
+
+    suspend fun updateByTransaction(
+        transactionId: String,
+        principalCents: Long,
+        occurredAtEpochSec: Long,
+        note: String?
+    ): LoanPaymentEntity? {
+        val payment = loanPaymentDao.getByLinkedTransactionId(transactionId) ?: return null
+        
+        val now = System.currentTimeMillis() / 1000
+        val updatedPayment = payment.copy(
+            principalCents = principalCents,
+            occurredAtEpochSec = occurredAtEpochSec,
+            note = note,
+            updatedAtEpochSec = now,
+            updatedBy = deviceIdProvider.get()
+        )
+        loanPaymentDao.update(updatedPayment)
+        syncToFirestore(payment.userUid, updatedPayment)
+        return updatedPayment
+    }
+
+    suspend fun deleteByTransaction(transactionId: String): LoanPaymentEntity? {
+        val payment = loanPaymentDao.getByLinkedTransactionId(transactionId) ?: return null
+        
+        loanPaymentDao.delete(payment.id)
+        deleteFromFirestore(payment.userUid, payment.id)
+        return payment
+    }
+
+    private suspend fun deleteFromFirestore(userUid: String, paymentId: String) {
+        try {
+            firestore.collection("users")
+                .document(userUid)
+                .collection("loanPayments")
+                .document(paymentId)
+                .delete()
+                .await()
+        } catch (e: Exception) {
+            Log.e("LoanPaymentRepository", "Error deleting payment from Firestore", e)
         }
     }
 
@@ -165,6 +216,7 @@ class LoanPaymentRepository @Inject constructor(
                     val updatedAt = anyLong("updatedAtEpochSec", "updated_at_epoch_sec") ?: createdAt
                     val note = (data["note"] as? String)
                     val updatedBy = anyString("updatedBy", "updated_by")
+                    val linkedTransactionId = anyString("linkedTransactionId", "linked_transaction_id")
 
                     LoanPaymentEntity(
                         id = doc.id,
@@ -174,6 +226,7 @@ class LoanPaymentRepository @Inject constructor(
                         principalCents = principalCents,
                         occurredAtEpochSec = occurredAt,
                         note = note,
+                        linkedTransactionId = linkedTransactionId,
                         createdAtEpochSec = createdAt,
                         updatedAtEpochSec = updatedAt,
                         updatedBy = updatedBy

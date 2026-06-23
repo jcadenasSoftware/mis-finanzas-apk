@@ -202,6 +202,29 @@ class LoanRepository @Inject constructor(
         return updated
     }
 
+    suspend fun recalculateLoanStatus(userUid: String, loanId: String): LoanEntity? {
+        val existing = loanDao.getById(loanId) ?: return null
+        
+        val paidCents = loanPaymentRepository.sumPrincipalByLoan(userUid, loanId)
+        val pendingCents = (existing.principalCents - paidCents).coerceAtLeast(0L)
+        val newStatus = if (pendingCents <= 0L) "CLOSED" else "OPEN"
+        
+        // Solo actualizar si el estado cambia
+        if (existing.status != newStatus) {
+            val now = System.currentTimeMillis() / 1000
+            val updated = existing.copy(
+                status = newStatus,
+                updatedAtEpochSec = now,
+                updatedBy = deviceIdProvider.get()
+            )
+            loanDao.update(updated)
+            syncToFirestore(userUid, updated)
+            return updated
+        }
+        
+        return existing
+    }
+
     suspend fun updateLoan(
         userUid: String,
         loanId: String,
