@@ -359,6 +359,13 @@ fun AddTransactionFormContent(
     fun isCompatibleCategoryKind(categoryKind: String, txKind: String): Boolean {
         val k = categoryKind.trim().uppercase()
         val t = txKind.trim().uppercase()
+        
+        // Categorías de préstamo son compatibles con kinds de préstamo
+        val isLoanCategory = k == "EXPENSE" || k == "INCOME"
+        val isLoanTransaction = t.startsWith("LOAN_")
+        
+        if (isLoanCategory && isLoanTransaction) return true
+        
         return k == "BOTH" || k == t
     }
 
