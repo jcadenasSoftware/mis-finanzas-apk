@@ -44,7 +44,7 @@ import com.myfinances.data.local.entity.UserEntity
         ExchangeRateEntity::class,
         UserSettingsEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -276,6 +276,21 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_loan_movements_movement_type ON loan_movements(movement_type)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_loan_movements_occurred_at_epoch_sec ON loan_movements(occurred_at_epoch_sec)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_loan_movements_user_uid_loan_id_occurred_created ON loan_movements(user_uid, loan_id, occurred_at_epoch_sec, created_at_epoch_sec)")
+            }
+        }
+
+        val MIGRATION_10_11: Migration = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                try {
+                    db.execSQL("ALTER TABLE loan_payments ADD COLUMN linked_transaction_id TEXT")
+                } catch (_: Exception) {
+                    // Column might already exist
+                }
+                try {
+                    db.execSQL("CREATE INDEX IF NOT EXISTS index_loan_payments_linked_transaction_id ON loan_payments(linked_transaction_id)")
+                } catch (_: Exception) {
+                    // Index might already exist
+                }
             }
         }
     }
