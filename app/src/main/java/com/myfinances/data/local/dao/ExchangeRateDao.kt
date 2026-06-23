@@ -39,6 +39,9 @@ interface ExchangeRateDao {
     )
     suspend fun get(userUid: String, fromCurrency: String, toCurrency: String): ExchangeRateEntity?
 
+    @Query("SELECT * FROM exchange_rates WHERE user_uid = :userUid")
+    suspend fun getByUser(userUid: String): List<ExchangeRateEntity>
+
     @Query("DELETE FROM exchange_rates WHERE id = :id")
     suspend fun delete(id: String)
 

@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 @Entity(
     tableName = "transfers",
@@ -35,6 +36,7 @@ import androidx.room.PrimaryKey
         Index("occurred_at_epoch_sec")
     ]
 )
+@Serializable
 data class TransferEntity(
     @PrimaryKey
     val id: String,

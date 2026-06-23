@@ -332,4 +332,7 @@ interface TransactionDao {
         ORDER BY year DESC
     """)
     suspend fun getYearsWithTransactions(userUid: String): List<Int>
+
+    @Query("SELECT * FROM transactions WHERE user_uid = :userUid")
+    suspend fun getByUser(userUid: String): List<TransactionEntity>
 }

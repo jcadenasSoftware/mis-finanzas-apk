@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 @Entity(
     tableName = "goals",
@@ -27,6 +28,7 @@ import androidx.room.PrimaryKey
         Index("account_id")
     ]
 )
+@Serializable
 data class GoalEntity(
     @PrimaryKey
     val id: String,

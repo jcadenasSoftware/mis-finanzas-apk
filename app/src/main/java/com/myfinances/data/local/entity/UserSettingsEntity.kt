@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 @Entity(
     tableName = "user_settings",
@@ -18,6 +19,7 @@ import androidx.room.PrimaryKey
     ],
     indices = [Index("user_uid")]
 )
+@Serializable
 data class UserSettingsEntity(
     @PrimaryKey
     @ColumnInfo(name = "user_uid")

@@ -37,7 +37,7 @@ class SettingsViewModel @Inject constructor(
     private val _state = MutableStateFlow(SettingsState())
     val state: StateFlow<SettingsState> = _state.asStateFlow()
 
-    private val uid: String?
+    val uid: String?
         get() = authRepository.currentUser?.uid
 
     init {

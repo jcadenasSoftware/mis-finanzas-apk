@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -57,6 +58,7 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToPrivacyAndData: () -> Unit,
     onNavigateToPrivacyPolicy: () -> Unit,
+    onNavigateToBackupSettings: (userUid: String) -> Unit,
     onNavigateToCharts: () -> Unit,
     onNavigateToBudget: () -> Unit,
     onNavigateToReports: () -> Unit,
@@ -181,6 +183,17 @@ fun SettingsScreen(
                         title = "Privacidad y datos",
                         subtitle = "Gestiona tu información personal",
                         onClick = onNavigateToPrivacyAndData
+                    ),
+                    SettingsItem(
+                        icon = Icons.Default.CloudUpload,
+                        title = "Respaldo y restauración",
+                        subtitle = "Exporta o importa tus datos",
+                        onClick = {
+                            val userUid = viewModel.uid
+                            if (userUid != null) {
+                                onNavigateToBackupSettings(userUid)
+                            }
+                        }
                     ),
                     SettingsItem(
                         icon = Icons.Default.Description,

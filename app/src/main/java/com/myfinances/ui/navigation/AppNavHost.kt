@@ -55,6 +55,7 @@ import com.myfinances.ui.screens.loans.LoansScreen
 import com.myfinances.ui.screens.login.LoginScreen
 import com.myfinances.ui.screens.onboarding.OnboardingScreen
 import com.myfinances.ui.screens.reports.ReportsScreen
+import com.myfinances.ui.screens.settings.BackupSettingsScreen
 import com.myfinances.ui.screens.settings.PrivacyAndDataScreen
 import com.myfinances.ui.screens.settings.PrivacyPolicyScreen
 import com.myfinances.ui.screens.settings.SettingsScreen
@@ -439,6 +440,9 @@ fun AppNavHost(
                 onNavigateToPrivacyAndData = {
                     navController.navigate(NavRoutes.PrivacyAndData.route)
                 },
+                onNavigateToBackupSettings = { userUid ->
+                    navController.navigate(NavRoutes.BackupSettings.createRoute(userUid))
+                },
                 onNavigateToPrivacyPolicy = {
                     navController.navigate("privacy_policy")
                 },
@@ -466,6 +470,16 @@ fun AppNavHost(
                 onNavigateToPrivacyPolicy = {
                     navController.navigate("privacy_policy")
                 }
+            )
+        }
+
+        composable(NavRoutes.BackupSettings.route,
+            arguments = listOf(navArgument("userUid") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val userUid = backStackEntry.arguments?.getString("userUid") ?: ""
+            BackupSettingsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                userUid = userUid
             )
         }
 

@@ -40,5 +40,8 @@ sealed class NavRoutes(val route: String) {
     object AddCategory : NavRoutes("add_category")
     object Settings : NavRoutes("settings")
     object PrivacyAndData : NavRoutes("privacy_and_data")
+    object BackupSettings : NavRoutes("backup_settings/{userUid}") {
+        fun createRoute(userUid: String) = "backup_settings/$userUid"
+    }
     object Reports : NavRoutes("reports")
 }

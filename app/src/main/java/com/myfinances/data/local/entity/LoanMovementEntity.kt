@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 @Entity(
     tableName = "loan_movements",
@@ -40,6 +41,7 @@ import androidx.room.PrimaryKey
         )
     ]
 )
+@Serializable
 data class LoanMovementEntity(
     @PrimaryKey
     val id: String,

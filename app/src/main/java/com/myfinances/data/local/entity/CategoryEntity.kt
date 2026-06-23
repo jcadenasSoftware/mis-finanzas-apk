@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 @Entity(
     tableName = "categories",
@@ -24,6 +25,7 @@ import androidx.room.PrimaryKey
     ],
     indices = [Index("user_uid"), Index("parent_id")]
 )
+@Serializable
 data class CategoryEntity(
     @PrimaryKey
     val id: String,
