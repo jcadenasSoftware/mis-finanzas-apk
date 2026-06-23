@@ -380,63 +380,101 @@ fun AddTransactionFormContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Transaction Type
+        val isLoanRepayment = formState.id != null && (
+            formState.kind == "LOAN_REPAYMENT_PRINCIPAL_IN" || 
+            formState.kind == "LOAN_REPAYMENT_PRINCIPAL_OUT"
+        )
+        
         Text("Tipo de transacción", style = MaterialTheme.typography.labelLarge)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            FilterChip(
-                selected = formState.kind == "EXPENSE",
-                onClick = { onKind("EXPENSE") },
-                label = { Text("Gasto") },
-                leadingIcon = {
-                    Icon(
-                        Icons.Default.ArrowUpward,
-                        contentDescription = null,
-                        tint = if (formState.kind == "EXPENSE") Expense else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
+        
+        if (isLoanRepayment) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
                 shape = MaterialTheme.shapes.extraLarge,
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Expense.copy(alpha = 0.18f),
-                    selectedLabelColor = Expense,
-                    selectedLeadingIconColor = Expense,
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    labelColor = MaterialTheme.colorScheme.onSurface,
-                    iconColor = MaterialTheme.colorScheme.onSurfaceVariant
-                ),
-                border = if (formState.kind == "EXPENSE") null else BorderStroke(
+                border = BorderStroke(
                     1.dp,
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
-                ),
-                modifier = Modifier.weight(1f)
-            )
-            FilterChip(
-                selected = formState.kind == "INCOME",
-                onClick = { onKind("INCOME") },
-                label = { Text("Ingreso") },
-                leadingIcon = {
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Icon(
-                        Icons.Default.ArrowDownward,
+                        Icons.Default.RequestQuote,
                         contentDescription = null,
-                        tint = if (formState.kind == "INCOME") Income else MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
                     )
-                },
-                shape = MaterialTheme.shapes.extraLarge,
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Income.copy(alpha = 0.18f),
-                    selectedLabelColor = Income,
-                    selectedLeadingIconColor = Income,
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    labelColor = MaterialTheme.colorScheme.onSurface,
-                    iconColor = MaterialTheme.colorScheme.onSurfaceVariant
-                ),
-                border = if (formState.kind == "INCOME") null else BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
-                ),
-                modifier = Modifier.weight(1f)
-            )
+                    Text(
+                        text = "Abono de préstamo (no editable)",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                FilterChip(
+                    selected = formState.kind == "EXPENSE",
+                    onClick = { onKind("EXPENSE") },
+                    label = { Text("Gasto") },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.ArrowUpward,
+                            contentDescription = null,
+                            tint = if (formState.kind == "EXPENSE") Expense else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Expense.copy(alpha = 0.18f),
+                        selectedLabelColor = Expense,
+                        selectedLeadingIconColor = Expense,
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        labelColor = MaterialTheme.colorScheme.onSurface,
+                        iconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    border = if (formState.kind == "EXPENSE") null else BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                    ),
+                    modifier = Modifier.weight(1f)
+                )
+                FilterChip(
+                    selected = formState.kind == "INCOME",
+                    onClick = { onKind("INCOME") },
+                    label = { Text("Ingreso") },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.ArrowDownward,
+                            contentDescription = null,
+                            tint = if (formState.kind == "INCOME") Income else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Income.copy(alpha = 0.18f),
+                        selectedLabelColor = Income,
+                        selectedLeadingIconColor = Income,
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        labelColor = MaterialTheme.colorScheme.onSurface,
+                        iconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    border = if (formState.kind == "INCOME") null else BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                    ),
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
 
         // Amount (hero)

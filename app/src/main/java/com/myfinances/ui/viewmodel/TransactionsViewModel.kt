@@ -510,6 +510,10 @@ class TransactionsViewModel @Inject constructor(
     fun updateFormKind(kind: String) {
         val uid = userUid ?: return
         val current = _formState.value
+        // Prevenir cambio de kind en transacciones de préstamo
+        if (current.id != null && isLoanRepaymentTransaction(current.kind)) {
+            return
+        }
         _formState.value = current.copy(kind = kind)
 
         viewModelScope.launch {
@@ -634,5 +638,11 @@ class TransactionsViewModel @Inject constructor(
     fun clearError() {
         _state.value = _state.value.copy(error = null)
         _formState.value = _formState.value.copy(error = null)
+    }
+
+    private fun isLoanRepaymentTransaction(kind: String): Boolean {
+        val normalizedKind = kind.trim().uppercase()
+        return normalizedKind == "LOAN_REPAYMENT_PRINCIPAL_IN" || 
+               normalizedKind == "LOAN_REPAYMENT_PRINCIPAL_OUT"
     }
 }
