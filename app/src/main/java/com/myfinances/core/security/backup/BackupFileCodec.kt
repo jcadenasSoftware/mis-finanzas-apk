@@ -1,16 +1,16 @@
-package com.myfinances.core.security.backup
+package com.jcadenas.xpendz.core.security.backup
 
-import com.myfinances.core.security.backup.BackupCryptoConstants.ENCRYPTION_VERSION
-import com.myfinances.core.security.backup.BackupCryptoConstants.FIXED_HEADER_LENGTH
-import com.myfinances.core.security.backup.BackupCryptoConstants.FILE_VERSION
-import com.myfinances.core.security.backup.BackupCryptoConstants.IV_LENGTH
-import com.myfinances.core.security.backup.BackupCryptoConstants.KDF_VERSION
-import com.myfinances.core.security.backup.BackupCryptoConstants.MAGIC_NUMBER
-import com.myfinances.core.security.backup.BackupCryptoConstants.MAGIC_NUMBER_LENGTH
-import com.myfinances.core.security.backup.BackupCryptoConstants.MAX_SUPPORTED_ITERATIONS
-import com.myfinances.core.security.backup.BackupCryptoConstants.MIN_SUPPORTED_ITERATIONS
-import com.myfinances.core.security.backup.BackupCryptoConstants.SALT_LENGTH
-import com.myfinances.core.security.backup.BackupCryptoConstants.SUPPORTED_PBKDF2_ITERATIONS
+import com.jcadenas.xpendz.core.security.backup.BackupCryptoConstants.ENCRYPTION_VERSION
+import com.jcadenas.xpendz.core.security.backup.BackupCryptoConstants.FIXED_HEADER_LENGTH
+import com.jcadenas.xpendz.core.security.backup.BackupCryptoConstants.FILE_VERSION
+import com.jcadenas.xpendz.core.security.backup.BackupCryptoConstants.IV_LENGTH
+import com.jcadenas.xpendz.core.security.backup.BackupCryptoConstants.KDF_VERSION
+import com.jcadenas.xpendz.core.security.backup.BackupCryptoConstants.MAGIC_NUMBER
+import com.jcadenas.xpendz.core.security.backup.BackupCryptoConstants.MAGIC_NUMBER_LENGTH
+import com.jcadenas.xpendz.core.security.backup.BackupCryptoConstants.MAX_SUPPORTED_ITERATIONS
+import com.jcadenas.xpendz.core.security.backup.BackupCryptoConstants.MIN_SUPPORTED_ITERATIONS
+import com.jcadenas.xpendz.core.security.backup.BackupCryptoConstants.SALT_LENGTH
+import com.jcadenas.xpendz.core.security.backup.BackupCryptoConstants.SUPPORTED_PBKDF2_ITERATIONS
 import java.io.ByteArrayOutputStream
 
 /**

@@ -1,4 +1,4 @@
-package com.myfinances.ui.pdf
+package com.jcadenas.xpendz.ui.pdf
 
 import android.graphics.BitmapFactory
 import android.content.Context
@@ -8,8 +8,8 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
-import com.myfinances.R
-import com.myfinances.data.local.dao.TransactionWithDetails
+import com.jcadenas.xpendz.R
+import com.jcadenas.xpendz.data.local.dao.TransactionWithDetails
 import java.io.File
 import java.text.NumberFormat
 import java.text.SimpleDateFormat

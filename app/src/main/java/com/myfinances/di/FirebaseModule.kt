@@ -1,4 +1,4 @@
-package com.myfinances.di
+package com.jcadenas.xpendz.di
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore

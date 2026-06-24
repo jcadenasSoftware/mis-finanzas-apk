@@ -1,10 +1,10 @@
-package com.myfinances.ui.viewmodel
+package com.jcadenas.xpendz.ui.viewmodel
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseUser
-import com.myfinances.data.repository.AuthRepository
+import com.jcadenas.xpendz.data.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

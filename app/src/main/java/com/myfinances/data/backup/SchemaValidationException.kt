@@ -1,4 +1,4 @@
-package com.myfinances.data.backup
+package com.jcadenas.xpendz.data.backup
 
 /**
  * Excepción lanzada cuando ocurre un error de validación del esquema de backup.

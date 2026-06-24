@@ -1,4 +1,4 @@
-package com.myfinances.ui.screens.charts
+package com.jcadenas.xpendz.ui.screens.charts
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -35,18 +35,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.myfinances.ui.components.CompactHeader
-import com.myfinances.ui.components.HamburgerMenu
-import com.myfinances.ui.components.HamburgerMenuButton
-import com.myfinances.ui.components.SyncSwipeRefresh
-import com.myfinances.ui.theme.Expense
-import com.myfinances.ui.theme.Income
-import com.myfinances.ui.theme.Primary
-import com.myfinances.ui.viewmodel.ChartsDashboardTab
-import com.myfinances.ui.viewmodel.ChartsKind
-import com.myfinances.ui.viewmodel.ChartsViewMode
-import com.myfinances.ui.viewmodel.ChartsViewModel
-import com.myfinances.ui.viewmodel.SyncViewModel
+import com.jcadenas.xpendz.ui.components.CompactHeader
+import com.jcadenas.xpendz.ui.components.HamburgerMenu
+import com.jcadenas.xpendz.ui.components.HamburgerMenuButton
+import com.jcadenas.xpendz.ui.components.SyncSwipeRefresh
+import com.jcadenas.xpendz.ui.theme.Expense
+import com.jcadenas.xpendz.ui.theme.Income
+import com.jcadenas.xpendz.ui.theme.Primary
+import com.jcadenas.xpendz.ui.viewmodel.ChartsDashboardTab
+import com.jcadenas.xpendz.ui.viewmodel.ChartsKind
+import com.jcadenas.xpendz.ui.viewmodel.ChartsViewMode
+import com.jcadenas.xpendz.ui.viewmodel.ChartsViewModel
+import com.jcadenas.xpendz.ui.viewmodel.SyncViewModel
 import kotlin.math.abs
 import java.text.NumberFormat
 import java.time.LocalDate
@@ -275,7 +275,7 @@ fun ChartsScreen(
                                     year = state.selectedYear,
                                     monthIndex = state.selectedMonthIndex
                                 )
-                                val route = com.myfinances.ui.navigation.NavRoutes.Transactions.createRoute(
+                                val route = com.jcadenas.xpendz.ui.navigation.NavRoutes.Transactions.createRoute(
                                     accountId = state.selectedAccountId,
                                     categoryId = item.id,
                                     fromEpochSec = fromEpochSec,
@@ -327,7 +327,7 @@ fun ChartsScreen(
 @Composable
 private fun ChartsInsightsCard(
     monthIndex: Int,
-    insights: List<com.myfinances.ui.viewmodel.ChartsInsight>
+    insights: List<com.jcadenas.xpendz.ui.viewmodel.ChartsInsight>
 ) {
     if (insights.isEmpty()) return
 
@@ -382,16 +382,16 @@ private fun ChartsInsightsCard(
 
 @Composable
 private fun InsightCardItem(
-    insight: com.myfinances.ui.viewmodel.ChartsInsight,
+    insight: com.jcadenas.xpendz.ui.viewmodel.ChartsInsight,
     modifier: Modifier = Modifier,
     compact: Boolean
 ) {
     val (icon, tint, bg) = when (insight.tone) {
-        com.myfinances.ui.viewmodel.ChartsInsightTone.POSITIVE ->
+        com.jcadenas.xpendz.ui.viewmodel.ChartsInsightTone.POSITIVE ->
             Triple(Icons.Filled.TrendingUp, Income, Income.copy(alpha = 0.12f))
-        com.myfinances.ui.viewmodel.ChartsInsightTone.NEGATIVE ->
+        com.jcadenas.xpendz.ui.viewmodel.ChartsInsightTone.NEGATIVE ->
             Triple(Icons.Filled.TrendingDown, Expense, Expense.copy(alpha = 0.12f))
-        com.myfinances.ui.viewmodel.ChartsInsightTone.NEUTRAL ->
+        com.jcadenas.xpendz.ui.viewmodel.ChartsInsightTone.NEUTRAL ->
             Triple(Icons.Filled.Insights, Primary, Primary.copy(alpha = 0.10f))
     }
 
@@ -643,7 +643,7 @@ private fun ChartsSummaryRow(
 
 @Composable
 private fun ChartsFiltersChipsBar(
-    state: com.myfinances.ui.viewmodel.ChartsState,
+    state: com.jcadenas.xpendz.ui.viewmodel.ChartsState,
     onOpenFilters: () -> Unit,
     onYear: (Int) -> Unit,
     onKind: (ChartsKind) -> Unit,
@@ -884,7 +884,7 @@ private fun ChartsDashboardToggle(
 @Composable
 private fun ChartsDonutCard(
     totalCents: Long,
-    items: List<com.myfinances.ui.viewmodel.ChartsItem>,
+    items: List<com.jcadenas.xpendz.ui.viewmodel.ChartsItem>,
     currencyFormat: NumberFormat,
     ringColor: Color,
     selectedItemId: String?,
@@ -1026,7 +1026,7 @@ private fun ChartsDonutCard(
 
 @Composable
 private fun ChartsDonut(
-    items: List<com.myfinances.ui.viewmodel.ChartsItem>,
+    items: List<com.jcadenas.xpendz.ui.viewmodel.ChartsItem>,
     ringBaseColor: Color,
     selectedItemId: String?,
     onToggleSelectedItem: (String) -> Unit,
@@ -1564,7 +1564,7 @@ private fun ChartsLineChart(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChartsFiltersBottomSheet(
-    state: com.myfinances.ui.viewmodel.ChartsState,
+    state: com.jcadenas.xpendz.ui.viewmodel.ChartsState,
     onDismiss: () -> Unit,
     onYear: (Int) -> Unit,
     onKind: (ChartsKind) -> Unit,
@@ -1800,7 +1800,7 @@ private fun ChartBarRow(
     expanded: Boolean,
     onToggleExpand: () -> Unit,
     onNavigateToTransactions: () -> Unit,
-    subItems: List<com.myfinances.ui.viewmodel.ChartsItem>
+    subItems: List<com.jcadenas.xpendz.ui.viewmodel.ChartsItem>
 ) {
     val barColor = if (kind == ChartsKind.INCOME) Income else Expense
     Card(

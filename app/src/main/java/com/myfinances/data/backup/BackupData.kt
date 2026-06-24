@@ -1,17 +1,17 @@
-package com.myfinances.data.backup
+package com.jcadenas.xpendz.data.backup
 
-import com.myfinances.data.local.entity.AccountEntity
-import com.myfinances.data.local.entity.BudgetEntity
-import com.myfinances.data.local.entity.CategoryEntity
-import com.myfinances.data.local.entity.ExchangeRateEntity
-import com.myfinances.data.local.entity.GoalEntity
-import com.myfinances.data.local.entity.LoanEntity
-import com.myfinances.data.local.entity.LoanMovementEntity
-import com.myfinances.data.local.entity.LoanPaymentEntity
-import com.myfinances.data.local.entity.TransactionEntity
-import com.myfinances.data.local.entity.TransferEntity
-import com.myfinances.data.local.entity.UserEntity
-import com.myfinances.data.local.entity.UserSettingsEntity
+import com.jcadenas.xpendz.data.local.entity.AccountEntity
+import com.jcadenas.xpendz.data.local.entity.BudgetEntity
+import com.jcadenas.xpendz.data.local.entity.CategoryEntity
+import com.jcadenas.xpendz.data.local.entity.ExchangeRateEntity
+import com.jcadenas.xpendz.data.local.entity.GoalEntity
+import com.jcadenas.xpendz.data.local.entity.LoanEntity
+import com.jcadenas.xpendz.data.local.entity.LoanMovementEntity
+import com.jcadenas.xpendz.data.local.entity.LoanPaymentEntity
+import com.jcadenas.xpendz.data.local.entity.TransactionEntity
+import com.jcadenas.xpendz.data.local.entity.TransferEntity
+import com.jcadenas.xpendz.data.local.entity.UserEntity
+import com.jcadenas.xpendz.data.local.entity.UserSettingsEntity
 import kotlinx.serialization.Serializable
 
 /**

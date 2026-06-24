@@ -1,4 +1,4 @@
-package com.myfinances.ui.screens.transactions
+package com.jcadenas.xpendz.ui.screens.transactions
 
 import android.app.DatePickerDialog
 import android.widget.Toast
@@ -32,12 +32,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.myfinances.data.local.entity.AccountEntity
-import com.myfinances.data.local.entity.CategoryEntity
-import com.myfinances.ui.components.CompactHeader
-import com.myfinances.ui.theme.Income
-import com.myfinances.ui.theme.Expense
-import com.myfinances.ui.viewmodel.TransactionsViewModel
+import com.jcadenas.xpendz.data.local.entity.AccountEntity
+import com.jcadenas.xpendz.data.local.entity.CategoryEntity
+import com.jcadenas.xpendz.ui.components.CompactHeader
+import com.jcadenas.xpendz.ui.theme.Income
+import com.jcadenas.xpendz.ui.theme.Expense
+import com.jcadenas.xpendz.ui.viewmodel.TransactionsViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
@@ -84,7 +84,7 @@ fun AddTransactionScreen(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Image(
-                            painter = painterResource(id = com.myfinances.R.drawable.ic_launcher),
+                            painter = painterResource(id = com.jcadenas.xpendz.R.drawable.ic_launcher),
                             contentDescription = null,
                             modifier = Modifier.size(28.dp)
                         )
@@ -341,7 +341,7 @@ fun AddTransactionSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionFormContent(
-    formState: com.myfinances.ui.viewmodel.TransactionFormState,
+    formState: com.jcadenas.xpendz.ui.viewmodel.TransactionFormState,
     dateFormat: SimpleDateFormat,
     currencyFormat: NumberFormat,
     onKind: (String) -> Unit,

@@ -1,13 +1,13 @@
-package com.myfinances.ui.viewmodel
+package com.jcadenas.xpendz.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.myfinances.data.local.entity.ExchangeRateEntity
-import com.myfinances.data.local.entity.UserSettingsEntity
-import com.myfinances.data.repository.AuthRepository
-import com.myfinances.data.repository.ExchangeRateRepository
-import com.myfinances.data.repository.UserSettingsRepository
-import com.myfinances.ui.util.CountryCurrency
+import com.jcadenas.xpendz.data.local.entity.ExchangeRateEntity
+import com.jcadenas.xpendz.data.local.entity.UserSettingsEntity
+import com.jcadenas.xpendz.data.repository.AuthRepository
+import com.jcadenas.xpendz.data.repository.ExchangeRateRepository
+import com.jcadenas.xpendz.data.repository.UserSettingsRepository
+import com.jcadenas.xpendz.ui.util.CountryCurrency
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

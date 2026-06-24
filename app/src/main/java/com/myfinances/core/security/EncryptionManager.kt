@@ -1,4 +1,4 @@
-package com.myfinances.core.security
+package com.jcadenas.xpendz.core.security
 
 import android.util.Log
 import java.nio.charset.StandardCharsets

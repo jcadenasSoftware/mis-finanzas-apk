@@ -1,11 +1,11 @@
-package com.myfinances.data.local.dao
+package com.jcadenas.xpendz.data.local.dao
 
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import com.myfinances.data.local.entity.TransferEntity
+import com.jcadenas.xpendz.data.local.entity.TransferEntity
 import kotlinx.coroutines.flow.Flow
 
 data class TransferWithDetails(

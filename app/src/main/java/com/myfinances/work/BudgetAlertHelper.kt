@@ -1,13 +1,13 @@
-package com.myfinances.work
+package com.jcadenas.xpendz.work
 
 import android.util.Log
 import android.content.Context
-import com.myfinances.data.local.AppDatabase
-import com.myfinances.data.local.dao.AccountDao
-import com.myfinances.data.local.dao.BudgetDao
-import com.myfinances.data.local.dao.CategoryDao
-import com.myfinances.data.local.dao.TransactionDao
-import com.myfinances.data.local.dao.UserSettingsDao
+import com.jcadenas.xpendz.data.local.AppDatabase
+import com.jcadenas.xpendz.data.local.dao.AccountDao
+import com.jcadenas.xpendz.data.local.dao.BudgetDao
+import com.jcadenas.xpendz.data.local.dao.CategoryDao
+import com.jcadenas.xpendz.data.local.dao.TransactionDao
+import com.jcadenas.xpendz.data.local.dao.UserSettingsDao
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter

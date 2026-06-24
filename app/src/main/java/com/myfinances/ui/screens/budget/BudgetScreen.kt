@@ -1,4 +1,4 @@
-package com.myfinances.ui.screens.budget
+package com.jcadenas.xpendz.ui.screens.budget
 
 import android.app.DatePickerDialog
 import androidx.compose.animation.animateColorAsState
@@ -94,16 +94,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.myfinances.data.local.entity.BudgetEntity
-import com.myfinances.ui.components.CompactHeader
-import com.myfinances.ui.components.HamburgerMenu
-import com.myfinances.ui.components.HamburgerMenuButton
-import com.myfinances.ui.components.SyncSwipeRefresh
-import com.myfinances.ui.theme.Income
-import com.myfinances.ui.theme.Expense
-import com.myfinances.ui.util.CountryCurrency
-import com.myfinances.ui.viewmodel.BudgetViewModel
-import com.myfinances.ui.viewmodel.SyncViewModel
+import com.jcadenas.xpendz.data.local.entity.BudgetEntity
+import com.jcadenas.xpendz.ui.components.CompactHeader
+import com.jcadenas.xpendz.ui.components.HamburgerMenu
+import com.jcadenas.xpendz.ui.components.HamburgerMenuButton
+import com.jcadenas.xpendz.ui.components.SyncSwipeRefresh
+import com.jcadenas.xpendz.ui.theme.Income
+import com.jcadenas.xpendz.ui.theme.Expense
+import com.jcadenas.xpendz.ui.util.CountryCurrency
+import com.jcadenas.xpendz.ui.viewmodel.BudgetViewModel
+import com.jcadenas.xpendz.ui.viewmodel.SyncViewModel
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Currency
@@ -2354,7 +2354,7 @@ private fun MonthlyCategoryBudgetCard(
     model: MonthlyCategoryCardModel,
     currencyFormat: NumberFormat,
     expanded: Boolean,
-    children: List<com.myfinances.ui.viewmodel.MonthlyBudgetItem>,
+    children: List<com.jcadenas.xpendz.ui.viewmodel.MonthlyBudgetItem>,
     onToggleExpand: () -> Unit,
     onEditRoot: () -> Unit,
     onEditChild: (String) -> Unit

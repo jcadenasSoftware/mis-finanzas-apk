@@ -1,9 +1,9 @@
-package com.myfinances.di
+package com.jcadenas.xpendz.di
 
-import com.myfinances.core.security.backup.BackupEncryptionManager
-import com.myfinances.core.security.backup.BackupEncryptionService
-import com.myfinances.core.security.backup.BackupFileCodec
-import com.myfinances.core.security.backup.PasswordKeyDerivationService
+import com.jcadenas.xpendz.core.security.backup.BackupEncryptionManager
+import com.jcadenas.xpendz.core.security.backup.BackupEncryptionService
+import com.jcadenas.xpendz.core.security.backup.BackupFileCodec
+import com.jcadenas.xpendz.core.security.backup.PasswordKeyDerivationService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

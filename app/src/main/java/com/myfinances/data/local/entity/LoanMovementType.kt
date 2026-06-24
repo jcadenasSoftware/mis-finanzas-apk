@@ -1,4 +1,4 @@
-package com.myfinances.data.local.entity
+package com.jcadenas.xpendz.data.local.entity
 
 enum class LoanMovementType {
     CREATION,     // Creación de préstamo

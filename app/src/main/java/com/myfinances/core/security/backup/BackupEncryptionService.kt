@@ -1,4 +1,4 @@
-package com.myfinances.core.security.backup
+package com.jcadenas.xpendz.core.security.backup
 
 /**
  * Interfaz de servicio de cifrado para backups con contraseña.

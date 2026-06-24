@@ -1,10 +1,10 @@
-package com.myfinances.core.security.backup
+package com.jcadenas.xpendz.core.security.backup
 
-import com.myfinances.core.security.backup.BackupCryptoConstants.KEY_ALGORITHM
-import com.myfinances.core.security.backup.BackupCryptoConstants.KEY_LENGTH
-import com.myfinances.core.security.backup.BackupCryptoConstants.KDF_ALGORITHM
-import com.myfinances.core.security.backup.BackupCryptoConstants.PBKDF2_ITERATIONS
-import com.myfinances.core.security.backup.BackupCryptoConstants.SALT_LENGTH
+import com.jcadenas.xpendz.core.security.backup.BackupCryptoConstants.KEY_ALGORITHM
+import com.jcadenas.xpendz.core.security.backup.BackupCryptoConstants.KEY_LENGTH
+import com.jcadenas.xpendz.core.security.backup.BackupCryptoConstants.KDF_ALGORITHM
+import com.jcadenas.xpendz.core.security.backup.BackupCryptoConstants.PBKDF2_ITERATIONS
+import com.jcadenas.xpendz.core.security.backup.BackupCryptoConstants.SALT_LENGTH
 import java.security.SecureRandom
 import java.security.spec.KeySpec
 import javax.crypto.SecretKey

@@ -1,4 +1,4 @@
-package com.myfinances.ui.viewmodel
+package com.jcadenas.xpendz.ui.viewmodel
 
 import android.content.Context
 import androidx.datastore.core.DataStore

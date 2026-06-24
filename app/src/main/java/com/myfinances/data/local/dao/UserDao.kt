@@ -1,10 +1,10 @@
-package com.myfinances.data.local.dao
+package com.jcadenas.xpendz.data.local.dao
 
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import com.myfinances.data.local.entity.UserEntity
+import com.jcadenas.xpendz.data.local.entity.UserEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao

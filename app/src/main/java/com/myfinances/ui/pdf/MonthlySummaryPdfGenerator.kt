@@ -1,4 +1,4 @@
-package com.myfinances.ui.pdf
+package com.jcadenas.xpendz.ui.pdf
 
 import android.content.Context
 import android.graphics.BitmapFactory
@@ -8,8 +8,8 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
-import com.myfinances.R
-import com.myfinances.data.local.dao.RootCategorySpentTotal
+import com.jcadenas.xpendz.R
+import com.jcadenas.xpendz.data.local.dao.RootCategorySpentTotal
 import java.io.File
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
@@ -74,8 +74,8 @@ object MonthlySummaryPdfGenerator {
         monthKey: String,
         incomeCents: Long,
         expenseCents: Long,
-        incomeHierarchy: List<com.myfinances.data.local.dao.HierarchyCategoryTotal>,
-        expenseHierarchy: List<com.myfinances.data.local.dao.HierarchyCategoryTotal>,
+        incomeHierarchy: List<com.jcadenas.xpendz.data.local.dao.HierarchyCategoryTotal>,
+        expenseHierarchy: List<com.jcadenas.xpendz.data.local.dao.HierarchyCategoryTotal>,
         budgetLines: List<BudgetLine>,
         loanLines: List<LoanLine>,
         goalLines: List<GoalLine>,
@@ -144,16 +144,16 @@ object MonthlySummaryPdfGenerator {
         }
 
         // ── Group hierarchy by root ────────────────────────────────────
-        fun groupByRoot(rows: List<com.myfinances.data.local.dao.HierarchyCategoryTotal>)
-            : LinkedHashMap<String, Pair<String, List<com.myfinances.data.local.dao.HierarchyCategoryTotal>>> {
-            val map = LinkedHashMap<String, Pair<String, MutableList<com.myfinances.data.local.dao.HierarchyCategoryTotal>>>()
+        fun groupByRoot(rows: List<com.jcadenas.xpendz.data.local.dao.HierarchyCategoryTotal>)
+            : LinkedHashMap<String, Pair<String, List<com.jcadenas.xpendz.data.local.dao.HierarchyCategoryTotal>>> {
+            val map = LinkedHashMap<String, Pair<String, MutableList<com.jcadenas.xpendz.data.local.dao.HierarchyCategoryTotal>>>()
             for (r in rows) {
                 map.getOrPut(r.rootCategoryId) { r.rootCategoryName to mutableListOf() }
                     .second.add(r)
             }
             // Sort roots by total desc
             val sorted = map.entries.sortedByDescending { e -> e.value.second.sumOf { it.totalCents } }
-            return sorted.associateTo(LinkedHashMap()) { it.key to (it.value.first to it.value.second as List<com.myfinances.data.local.dao.HierarchyCategoryTotal>) }
+            return sorted.associateTo(LinkedHashMap()) { it.key to (it.value.first to it.value.second as List<com.jcadenas.xpendz.data.local.dao.HierarchyCategoryTotal>) }
         }
 
         val incomeGroups  = groupByRoot(incomeHierarchy)
@@ -166,7 +166,7 @@ object MonthlySummaryPdfGenerator {
 
         // Helper to draw one hierarchy section
         fun drawHierarchySection(
-            groups: LinkedHashMap<String, Pair<String, List<com.myfinances.data.local.dao.HierarchyCategoryTotal>>>,
+            groups: LinkedHashMap<String, Pair<String, List<com.jcadenas.xpendz.data.local.dao.HierarchyCategoryTotal>>>,
             accentColor: Int,
             accentBg: Int
         ) {

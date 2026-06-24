@@ -1,4 +1,4 @@
-package com.myfinances.ui.model
+package com.jcadenas.xpendz.ui.model
 
 import java.text.NumberFormat
 import java.util.Locale
@@ -20,7 +20,7 @@ data class LoanMovementUiModel(
 ) {
     companion object {
         fun fromEntity(
-            entity: com.myfinances.data.local.entity.LoanMovementEntity,
+            entity: com.jcadenas.xpendz.data.local.entity.LoanMovementEntity,
             currency: String = "USD"
         ): LoanMovementUiModel {
             val currencyFormat = NumberFormat.getCurrencyInstance(Locale.getDefault())

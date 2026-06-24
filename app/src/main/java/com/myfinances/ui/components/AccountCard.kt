@@ -1,4 +1,4 @@
-package com.myfinances.ui.components
+package com.jcadenas.xpendz.ui.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
@@ -14,9 +14,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.myfinances.data.local.entity.AccountEntity
-import com.myfinances.ui.theme.Income
-import com.myfinances.ui.theme.Expense
+import com.jcadenas.xpendz.data.local.entity.AccountEntity
+import com.jcadenas.xpendz.ui.theme.Income
+import com.jcadenas.xpendz.ui.theme.Expense
 import java.text.NumberFormat
 import java.util.Locale
 

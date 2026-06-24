@@ -1,9 +1,9 @@
-package com.myfinances.di
+package com.jcadenas.xpendz.di
 
-import com.myfinances.core.security.CipherPayloadCodec
-import com.myfinances.core.security.EncryptionManager
-import com.myfinances.core.security.EncryptionService
-import com.myfinances.core.security.KeyStoreKeyProvider
+import com.jcadenas.xpendz.core.security.CipherPayloadCodec
+import com.jcadenas.xpendz.core.security.EncryptionManager
+import com.jcadenas.xpendz.core.security.EncryptionService
+import com.jcadenas.xpendz.core.security.KeyStoreKeyProvider
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

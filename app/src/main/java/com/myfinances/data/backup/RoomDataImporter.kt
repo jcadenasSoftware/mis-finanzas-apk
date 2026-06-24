@@ -1,20 +1,20 @@
-package com.myfinances.data.backup
+package com.jcadenas.xpendz.data.backup
 
 import android.util.Log
 import androidx.room.withTransaction
-import com.myfinances.data.local.AppDatabase
-import com.myfinances.data.local.dao.AccountDao
-import com.myfinances.data.local.dao.BudgetDao
-import com.myfinances.data.local.dao.CategoryDao
-import com.myfinances.data.local.dao.ExchangeRateDao
-import com.myfinances.data.local.dao.GoalDao
-import com.myfinances.data.local.dao.LoanDao
-import com.myfinances.data.local.dao.LoanMovementDao
-import com.myfinances.data.local.dao.LoanPaymentDao
-import com.myfinances.data.local.dao.TransactionDao
-import com.myfinances.data.local.dao.TransferDao
-import com.myfinances.data.local.dao.UserDao
-import com.myfinances.data.local.dao.UserSettingsDao
+import com.jcadenas.xpendz.data.local.AppDatabase
+import com.jcadenas.xpendz.data.local.dao.AccountDao
+import com.jcadenas.xpendz.data.local.dao.BudgetDao
+import com.jcadenas.xpendz.data.local.dao.CategoryDao
+import com.jcadenas.xpendz.data.local.dao.ExchangeRateDao
+import com.jcadenas.xpendz.data.local.dao.GoalDao
+import com.jcadenas.xpendz.data.local.dao.LoanDao
+import com.jcadenas.xpendz.data.local.dao.LoanMovementDao
+import com.jcadenas.xpendz.data.local.dao.LoanPaymentDao
+import com.jcadenas.xpendz.data.local.dao.TransactionDao
+import com.jcadenas.xpendz.data.local.dao.TransferDao
+import com.jcadenas.xpendz.data.local.dao.UserDao
+import com.jcadenas.xpendz.data.local.dao.UserSettingsDao
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -282,13 +282,13 @@ class RoomDataImporter @Inject constructor(
         }
     }
 
-    private fun sortCategoriesForInsert(categories: List<com.myfinances.data.local.entity.CategoryEntity>): List<com.myfinances.data.local.entity.CategoryEntity> {
+    private fun sortCategoriesForInsert(categories: List<com.jcadenas.xpendz.data.local.entity.CategoryEntity>): List<com.jcadenas.xpendz.data.local.entity.CategoryEntity> {
         val byId = categories.associateBy { it.id }
-        val sorted = mutableListOf<com.myfinances.data.local.entity.CategoryEntity>()
+        val sorted = mutableListOf<com.jcadenas.xpendz.data.local.entity.CategoryEntity>()
         val visiting = mutableSetOf<String>()
         val visited = mutableSetOf<String>()
 
-        fun visit(category: com.myfinances.data.local.entity.CategoryEntity) {
+        fun visit(category: com.jcadenas.xpendz.data.local.entity.CategoryEntity) {
             if (category.id in visited) return
             if (!visiting.add(category.id)) {
                 Log.w(

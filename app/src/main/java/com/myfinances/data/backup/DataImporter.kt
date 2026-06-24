@@ -1,4 +1,4 @@
-package com.myfinances.data.backup
+package com.jcadenas.xpendz.data.backup
 
 /**
  * Contrato para importación de datos desde BackupData a Room.

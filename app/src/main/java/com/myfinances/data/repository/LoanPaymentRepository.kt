@@ -1,13 +1,13 @@
-package com.myfinances.data.repository
+package com.jcadenas.xpendz.data.repository
 
 import android.database.sqlite.SQLiteConstraintException
 import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
-import com.myfinances.data.local.dao.LoanDao
-import com.myfinances.data.local.dao.LoanPaymentDao
-import com.myfinances.data.local.entity.LoanPaymentEntity
-import com.myfinances.sync.DeviceIdProvider
+import com.jcadenas.xpendz.data.local.dao.LoanDao
+import com.jcadenas.xpendz.data.local.dao.LoanPaymentDao
+import com.jcadenas.xpendz.data.local.entity.LoanPaymentEntity
+import com.jcadenas.xpendz.sync.DeviceIdProvider
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
@@ -23,7 +23,7 @@ class LoanPaymentRepository @Inject constructor(
     private val categoryRepository: CategoryRepository,
     private val transactionRepository: TransactionRepository,
     private val loanMovementRepository: LoanMovementRepository,
-    private val transactionDao: com.myfinances.data.local.dao.TransactionDao
+    private val transactionDao: com.jcadenas.xpendz.data.local.dao.TransactionDao
 ) {
     fun observeByLoan(userUid: String, loanId: String): Flow<List<LoanPaymentEntity>> {
         return loanPaymentDao.observeByLoan(userUid, loanId)

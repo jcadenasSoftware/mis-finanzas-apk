@@ -1,4 +1,4 @@
-package com.myfinances.ui.screens.transactions
+package com.jcadenas.xpendz.ui.screens.transactions
 
 import android.app.DatePickerDialog
 import androidx.compose.foundation.BorderStroke
@@ -30,16 +30,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.myfinances.data.local.dao.TransactionWithDetails
-import com.myfinances.ui.components.CompactHeader
-import com.myfinances.ui.components.HamburgerMenu
-import com.myfinances.ui.components.HamburgerMenuButton
-import com.myfinances.ui.components.SyncSwipeRefresh
-import com.myfinances.ui.theme.Income
-import com.myfinances.ui.theme.Expense
-import com.myfinances.ui.viewmodel.SyncViewModel
-import com.myfinances.ui.viewmodel.TransactionsPeriodPreset
-import com.myfinances.ui.viewmodel.TransactionsViewModel
+import com.jcadenas.xpendz.data.local.dao.TransactionWithDetails
+import com.jcadenas.xpendz.ui.components.CompactHeader
+import com.jcadenas.xpendz.ui.components.HamburgerMenu
+import com.jcadenas.xpendz.ui.components.HamburgerMenuButton
+import com.jcadenas.xpendz.ui.components.SyncSwipeRefresh
+import com.jcadenas.xpendz.ui.theme.Income
+import com.jcadenas.xpendz.ui.theme.Expense
+import com.jcadenas.xpendz.ui.viewmodel.SyncViewModel
+import com.jcadenas.xpendz.ui.viewmodel.TransactionsPeriodPreset
+import com.jcadenas.xpendz.ui.viewmodel.TransactionsViewModel
 import androidx.compose.ui.platform.LocalContext
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
@@ -536,7 +536,7 @@ private fun MonthPickerBottomSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AccountPickerBottomSheet(
-    accounts: List<com.myfinances.data.local.entity.AccountEntity>,
+    accounts: List<com.jcadenas.xpendz.data.local.entity.AccountEntity>,
     selectedAccountId: String?,
     onDismiss: () -> Unit,
     onSelected: (String?) -> Unit
@@ -695,7 +695,7 @@ private fun PeriodPickerBottomSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CategoryPickerBottomSheet(
-    categories: List<com.myfinances.data.local.entity.CategoryEntity>,
+    categories: List<com.jcadenas.xpendz.data.local.entity.CategoryEntity>,
     selectedCategoryId: String?,
     onDismiss: () -> Unit,
     onSelected: (String?) -> Unit
@@ -756,7 +756,7 @@ private fun CategoryPickerBottomSheet(
 
 @Composable
 private fun TransactionsFiltersHeader(
-    state: com.myfinances.ui.viewmodel.TransactionsState,
+    state: com.jcadenas.xpendz.ui.viewmodel.TransactionsState,
     monthLabelFormat: SimpleDateFormat,
     onSearch: (String) -> Unit,
     onPreset: (TransactionsPeriodPreset) -> Unit,
@@ -1282,7 +1282,7 @@ private fun DateGroupHeader(
 
 @Composable
 private fun FilterChipsRow(
-    accounts: List<com.myfinances.data.local.entity.AccountEntity>,
+    accounts: List<com.jcadenas.xpendz.data.local.entity.AccountEntity>,
     selectedAccountId: String?,
     onAccountSelected: (String?) -> Unit
 ) {

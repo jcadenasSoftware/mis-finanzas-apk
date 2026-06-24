@@ -1,8 +1,8 @@
-package com.myfinances.di
+package com.jcadenas.xpendz.di
 
 import android.content.ContentResolver
 import android.content.Context
-import com.myfinances.ui.backup.BackupFileManager
+import com.jcadenas.xpendz.ui.backup.BackupFileManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

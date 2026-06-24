@@ -1,4 +1,4 @@
-package com.myfinances.ui.screens.dashboard
+package com.jcadenas.xpendz.ui.screens.dashboard
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
@@ -34,19 +34,19 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.myfinances.R
-import com.myfinances.ui.components.AddAccountDialog
-import com.myfinances.ui.components.CompactHeader
-import com.myfinances.ui.components.HamburgerMenu
-import com.myfinances.ui.components.HamburgerMenuButton
-import com.myfinances.ui.components.SyncSwipeRefresh
-import com.myfinances.ui.theme.Income
-import com.myfinances.ui.theme.Expense
-import com.myfinances.ui.screens.transactions.AddTransactionSheet
-import com.myfinances.ui.viewmodel.DashboardViewModel
-import com.myfinances.ui.viewmodel.DashboardBalancePoint
-import com.myfinances.ui.viewmodel.DashboardMonthlyHistoryItem
-import com.myfinances.ui.viewmodel.SyncViewModel
+import com.jcadenas.xpendz.R
+import com.jcadenas.xpendz.ui.components.AddAccountDialog
+import com.jcadenas.xpendz.ui.components.CompactHeader
+import com.jcadenas.xpendz.ui.components.HamburgerMenu
+import com.jcadenas.xpendz.ui.components.HamburgerMenuButton
+import com.jcadenas.xpendz.ui.components.SyncSwipeRefresh
+import com.jcadenas.xpendz.ui.theme.Income
+import com.jcadenas.xpendz.ui.theme.Expense
+import com.jcadenas.xpendz.ui.screens.transactions.AddTransactionSheet
+import com.jcadenas.xpendz.ui.viewmodel.DashboardViewModel
+import com.jcadenas.xpendz.ui.viewmodel.DashboardBalancePoint
+import com.jcadenas.xpendz.ui.viewmodel.DashboardMonthlyHistoryItem
+import com.jcadenas.xpendz.ui.viewmodel.SyncViewModel
 import java.text.NumberFormat
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.Crossfade
@@ -669,7 +669,7 @@ fun DashboardScreen(
 
 @Composable
 private fun AccountsScrollPanel(
-    accounts: List<com.myfinances.ui.viewmodel.AccountWithBalance>,
+    accounts: List<com.jcadenas.xpendz.ui.viewmodel.AccountWithBalance>,
     onOpenAccount: (String) -> Unit,
     onAddAccount: () -> Unit,
     onRename: (String, String, String, String?, String?) -> Unit,
@@ -840,7 +840,7 @@ private fun accountTypeLabel(raw: String?): String {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RankedAccountCard(
-    accountWithBalance: com.myfinances.ui.viewmodel.AccountWithBalance,
+    accountWithBalance: com.jcadenas.xpendz.ui.viewmodel.AccountWithBalance,
     totalBalanceCents: Long,
     isTop: Boolean,
     onOpen: () -> Unit,
@@ -1999,7 +1999,7 @@ private fun ActionButton(
             contentAlignment = Alignment.Center
         ) {
             Image(
-                painter = painterResource(id = com.myfinances.R.drawable.ic_launcher),
+                painter = painterResource(id = com.jcadenas.xpendz.R.drawable.ic_launcher),
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier

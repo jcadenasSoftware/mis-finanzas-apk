@@ -1,4 +1,4 @@
-package com.myfinances.ui.screens.login
+package com.jcadenas.xpendz.ui.screens.login
 
 import android.app.Activity
 import android.content.Intent
@@ -45,8 +45,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
-import com.myfinances.R
-import com.myfinances.ui.viewmodel.AuthViewModel
+import com.jcadenas.xpendz.R
+import com.jcadenas.xpendz.ui.viewmodel.AuthViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)

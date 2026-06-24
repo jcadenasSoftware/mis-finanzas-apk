@@ -1,4 +1,4 @@
-package com.myfinances.ui.theme
+package com.jcadenas.xpendz.ui.theme
 
 import android.app.Activity
 import android.os.Build
@@ -46,7 +46,7 @@ private val LightColorScheme = lightColorScheme(
 )
 
 @Composable
-fun MyFinancesTheme(
+fun XpendzTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit

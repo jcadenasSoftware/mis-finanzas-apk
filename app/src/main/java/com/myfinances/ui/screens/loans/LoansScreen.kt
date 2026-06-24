@@ -1,4 +1,4 @@
-package com.myfinances.ui.screens.loans
+package com.jcadenas.xpendz.ui.screens.loans
 
 import android.app.DatePickerDialog
 import androidx.compose.animation.animateColorAsState
@@ -100,14 +100,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.myfinances.ui.components.CompactHeader
-import com.myfinances.ui.components.HamburgerMenu
-import com.myfinances.ui.components.HamburgerMenuButton
-import com.myfinances.ui.components.SyncSwipeRefresh
-import com.myfinances.ui.theme.Expense
-import com.myfinances.ui.theme.Income
-import com.myfinances.ui.viewmodel.LoansViewModel
-import com.myfinances.ui.viewmodel.SyncViewModel
+import com.jcadenas.xpendz.ui.components.CompactHeader
+import com.jcadenas.xpendz.ui.components.HamburgerMenu
+import com.jcadenas.xpendz.ui.components.HamburgerMenuButton
+import com.jcadenas.xpendz.ui.components.SyncSwipeRefresh
+import com.jcadenas.xpendz.ui.theme.Expense
+import com.jcadenas.xpendz.ui.theme.Income
+import com.jcadenas.xpendz.ui.viewmodel.LoansViewModel
+import com.jcadenas.xpendz.ui.viewmodel.SyncViewModel
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.text.NumberFormat
@@ -174,7 +174,7 @@ fun LoansScreen(
     var editCounterpartyError by remember { mutableStateOf<String?>(null) }
     var editAmountError by remember { mutableStateOf<String?>(null) }
     var editAccountError by remember { mutableStateOf<String?>(null) }
-    var editLoanData by remember { mutableStateOf<com.myfinances.ui.viewmodel.LoansViewModel.LoanEditData?>(null) }
+    var editLoanData by remember { mutableStateOf<com.jcadenas.xpendz.ui.viewmodel.LoansViewModel.LoanEditData?>(null) }
 
 
     val context = LocalContext.current
@@ -1889,7 +1889,7 @@ private enum class LoanVisualState {
 
 @Composable
 private fun LoanCard(
-    loan: com.myfinances.data.local.entity.LoanEntity,
+    loan: com.jcadenas.xpendz.data.local.entity.LoanEntity,
     paidCents: Long,
     isLent: Boolean,
     onRegisterPayment: () -> Unit,
@@ -2098,7 +2098,7 @@ private fun formatAmount(amountCents: Long): String {
 
 @Composable
 private fun MovementItem(
-    movement: com.myfinances.ui.model.LoanMovementUiModel,
+    movement: com.jcadenas.xpendz.ui.model.LoanMovementUiModel,
     currency: String,
     onEdit: (() -> Unit)? = null
 ) {

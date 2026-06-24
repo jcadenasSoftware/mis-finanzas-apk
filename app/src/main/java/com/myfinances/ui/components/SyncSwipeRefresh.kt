@@ -1,4 +1,4 @@
-package com.myfinances.ui.components
+package com.jcadenas.xpendz.ui.components
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -7,7 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
-import com.myfinances.ui.viewmodel.SyncViewModel
+import com.jcadenas.xpendz.ui.viewmodel.SyncViewModel
 
 @Composable
 fun SyncSwipeRefresh(

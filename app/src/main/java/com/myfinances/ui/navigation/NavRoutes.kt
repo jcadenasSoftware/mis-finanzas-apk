@@ -1,4 +1,4 @@
-package com.myfinances.ui.navigation
+package com.jcadenas.xpendz.ui.navigation
 
 sealed class NavRoutes(val route: String) {
     object Onboarding : NavRoutes("onboarding")

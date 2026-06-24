@@ -1,4 +1,4 @@
-package com.myfinances.ui.components
+package com.jcadenas.xpendz.ui.components
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
@@ -24,7 +24,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.myfinances.ui.util.CountryCurrency
+import com.jcadenas.xpendz.ui.util.CountryCurrency
 import java.util.Currency
 import java.util.Locale
 

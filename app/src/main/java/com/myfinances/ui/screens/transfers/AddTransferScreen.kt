@@ -1,4 +1,4 @@
-package com.myfinances.ui.screens.transfers
+package com.jcadenas.xpendz.ui.screens.transfers
 
 import android.app.DatePickerDialog
 import androidx.compose.animation.core.animateFloatAsState
@@ -38,12 +38,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.myfinances.data.local.entity.AccountEntity
-import com.myfinances.ui.components.CompactHeader
-import com.myfinances.ui.theme.Expense
-import com.myfinances.ui.theme.Income
-import com.myfinances.ui.theme.Transfer
-import com.myfinances.ui.viewmodel.TransfersViewModel
+import com.jcadenas.xpendz.data.local.entity.AccountEntity
+import com.jcadenas.xpendz.ui.components.CompactHeader
+import com.jcadenas.xpendz.ui.theme.Expense
+import com.jcadenas.xpendz.ui.theme.Income
+import com.jcadenas.xpendz.ui.theme.Transfer
+import com.jcadenas.xpendz.ui.viewmodel.TransfersViewModel
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -759,7 +759,7 @@ private fun QuickAmountChip(
 @Composable
 private fun AccountPickerBottomSheet(
     title: String,
-    accounts: List<com.myfinances.data.local.entity.AccountEntity>,
+    accounts: List<com.jcadenas.xpendz.data.local.entity.AccountEntity>,
     selectedAccountId: String?,
     onDismiss: () -> Unit,
     onSelected: (String) -> Unit

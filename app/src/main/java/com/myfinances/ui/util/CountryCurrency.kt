@@ -1,4 +1,4 @@
-package com.myfinances.ui.util
+package com.jcadenas.xpendz.ui.util
 
 data class CountryOption(
     val code: String,

@@ -1,4 +1,4 @@
-package com.myfinances.ui.screens.settings
+package com.jcadenas.xpendz.ui.screens.settings
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -45,9 +45,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.myfinances.ui.backup.BackupUiState
-import com.myfinances.ui.backup.BackupViewModel
-import com.myfinances.ui.components.CompactHeader
+import com.jcadenas.xpendz.ui.backup.BackupUiState
+import com.jcadenas.xpendz.ui.backup.BackupViewModel
+import com.jcadenas.xpendz.ui.components.CompactHeader
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

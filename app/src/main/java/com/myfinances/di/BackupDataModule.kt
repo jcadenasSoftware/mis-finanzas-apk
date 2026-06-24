@@ -1,14 +1,14 @@
-package com.myfinances.di
+package com.jcadenas.xpendz.di
 
-import com.myfinances.core.security.backup.BackupEncryptionManager
-import com.myfinances.data.backup.BackupJsonSerializer
-import com.myfinances.data.backup.BackupSchemaValidator
-import com.myfinances.data.backup.BackupService
-import com.myfinances.data.backup.BackupServiceImpl
-import com.myfinances.data.backup.DataExporter
-import com.myfinances.data.backup.DataImporter
-import com.myfinances.data.backup.RoomDataExporter
-import com.myfinances.data.backup.RoomDataImporter
+import com.jcadenas.xpendz.core.security.backup.BackupEncryptionManager
+import com.jcadenas.xpendz.data.backup.BackupJsonSerializer
+import com.jcadenas.xpendz.data.backup.BackupSchemaValidator
+import com.jcadenas.xpendz.data.backup.BackupService
+import com.jcadenas.xpendz.data.backup.BackupServiceImpl
+import com.jcadenas.xpendz.data.backup.DataExporter
+import com.jcadenas.xpendz.data.backup.DataImporter
+import com.jcadenas.xpendz.data.backup.RoomDataExporter
+import com.jcadenas.xpendz.data.backup.RoomDataImporter
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -64,18 +64,18 @@ object BackupDataModule {
     @Provides
     @Singleton
     fun provideRoomDataExporter(
-        userDao: com.myfinances.data.local.dao.UserDao,
-        userSettingsDao: com.myfinances.data.local.dao.UserSettingsDao,
-        categoryDao: com.myfinances.data.local.dao.CategoryDao,
-        accountDao: com.myfinances.data.local.dao.AccountDao,
-        loanDao: com.myfinances.data.local.dao.LoanDao,
-        transactionDao: com.myfinances.data.local.dao.TransactionDao,
-        transferDao: com.myfinances.data.local.dao.TransferDao,
-        budgetDao: com.myfinances.data.local.dao.BudgetDao,
-        goalDao: com.myfinances.data.local.dao.GoalDao,
-        loanPaymentDao: com.myfinances.data.local.dao.LoanPaymentDao,
-        loanMovementDao: com.myfinances.data.local.dao.LoanMovementDao,
-        exchangeRateDao: com.myfinances.data.local.dao.ExchangeRateDao,
+        userDao: com.jcadenas.xpendz.data.local.dao.UserDao,
+        userSettingsDao: com.jcadenas.xpendz.data.local.dao.UserSettingsDao,
+        categoryDao: com.jcadenas.xpendz.data.local.dao.CategoryDao,
+        accountDao: com.jcadenas.xpendz.data.local.dao.AccountDao,
+        loanDao: com.jcadenas.xpendz.data.local.dao.LoanDao,
+        transactionDao: com.jcadenas.xpendz.data.local.dao.TransactionDao,
+        transferDao: com.jcadenas.xpendz.data.local.dao.TransferDao,
+        budgetDao: com.jcadenas.xpendz.data.local.dao.BudgetDao,
+        goalDao: com.jcadenas.xpendz.data.local.dao.GoalDao,
+        loanPaymentDao: com.jcadenas.xpendz.data.local.dao.LoanPaymentDao,
+        loanMovementDao: com.jcadenas.xpendz.data.local.dao.LoanMovementDao,
+        exchangeRateDao: com.jcadenas.xpendz.data.local.dao.ExchangeRateDao,
         validator: BackupSchemaValidator
     ): DataExporter {
         return RoomDataExporter(
@@ -103,19 +103,19 @@ object BackupDataModule {
     @Provides
     @Singleton
     fun provideRoomDataImporter(
-        database: com.myfinances.data.local.AppDatabase,
-        userDao: com.myfinances.data.local.dao.UserDao,
-        userSettingsDao: com.myfinances.data.local.dao.UserSettingsDao,
-        categoryDao: com.myfinances.data.local.dao.CategoryDao,
-        accountDao: com.myfinances.data.local.dao.AccountDao,
-        loanDao: com.myfinances.data.local.dao.LoanDao,
-        transactionDao: com.myfinances.data.local.dao.TransactionDao,
-        transferDao: com.myfinances.data.local.dao.TransferDao,
-        budgetDao: com.myfinances.data.local.dao.BudgetDao,
-        goalDao: com.myfinances.data.local.dao.GoalDao,
-        loanPaymentDao: com.myfinances.data.local.dao.LoanPaymentDao,
-        loanMovementDao: com.myfinances.data.local.dao.LoanMovementDao,
-        exchangeRateDao: com.myfinances.data.local.dao.ExchangeRateDao,
+        database: com.jcadenas.xpendz.data.local.AppDatabase,
+        userDao: com.jcadenas.xpendz.data.local.dao.UserDao,
+        userSettingsDao: com.jcadenas.xpendz.data.local.dao.UserSettingsDao,
+        categoryDao: com.jcadenas.xpendz.data.local.dao.CategoryDao,
+        accountDao: com.jcadenas.xpendz.data.local.dao.AccountDao,
+        loanDao: com.jcadenas.xpendz.data.local.dao.LoanDao,
+        transactionDao: com.jcadenas.xpendz.data.local.dao.TransactionDao,
+        transferDao: com.jcadenas.xpendz.data.local.dao.TransferDao,
+        budgetDao: com.jcadenas.xpendz.data.local.dao.BudgetDao,
+        goalDao: com.jcadenas.xpendz.data.local.dao.GoalDao,
+        loanPaymentDao: com.jcadenas.xpendz.data.local.dao.LoanPaymentDao,
+        loanMovementDao: com.jcadenas.xpendz.data.local.dao.LoanMovementDao,
+        exchangeRateDao: com.jcadenas.xpendz.data.local.dao.ExchangeRateDao,
         validator: BackupSchemaValidator
     ): DataImporter {
         return RoomDataImporter(

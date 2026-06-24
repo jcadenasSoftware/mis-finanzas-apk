@@ -1,4 +1,4 @@
-package com.myfinances.work
+package com.jcadenas.xpendz.work
 
 import android.content.Context
 import androidx.work.WorkManager

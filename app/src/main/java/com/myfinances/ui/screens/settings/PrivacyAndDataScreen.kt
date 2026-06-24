@@ -1,4 +1,4 @@
-package com.myfinances.ui.screens.settings
+package com.jcadenas.xpendz.ui.screens.settings
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,8 +42,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.myfinances.ui.components.CompactHeader
-import com.myfinances.ui.viewmodel.PrivacyAndDataViewModel
+import com.jcadenas.xpendz.ui.components.CompactHeader
+import com.jcadenas.xpendz.ui.viewmodel.PrivacyAndDataViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

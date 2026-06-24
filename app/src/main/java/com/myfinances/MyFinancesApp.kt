@@ -1,16 +1,16 @@
-package com.myfinances
+package com.jcadenas.xpendz
 
 import android.app.Application
 import android.util.Log
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
-import com.myfinances.data.local.AppDatabase
-import com.myfinances.work.BudgetAlertHelper
+import com.jcadenas.xpendz.data.local.AppDatabase
+import com.jcadenas.xpendz.work.BudgetAlertHelper
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
 @HiltAndroidApp
-class MyFinancesApp : Application(), Configuration.Provider {
+class XpendzApp : Application(), Configuration.Provider {
 
     @Inject
     lateinit var workerFactory: HiltWorkerFactory

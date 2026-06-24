@@ -1,4 +1,4 @@
-package com.myfinances.ui.screens.onboarding
+package com.jcadenas.xpendz.ui.screens.onboarding
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -28,7 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.myfinances.ui.viewmodel.OnboardingViewModel
+import com.jcadenas.xpendz.ui.viewmodel.OnboardingViewModel
 import kotlinx.coroutines.launch
 
 private data class OnboardingPage(

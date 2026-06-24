@@ -1,4 +1,4 @@
-package com.myfinances.sync
+package com.jcadenas.xpendz.sync
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext

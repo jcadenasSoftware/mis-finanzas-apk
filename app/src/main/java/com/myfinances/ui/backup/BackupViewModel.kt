@@ -1,12 +1,12 @@
-package com.myfinances.ui.backup
+package com.jcadenas.xpendz.ui.backup
 
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.myfinances.data.backup.BackupExportException
-import com.myfinances.data.backup.BackupImportException
-import com.myfinances.data.backup.BackupService
+import com.jcadenas.xpendz.data.backup.BackupExportException
+import com.jcadenas.xpendz.data.backup.BackupImportException
+import com.jcadenas.xpendz.data.backup.BackupService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow

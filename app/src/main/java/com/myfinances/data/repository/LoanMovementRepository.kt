@@ -1,12 +1,12 @@
-package com.myfinances.data.repository
+package com.jcadenas.xpendz.data.repository
 
 import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
-import com.myfinances.data.local.dao.LoanMovementDao
-import com.myfinances.data.local.entity.LoanMovementEntity
-import com.myfinances.data.local.entity.LoanMovementType
-import com.myfinances.sync.DeviceIdProvider
+import com.jcadenas.xpendz.data.local.dao.LoanMovementDao
+import com.jcadenas.xpendz.data.local.entity.LoanMovementEntity
+import com.jcadenas.xpendz.data.local.entity.LoanMovementType
+import com.jcadenas.xpendz.sync.DeviceIdProvider
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.tasks.await
 import java.util.UUID

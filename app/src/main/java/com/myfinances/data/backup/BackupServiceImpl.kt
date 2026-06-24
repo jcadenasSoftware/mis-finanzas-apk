@@ -1,8 +1,8 @@
-package com.myfinances.data.backup
+package com.jcadenas.xpendz.data.backup
 
 import android.util.Log
-import com.myfinances.core.security.backup.BackupEncryptionException
-import com.myfinances.core.security.backup.BackupEncryptionManager
+import com.jcadenas.xpendz.core.security.backup.BackupEncryptionException
+import com.jcadenas.xpendz.core.security.backup.BackupEncryptionManager
 import java.io.InputStream
 import java.io.OutputStream
 import java.nio.charset.StandardCharsets

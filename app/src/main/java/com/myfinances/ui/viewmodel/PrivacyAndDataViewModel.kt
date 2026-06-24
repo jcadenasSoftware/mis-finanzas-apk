@@ -1,4 +1,4 @@
-package com.myfinances.ui.viewmodel
+package com.jcadenas.xpendz.ui.viewmodel
 
 import android.app.Application
 import android.content.Intent
@@ -7,17 +7,17 @@ import android.os.Environment
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.myfinances.data.repository.AccountRepository
-import com.myfinances.data.repository.AuthRepository
-import com.myfinances.data.repository.BudgetRepository
-import com.myfinances.data.repository.CategoryRepository
-import com.myfinances.data.repository.ExchangeRateRepository
-import com.myfinances.data.repository.GoalRepository
-import com.myfinances.data.repository.LoanPaymentRepository
-import com.myfinances.data.repository.LoanRepository
-import com.myfinances.data.repository.TransactionRepository
-import com.myfinances.data.repository.TransferRepository
-import com.myfinances.data.repository.UserSettingsRepository
+import com.jcadenas.xpendz.data.repository.AccountRepository
+import com.jcadenas.xpendz.data.repository.AuthRepository
+import com.jcadenas.xpendz.data.repository.BudgetRepository
+import com.jcadenas.xpendz.data.repository.CategoryRepository
+import com.jcadenas.xpendz.data.repository.ExchangeRateRepository
+import com.jcadenas.xpendz.data.repository.GoalRepository
+import com.jcadenas.xpendz.data.repository.LoanPaymentRepository
+import com.jcadenas.xpendz.data.repository.LoanRepository
+import com.jcadenas.xpendz.data.repository.TransactionRepository
+import com.jcadenas.xpendz.data.repository.TransferRepository
+import com.jcadenas.xpendz.data.repository.UserSettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -126,7 +126,7 @@ class PrivacyAndDataViewModel @Inject constructor(
                     ?: firebaseUser?.email?.substringBefore("@")?.takeIf { it.isNotBlank() }
                     ?: "Usuario"
 
-                val pdfFile = com.myfinances.ui.pdf.TransactionsPdfGenerator.generate(
+                val pdfFile = com.jcadenas.xpendz.ui.pdf.TransactionsPdfGenerator.generate(
                     context = context,
                     transactions = transactions,
                     fromDate = java.util.Date(fromEpochSec * 1000),
@@ -152,7 +152,7 @@ class PrivacyAndDataViewModel @Inject constructor(
                 val accounts = accountRepository.getAccounts(userUid)
 
                 val accountsWithBalance = accounts.map { account ->
-                    com.myfinances.ui.pdf.AccountsPdfGenerator.AccountWithBalance(
+                    com.jcadenas.xpendz.ui.pdf.AccountsPdfGenerator.AccountWithBalance(
                         account = account,
                         balanceCents = accountRepository.computeBalance(userUid, account.id)
                     )
@@ -163,7 +163,7 @@ class PrivacyAndDataViewModel @Inject constructor(
                     ?: firebaseUser?.email?.substringBefore("@")?.takeIf { it.isNotBlank() }
                     ?: "Usuario"
 
-                val pdfFile = com.myfinances.ui.pdf.AccountsPdfGenerator.generate(
+                val pdfFile = com.jcadenas.xpendz.ui.pdf.AccountsPdfGenerator.generate(
                     context = context,
                     accounts = accountsWithBalance,
                     userName = userName
@@ -260,7 +260,7 @@ class PrivacyAndDataViewModel @Inject constructor(
                 val budgetLines = budgetEntities.map { b ->
                     val rootId = rootIdMap[b.categoryId] ?: b.categoryId
                     val rootName = allCatNameMap[rootId] ?: "Desconocido"
-                    com.myfinances.ui.pdf.MonthlySummaryPdfGenerator.BudgetLine(
+                    com.jcadenas.xpendz.ui.pdf.MonthlySummaryPdfGenerator.BudgetLine(
                         categoryId = b.categoryId,
                         categoryName = allCatNameMap[b.categoryId] ?: b.categoryId.take(12),
                         rootCategoryId = rootId,
@@ -274,7 +274,7 @@ class PrivacyAndDataViewModel @Inject constructor(
                 val activeLoans = loanRepository.getFiltered(userUid, null, "OPEN", currency)
                 val loanLines = activeLoans.map { loan ->
                     val paidCents = loanPaymentRepository.sumPrincipalByLoan(userUid, loan.id)
-                    com.myfinances.ui.pdf.MonthlySummaryPdfGenerator.LoanLine(
+                    com.jcadenas.xpendz.ui.pdf.MonthlySummaryPdfGenerator.LoanLine(
                         counterpartyName = loan.counterpartyName,
                         principalCents = loan.principalCents,
                         paidCents = paidCents,
@@ -286,7 +286,7 @@ class PrivacyAndDataViewModel @Inject constructor(
                 val activeGoals = goalRepository.getByUser(userUid).filter { it.status == "OPEN" && it.currency == currency }
                 val goalLines = activeGoals.map { goal ->
                     val currentCents = accountRepository.computeBalance(userUid, goal.accountId)
-                    com.myfinances.ui.pdf.MonthlySummaryPdfGenerator.GoalLine(
+                    com.jcadenas.xpendz.ui.pdf.MonthlySummaryPdfGenerator.GoalLine(
                         name = goal.name,
                         targetCents = goal.targetCents,
                         currentCents = currentCents,
@@ -299,7 +299,7 @@ class PrivacyAndDataViewModel @Inject constructor(
                     ?: firebaseUser?.email?.substringBefore("@")?.takeIf { it.isNotBlank() }
                     ?: "Usuario"
 
-                val pdfFile = com.myfinances.ui.pdf.MonthlySummaryPdfGenerator.generate(
+                val pdfFile = com.jcadenas.xpendz.ui.pdf.MonthlySummaryPdfGenerator.generate(
                     context = context,
                     monthKey = monthKey,
                     incomeCents = incomeCents,

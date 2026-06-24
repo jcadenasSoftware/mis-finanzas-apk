@@ -1,4 +1,4 @@
-package com.myfinances.ui.screens.transfers
+package com.jcadenas.xpendz.ui.screens.transfers
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -25,13 +25,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.myfinances.data.local.dao.TransferWithDetails
-import com.myfinances.data.local.entity.AccountEntity
-import com.myfinances.ui.components.CompactHeader
-import com.myfinances.ui.components.SyncSwipeRefresh
-import com.myfinances.ui.theme.Transfer
-import com.myfinances.ui.viewmodel.SyncViewModel
-import com.myfinances.ui.viewmodel.TransfersViewModel
+import com.jcadenas.xpendz.data.local.dao.TransferWithDetails
+import com.jcadenas.xpendz.data.local.entity.AccountEntity
+import com.jcadenas.xpendz.ui.components.CompactHeader
+import com.jcadenas.xpendz.ui.components.SyncSwipeRefresh
+import com.jcadenas.xpendz.ui.theme.Transfer
+import com.jcadenas.xpendz.ui.viewmodel.SyncViewModel
+import com.jcadenas.xpendz.ui.viewmodel.TransfersViewModel
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -390,7 +390,7 @@ fun TransfersScreen(
 
 @Composable
 private fun TransfersFiltersHeader(
-    state: com.myfinances.ui.viewmodel.TransfersState,
+    state: com.jcadenas.xpendz.ui.viewmodel.TransfersState,
     monthLabelFormat: SimpleDateFormat,
     onSearch: (String) -> Unit,
     onMonthSelected: (Int, Int) -> Unit,
@@ -506,7 +506,7 @@ private fun TransfersFiltersHeader(
 @Composable
 private fun AccountPickerBottomSheet(
     title: String,
-    accounts: List<com.myfinances.data.local.entity.AccountEntity>,
+    accounts: List<com.jcadenas.xpendz.data.local.entity.AccountEntity>,
     selectedAccountId: String?,
     onDismiss: () -> Unit,
     onSelected: (String?) -> Unit

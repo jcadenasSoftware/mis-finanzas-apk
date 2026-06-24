@@ -1,4 +1,4 @@
-package com.myfinances.ui.components
+package com.jcadenas.xpendz.ui.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column

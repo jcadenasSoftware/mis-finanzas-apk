@@ -34,5 +34,5 @@
 -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
 
 # Data classes for Firestore
--keep class com.myfinances.data.local.entity.** { *; }
--keepclassmembers class com.myfinances.data.local.entity.** { *; }
+-keep class com.jcadenas.xpendz.data.local.entity.** { *; }
+-keepclassmembers class com.jcadenas.xpendz.data.local.entity.** { *; }

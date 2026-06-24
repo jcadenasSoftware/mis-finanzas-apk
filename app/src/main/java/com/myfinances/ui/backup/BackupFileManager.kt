@@ -1,4 +1,4 @@
-package com.myfinances.ui.backup
+package com.jcadenas.xpendz.ui.backup
 
 import android.content.ContentResolver
 import android.net.Uri

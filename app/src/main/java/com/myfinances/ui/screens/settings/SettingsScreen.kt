@@ -1,4 +1,4 @@
-package com.myfinances.ui.screens.settings
+package com.jcadenas.xpendz.ui.screens.settings
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -41,16 +41,16 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
-import com.myfinances.ui.components.CompactHeader
-import com.myfinances.ui.components.HamburgerMenu
-import com.myfinances.ui.components.HamburgerMenuButton
-import com.myfinances.ui.components.SettingsSection
-import com.myfinances.ui.components.SettingsItem
-import com.myfinances.ui.components.UserAccountHeader
-import com.myfinances.ui.components.SyncStatus
-import com.myfinances.ui.util.CountryCurrency
-import com.myfinances.ui.viewmodel.SettingsViewModel
-import com.myfinances.ui.viewmodel.SyncViewModel
+import com.jcadenas.xpendz.ui.components.CompactHeader
+import com.jcadenas.xpendz.ui.components.HamburgerMenu
+import com.jcadenas.xpendz.ui.components.HamburgerMenuButton
+import com.jcadenas.xpendz.ui.components.SettingsSection
+import com.jcadenas.xpendz.ui.components.SettingsItem
+import com.jcadenas.xpendz.ui.components.UserAccountHeader
+import com.jcadenas.xpendz.ui.components.SyncStatus
+import com.jcadenas.xpendz.ui.util.CountryCurrency
+import com.jcadenas.xpendz.ui.viewmodel.SettingsViewModel
+import com.jcadenas.xpendz.ui.viewmodel.SyncViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

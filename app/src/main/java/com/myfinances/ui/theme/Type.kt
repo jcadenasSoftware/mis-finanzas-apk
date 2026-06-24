@@ -1,4 +1,4 @@
-package com.myfinances.ui.theme
+package com.jcadenas.xpendz.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

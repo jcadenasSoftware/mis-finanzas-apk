@@ -1,4 +1,4 @@
-package com.myfinances.ui.navigation
+package com.jcadenas.xpendz.ui.navigation
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.background
@@ -47,27 +47,27 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.myfinances.ui.screens.categories.CategoriesScreen
-import com.myfinances.ui.screens.charts.ChartsScreen
-import com.myfinances.ui.screens.dashboard.DashboardScreen
-import com.myfinances.ui.screens.budget.BudgetScreen
-import com.myfinances.ui.screens.loans.LoansScreen
-import com.myfinances.ui.screens.login.LoginScreen
-import com.myfinances.ui.screens.onboarding.OnboardingScreen
-import com.myfinances.ui.screens.reports.ReportsScreen
-import com.myfinances.ui.screens.settings.BackupSettingsScreen
-import com.myfinances.ui.screens.settings.PrivacyAndDataScreen
-import com.myfinances.ui.screens.settings.PrivacyPolicyScreen
-import com.myfinances.ui.screens.settings.SettingsScreen
-import com.myfinances.ui.screens.transactions.AddTransactionScreen
-import com.myfinances.ui.screens.transactions.TransactionsScreen
-import com.myfinances.ui.screens.transfers.AddTransferScreen
-import com.myfinances.ui.screens.transfers.TransfersScreen
-import com.myfinances.ui.components.HamburgerMenu
-import com.myfinances.ui.components.HamburgerMenuButton
-import com.myfinances.ui.viewmodel.AuthViewModel
-import com.myfinances.ui.viewmodel.OnboardingViewModel
-import com.myfinances.work.BudgetAlertHelper
+import com.jcadenas.xpendz.ui.screens.categories.CategoriesScreen
+import com.jcadenas.xpendz.ui.screens.charts.ChartsScreen
+import com.jcadenas.xpendz.ui.screens.dashboard.DashboardScreen
+import com.jcadenas.xpendz.ui.screens.budget.BudgetScreen
+import com.jcadenas.xpendz.ui.screens.loans.LoansScreen
+import com.jcadenas.xpendz.ui.screens.login.LoginScreen
+import com.jcadenas.xpendz.ui.screens.onboarding.OnboardingScreen
+import com.jcadenas.xpendz.ui.screens.reports.ReportsScreen
+import com.jcadenas.xpendz.ui.screens.settings.BackupSettingsScreen
+import com.jcadenas.xpendz.ui.screens.settings.PrivacyAndDataScreen
+import com.jcadenas.xpendz.ui.screens.settings.PrivacyPolicyScreen
+import com.jcadenas.xpendz.ui.screens.settings.SettingsScreen
+import com.jcadenas.xpendz.ui.screens.transactions.AddTransactionScreen
+import com.jcadenas.xpendz.ui.screens.transactions.TransactionsScreen
+import com.jcadenas.xpendz.ui.screens.transfers.AddTransferScreen
+import com.jcadenas.xpendz.ui.screens.transfers.TransfersScreen
+import com.jcadenas.xpendz.ui.components.HamburgerMenu
+import com.jcadenas.xpendz.ui.components.HamburgerMenuButton
+import com.jcadenas.xpendz.ui.viewmodel.AuthViewModel
+import com.jcadenas.xpendz.ui.viewmodel.OnboardingViewModel
+import com.jcadenas.xpendz.work.BudgetAlertHelper
 
 @Composable
 fun AppNavHost(

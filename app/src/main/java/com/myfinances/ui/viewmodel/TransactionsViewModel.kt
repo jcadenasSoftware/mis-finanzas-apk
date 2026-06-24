@@ -1,14 +1,14 @@
-package com.myfinances.ui.viewmodel
+package com.jcadenas.xpendz.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.myfinances.data.local.dao.TransactionWithDetails
-import com.myfinances.data.local.entity.AccountEntity
-import com.myfinances.data.local.entity.CategoryEntity
-import com.myfinances.data.repository.AccountRepository
-import com.myfinances.data.repository.AuthRepository
-import com.myfinances.data.repository.CategoryRepository
-import com.myfinances.data.repository.TransactionRepository
+import com.jcadenas.xpendz.data.local.dao.TransactionWithDetails
+import com.jcadenas.xpendz.data.local.entity.AccountEntity
+import com.jcadenas.xpendz.data.local.entity.CategoryEntity
+import com.jcadenas.xpendz.data.repository.AccountRepository
+import com.jcadenas.xpendz.data.repository.AuthRepository
+import com.jcadenas.xpendz.data.repository.CategoryRepository
+import com.jcadenas.xpendz.data.repository.TransactionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

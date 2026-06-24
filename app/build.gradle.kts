@@ -10,11 +10,11 @@ plugins {
 }
 
 android {
-    namespace = "com.myfinances"
+    namespace = "com.jcadenas.xpendz"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.myfinances"
+        applicationId = "com.jcadenas.xpendz"
         minSdk = 26
         targetSdk = 34
         versionCode = 1

@@ -1,4 +1,4 @@
-package com.myfinances.data.repository
+package com.jcadenas.xpendz.data.repository
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser

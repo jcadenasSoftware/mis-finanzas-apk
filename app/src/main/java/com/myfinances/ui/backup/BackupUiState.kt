@@ -1,4 +1,4 @@
-package com.myfinances.ui.backup
+package com.jcadenas.xpendz.ui.backup
 
 /**
  * Estado inmutable de la UI de backups.

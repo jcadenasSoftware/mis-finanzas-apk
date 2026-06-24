@@ -1,4 +1,4 @@
-package com.myfinances.core.security
+package com.jcadenas.xpendz.core.security
 
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties

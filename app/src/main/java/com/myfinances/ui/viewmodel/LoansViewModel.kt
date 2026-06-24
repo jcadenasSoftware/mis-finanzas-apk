@@ -1,17 +1,17 @@
-package com.myfinances.ui.viewmodel
+package com.jcadenas.xpendz.ui.viewmodel
 
 import android.content.SharedPreferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.myfinances.data.local.entity.AccountEntity
-import com.myfinances.data.local.entity.LoanEntity
-import com.myfinances.data.local.entity.LoanMovementEntity
-import com.myfinances.data.repository.AccountRepository
-import com.myfinances.data.repository.AuthRepository
-import com.myfinances.data.repository.LoanMovementRepository
-import com.myfinances.data.repository.LoanPaymentRepository
-import com.myfinances.data.repository.LoanRepository
-import com.myfinances.ui.model.LoanMovementUiModel
+import com.jcadenas.xpendz.data.local.entity.AccountEntity
+import com.jcadenas.xpendz.data.local.entity.LoanEntity
+import com.jcadenas.xpendz.data.local.entity.LoanMovementEntity
+import com.jcadenas.xpendz.data.repository.AccountRepository
+import com.jcadenas.xpendz.data.repository.AuthRepository
+import com.jcadenas.xpendz.data.repository.LoanMovementRepository
+import com.jcadenas.xpendz.data.repository.LoanPaymentRepository
+import com.jcadenas.xpendz.data.repository.LoanRepository
+import com.jcadenas.xpendz.ui.model.LoanMovementUiModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -108,7 +108,7 @@ class LoansViewModel @Inject constructor(
                     .map { it.await() }
                     .toMap()
                 val accounts = accountsUnsorted
-                    .sortedWith(compareByDescending<com.myfinances.data.local.entity.AccountEntity> { balances[it.id] ?: Long.MIN_VALUE }
+                    .sortedWith(compareByDescending<com.jcadenas.xpendz.data.local.entity.AccountEntity> { balances[it.id] ?: Long.MIN_VALUE }
                         .thenBy { it.name.lowercase() })
 
                 val lentLoansDeferred = async { loanRepository.getFiltered(userUid, "LENT", "OPEN", null) }

@@ -1,4 +1,4 @@
-package com.myfinances.core.security.backup
+package com.jcadenas.xpendz.core.security.backup
 
 /**
  * Constantes criptográficas centralizadas para backups cifrados con contraseña.

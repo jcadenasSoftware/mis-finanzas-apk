@@ -1,4 +1,4 @@
-package com.myfinances.ui.screens.settings
+package com.jcadenas.xpendz.ui.screens.settings
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -19,7 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.myfinances.ui.components.CompactHeader
+import com.jcadenas.xpendz.ui.components.CompactHeader
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,7 +51,7 @@ fun PrivacyPolicyScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             Text(
-                text = "Política de Privacidad de Mis Finanzas",
+                text = "Política de Privacidad de Xpendz",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -69,7 +69,7 @@ fun PrivacyPolicyScreen(
             PolicySection(
                 title = "1. Información que recopilamos",
                 content = """
-Recopilamos la siguiente información cuando usas Mis Finanzas:
+Recopilamos la siguiente información cuando usas Xpendz:
 
 • Información de registro: correo electrónico y UID de autenticación proporcionados por Firebase Authentication.
 • Datos financieros: transacciones, cuentas, categorías, presupuestos, metas de ahorro y préstamos que ingresas voluntariamente.
@@ -109,7 +109,7 @@ Tus datos financieros son tuyos. No accedemos a ellos para ningún propósito co
             PolicySection(
                 title = "4. Tus derechos",
                 content = """
-Como usuario de Mis Finanzas tienes los siguientes derechos:
+Como usuario de Xpendz tienes los siguientes derechos:
 
 • Acceso: puedes consultar todos tus datos en cualquier momento desde la app.
 • Portabilidad: puedes exportar tus transacciones a CSV desde la sección de Privacidad y datos.
@@ -137,7 +137,7 @@ Nota: Las copias de seguridad del sistema pueden retener datos residualmente por
             PolicySection(
                 title = "6. Servicios de terceros",
                 content = """
-Mis Finanzas utiliza los siguientes servicios de terceros:
+Xpendz utiliza los siguientes servicios de terceros:
 
 • Firebase (Google): autenticación, base de datos en la nube (Firestore), almacenamiento.
 • Google Play Services: actualizaciones y estadísticas de uso anónimas.
@@ -166,7 +166,7 @@ Te recomendamos revisar esta política periódicamente.
 Si tienes preguntas o inquietudes sobre esta política de privacidad o sobre el manejo de tus datos:
 
 • Desde la app: Configuración > Privacidad y datos
-• Correo electrónico: soporte@myfinances.app
+• Correo electrónico: servicios@jcadenas.com
 
 Responderemos a tus solicitudes dentro de los 30 días calendario.
                 """.trimIndent()
@@ -175,7 +175,7 @@ Responderemos a tus solicitudes dentro de los 30 días calendario.
             Spacer(modifier = Modifier.height(32.dp))
 
             Text(
-                text = "© 2026 Mis Finanzas. Todos los derechos reservados.",
+                text = "© 2026 Xpendz. Todos los derechos reservados.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

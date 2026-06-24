@@ -1,4 +1,4 @@
-package com.myfinances.core.security
+package com.jcadenas.xpendz.core.security
 
 /**
  * Interfaz de servicio de cifrado.
