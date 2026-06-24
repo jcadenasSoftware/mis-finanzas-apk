@@ -1,0 +1,120 @@
+# AUDITORÍA DE CONGELACIÓN FUNCIONAL — XPENDZ 1.0
+**Fecha:** 24 de junio de 2026 | **Plataforma:** Android | **Version:** 1.0 (versionCode 1)
+
+---
+
+## 1. Funcionalidades Terminadas
+
+- **Onboarding** — 4 páginas animadas, indicadores de posición, botón omitir, estado persistido en DataStore (solo se muestra una vez)
+- **Autenticación** — Email/contraseña, Google Sign-In, registro, recuperación de contraseña, logout, observer reactivo de sesión
+- **Dashboard** — Saldo mensual, lista de cuentas con balance, historial comparativo, gráfico de tendencia, accesos directos a todos los módulos, hoja de transacción rápida, diálogo de agregar cuenta
+- **Ingresos** — CRUD completo, filtros por cuenta/categoría/fecha/tipo, presets de período, soporte para `LOAN_BORROWED_IN` / `LOAN_REPAYMENT_PRINCIPAL_IN`
+- **Gastos** — CRUD completo, misma estructura que ingresos, soporte para `LOAN_LENT_OUT` / `LOAN_REPAYMENT_PRINCIPAL_OUT`
+- **Transferencias** — Lista con agrupación por fecha, crear/editar/eliminar, selector de cuentas con avatar e iconos
+- **Categorías** — Vista con insights mensuales, jerarquía raíz/hijo, CRUD, filtros por tipo (INCOME / EXPENSE / BOTH), editor inline
+- **Presupuestos** — Tab mensual y base, límites por categoría, copiado de mes anterior, alertas in-app vía `SharedFlow`, tab de Metas integrado
+- **Préstamos** — Crear préstamo (dar/recibir), registrar pago, topup acumulativo (1 préstamo activo por persona + dirección), historial de movimientos, cierre automático al pagar completo
+- **Estadísticas** — Gráfico de barras horizontal por categoría/subcategoría, gráfico de tendencia mensual, gráfico de dona interactivo, filtros por tipo/cuenta/mes, navegación directa a transacciones
+- **Configuración** — País y moneda base, estado de sincronización, contacto, reporte de problemas, enlace a política de privacidad, versión de app
+- **Backup** — Exportar respaldo cifrado AES-256-GCM (PBKDF2 + salt + AAD), importar con contraseña, confirmación antes de restaurar, UI con estados de carga y error
+- **Sincronización** — Pull-to-refresh manual en todas las pantallas principales, 11 entidades en paralelo, throttle 45 s, cancelación de sync con progreso visual
+- **Reportes PDF** — Transacciones del mes actual, balance de cuentas, resumen mensual (con categorías, presupuesto, préstamos y metas), compartir via Intent
+- **Privacidad y datos** — Eliminar todos los datos (local + Firestore), enlace a política de privacidad, eliminación con confirmación
+
+---
+
+## 2. Funcionalidades Incompletas
+
+| Módulo | Observación |
+|---|---|
+| **Política de privacidad** | El título dice `"Política de Privacidad de Mis Finanzas"` y el copyright dice `"© 2026 Mis Finanzas"`. El nombre de marca **no fue actualizado a Xpendz** |
+| **Metas (Goals)** | Backend completo (Room + Firestore sync), pero integradas dentro de `BudgetScreen` sin pantalla dedicada. No hay flujo completo de creación desde un punto de acceso claro |
+| **Tasas de cambio** | `ExchangeRateRepository` completo con Firestore sync pero **sin pantalla de gestión**. El usuario no puede crear ni editar tasas desde la app |
+| **Notificaciones de presupuesto** | `BudgetNotificationWorker.doWork()` retorna `Result.success()` sin ejecutar nada. `NotificationScheduler.schedule()` cancela el worker en lugar de programarlo. Las alertas solo funcionan in-app |
+| **Sincronización automática** | No existe worker periódico activo. La sincronización es 100% manual (pull-to-refresh). No hay sync en background |
+
+---
+
+## 3. Funcionalidades Experimentales
+
+| Funcionalidad | Riesgo | Recomendación |
+|---|---|---|
+| **ExchangeRate CRUD** | Tabla y sync presentes pero sin UI expuesta al usuario | Ocultar hasta 1.1 — ya está oculto de facto |
+| **`RECEIVE_BOOT_COMPLETED`** en manifest | Permiso declarado sin `BroadcastReceiver` registrado | Eliminar del manifest — es ruido que puede levantar flags en Play Store |
+| **`READ/WRITE_EXTERNAL_STORAGE` + `requestLegacyExternalStorage`** | Patrón deprecado. En Android 13+ (API 33+) estos permisos son ignorados. El backup ya usa SAF correctamente | Eliminar los permisos y el flag — la lógica de backup no los necesita |
+| **CharArray → String en backup** | `BackupServiceImpl` convierte la contraseña de `CharArray` a `String` internamente antes de pasarla a `BackupEncryptionManager`. Limitación de seguridad documentada | No bloquea publicación, pero debe resolverse antes de 1.1 |
+
+---
+
+## 4. Dependencias Funcionales
+
+| Servicio Firebase | Módulos que dependen |
+|---|---|
+| **Firebase Authentication** | Autenticación (login, registro, Google Sign-In, reset), toda la app requiere UID para operar |
+| **Firestore** | Sincronización de todos los módulos: cuentas, categorías, transacciones, transferencias, presupuestos, metas, préstamos, pagos, movimientos de préstamos, tasas de cambio, configuración |
+| **Firebase Storage** | No se usa |
+| **Workers / WorkManager** | `BudgetNotificationWorker` está registrado pero es un stub vacío. `NotificationScheduler` cancela cualquier work previo. No hay sync automática en background |
+| **Notificaciones push (FCM)** | No implementado. No hay dependencia de `firebase-messaging`. Sin permiso `POST_NOTIFICATIONS` |
+
+**Riesgo de conectividad:** El primer login siempre requiere internet. Una vez autenticado, la app puede operar offline con los datos locales (Room), pero la sincronización bidireccional con Firestore requiere conexión activa.
+
+---
+
+## 5. Riesgo de Publicar por Módulo
+
+| Módulo | Estado | Observaciones |
+|---|---|---|
+| **Onboarding** | ✅ LISTO | Completo, flujo correcto |
+| **Autenticación** | ✅ LISTO | Email + Google operativos. Requiere internet en primer uso |
+| **Dashboard** | ✅ LISTO | Funcional, reactivo, pull-to-refresh |
+| **Ingresos** | ✅ LISTO | CRUD completo, filtros, sync |
+| **Gastos** | ✅ LISTO | CRUD completo, filtros, sync |
+| **Transferencias** | ✅ LISTO | CRUD completo, agrupación por fecha |
+| **Categorías** | ✅ LISTO | Jerarquía completa, insights, CRUD |
+| **Presupuestos** | ✅ LISTO | Mensual + base + metas básicas + alertas in-app |
+| **Préstamos** | ✅ LISTO | Flujo completo: creación, pago, topup, cierre |
+| **Estadísticas** | ✅ LISTO | Gráficos funcionales, interactivos, filtros |
+| **Backup** | ✅ LISTO | Cifrado AES-256-GCM, exportar e importar |
+| **Reportes PDF** | ✅ LISTO | 3 reportes operativos, compartir via Intent |
+| **Configuración** | ⚠️ NECESITA AJUSTES | Texto "Mis Finanzas" en política de privacidad debe corregirse |
+| **Sincronización** | ✅ LISTO | Manual, throttled, cancelable — suficiente para v1.0 |
+| **Notificaciones** | ❌ NO PUBLICAR | Worker vacío, scheduler cancela en lugar de programar. Mención de "alertas" en el onboarding que no se cumplen a nivel sistema |
+
+---
+
+## 6. Alcance Recomendado para Xpendz 1.0
+
+### ✅ INCLUIR EN 1.0
+
+- Onboarding
+- Autenticación (email + Google)
+- Dashboard con balance mensual, cuentas, tendencia y accesos directos
+- Ingresos y Gastos (CRUD completo)
+- Transferencias entre cuentas
+- Categorías con jerarquía e insights
+- Presupuestos (mensual + base) con alertas in-app
+- Metas (tab dentro de Presupuestos, flujo básico funcional)
+- Préstamos (dar/recibir, pagos, topups, historial de movimientos)
+- Estadísticas (barras, tendencia, dona)
+- Backup exportar/importar cifrado
+- Sincronización manual con Firestore
+- Reportes PDF (transacciones, balance de cuentas, resumen mensual)
+- Configuración (país, moneda, contacto)
+- Privacidad y datos (eliminación + política) — **con fix del texto "Mis Finanzas"**
+
+### ⏭️ POSTERGAR PARA 1.1
+
+- Notificaciones push del sistema (FCM + `POST_NOTIFICATIONS`)
+- Notificaciones periódicas de alerta de presupuesto en background
+- Sincronización automática en background (WorkManager periódico)
+- Gestión de tasas de cambio (UI para crear/editar tasas)
+- Metas como módulo independiente con pantalla dedicada y flujo completo
+- Mejora de seguridad en backup: pasar de `String` a `CharArray` nativo en todo el pipeline criptográfico
+
+---
+
+### 🔴 Acciones mínimas obligatorias antes de publicar
+
+1. **Corregir texto en `PrivacyPolicyScreen.kt`:** cambiar `"Política de Privacidad de Mis Finanzas"` y `"© 2026 Mis Finanzas"` → `Xpendz`
+2. **Eliminar del `AndroidManifest.xml`:** `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`, `RECEIVE_BOOT_COMPLETED` y el flag `requestLegacyExternalStorage`
+3. **Verificar que el onboarding no prometa notificaciones del sistema** que no se enviarán
