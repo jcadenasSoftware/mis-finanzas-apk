@@ -76,7 +76,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.ui.draw.clip
@@ -2129,105 +2133,115 @@ private fun MovementItem(
     }
     
     val isClickable = onEdit != null && movement.linkedTransactionId != null
-    
+    var isPressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed && isClickable) 0.98f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "scale"
+    )
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .scale(scale)
             .then(
                 if (isClickable) {
-                    Modifier.clickable { onEdit?.invoke() }
+                    Modifier.clickable {
+                        onEdit?.invoke()
+                    }
                 } else {
                     Modifier
                 }
             ),
-        shape = MaterialTheme.shapes.medium,
+        shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(
-            containerColor = if (isClickable) {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-            }
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         border = if (isClickable) {
             BorderStroke(
                 1.dp,
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f)
             )
         } else {
-            null
+            BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.05f)
+            )
         }
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // Icon container
+            Surface(
+                shape = MaterialTheme.shapes.extraLarge,
+                color = typeColor.copy(alpha = 0.12f),
+                modifier = Modifier.size(44.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = typeColor.copy(alpha = 0.15f)
-                    ) {
-                        Text(
-                            text = typeSymbol,
-                            modifier = Modifier.padding(6.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = typeColor
-                        )
-                    }
+                Box(contentAlignment = Alignment.Center) {
                     Text(
-                        text = typeLabel,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = typeColor
-                    )
-                }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = movement.amountFormatted,
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = typeSymbol,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = typeColor
                     )
-                    if (isClickable) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Editar transacción",
-                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
                 }
             }
-            
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Main content
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
+                Text(
+                    text = typeLabel,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
                 Text(
                     text = movement.occurredAtFormatted,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (!movement.note.isNullOrBlank()) {
+                    Text(
+                        text = movement.note,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
-            
-            if (!movement.note.isNullOrBlank()) {
+
+            // Amount and edit icon
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 Text(
-                    text = movement.note,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = movement.amountFormatted,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = typeColor
                 )
+                if (isClickable) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Editar transacción",
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
     }
