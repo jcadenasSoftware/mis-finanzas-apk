@@ -80,6 +80,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
@@ -661,78 +662,147 @@ fun LoansScreen(
                 ) {
                     if (selectedLoan != null && loanCurrency.isNotBlank()) {
                         val baseColor = if (state.selectedTab == "LENT") Income else Expense
+                        val progressPercent = if (totalDebtCents > 0) {
+                            (alreadyPaidCents * 100 / totalDebtCents).toInt()
+                        } else 0
+                        val isFullyPaid = remainingDebtCents <= 0
 
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             color = baseColor.copy(alpha = 0.08f),
-                            shape = MaterialTheme.shapes.extraLarge
+                            shape = MaterialTheme.shapes.extraLarge,
+                            tonalElevation = if (isFullyPaid) 4.dp else 0.dp,
+                            shadowElevation = if (isFullyPaid) 4.dp else 0.dp
                         ) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
+                                // Header con porcentaje pagado
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text("Total", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text(
-                                        formatMoney(totalDebtCents, loanCurrency),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        if (state.selectedTab == "LENT") "Abonado" else "Pagado",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        if (isFullyPaid) "Completado" else "Progreso",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontWeight = FontWeight.Medium
                                     )
                                     Text(
-                                        formatMoney(alreadyPaidCents, loanCurrency),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        if (state.selectedTab == "LENT") "Pendiente" else "Saldo",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        formatMoney(remainingDebtCents, loanCurrency),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = baseColor
+                                        if (isFullyPaid) "100%" else "$progressPercent%",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = baseColor,
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
 
-                                if (remainingAfterPreview != null && enteredCentsPreview != null && enteredCentsPreview > 0) {
-                                    Spacer(modifier = Modifier.height(4.dp))
+                                // ProgressIndicator
+                                LinearProgressIndicator(
+                                    progress = { if (totalDebtCents > 0) alreadyPaidCents.toFloat() / totalDebtCents else 0f },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = baseColor,
+                                    trackColor = baseColor.copy(alpha = 0.2f),
+                                    strokeCap = StrokeCap.Round
+                                )
+
+                                // Montos
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    // Saldo pendiente (dato más importante)
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column {
+                                            Text(
+                                                if (state.selectedTab == "LENT") "Pendiente" else "Saldo",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            if (isFullyPaid) {
+                                                Text(
+                                                    "Pagado completamente",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = baseColor
+                                                )
+                                            }
+                                        }
+                                        Text(
+                                            if (isFullyPaid) formatMoney(0L, loanCurrency) else formatMoney(remainingDebtCents, loanCurrency),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = baseColor
+                                        )
+                                    }
+
+                                    // Total abonado
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
                                         Text(
-                                            "Después de este movimiento",
-                                            style = MaterialTheme.typography.labelSmall,
+                                            if (state.selectedTab == "LENT") "Abonado" else "Pagado",
+                                            style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         Text(
-                                            formatMoney(remainingAfterPreview, loanCurrency),
-                                            style = MaterialTheme.typography.labelLarge,
+                                            formatMoney(alreadyPaidCents, loanCurrency),
+                                            style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = baseColor
+                                            color = MaterialTheme.colorScheme.onSurface
                                         )
+                                    }
+
+                                    // Total original
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            "Total original",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            formatMoney(totalDebtCents, loanCurrency),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+
+                                if (remainingAfterPreview != null && enteredCentsPreview != null && enteredCentsPreview > 0) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Surface(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        color = MaterialTheme.colorScheme.surface,
+                                        shape = MaterialTheme.shapes.medium
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                "Después de este pago",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Text(
+                                                formatMoney(remainingAfterPreview, loanCurrency),
+                                                style = MaterialTheme.typography.labelLarge,
+                                                fontWeight = FontWeight.Bold,
+                                                color = baseColor
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -1193,75 +1263,107 @@ fun LoansScreen(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Text(
-                                    text = "Información actual",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = Color(0xFF0369A1),
-                                    fontWeight = FontWeight.SemiBold
+                                val baseColor = if (state.selectedTab == "LENT") Income else Expense
+                                val isFullyPaid = data.pendingCents <= 0
+
+                                // Header con porcentaje pagado
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Información actual",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        if (isFullyPaid) "100%" else "${data.progressPercent}%",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = baseColor,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+
+                                // ProgressIndicator
+                                LinearProgressIndicator(
+                                    progress = { data.progressPercent / 100f },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = baseColor,
+                                    trackColor = baseColor.copy(alpha = 0.2f),
+                                    strokeCap = StrokeCap.Round
                                 )
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+
+                                // Montos
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Text(
-                                        "Monto original",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        formatMoney(data.originalPrincipalCents, data.currency),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        "Total abonado",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        formatMoney(data.paidCents, data.currency),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        "Saldo pendiente",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        formatMoney(data.pendingCents, data.currency),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (state.selectedTab == "LENT") Income else Expense
-                                    )
-                                }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        "Progreso",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        "${data.progressPercent}%",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Medium
-                                    )
+                                    // Saldo pendiente (dato más importante)
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column {
+                                            Text(
+                                                "Saldo pendiente",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            if (isFullyPaid) {
+                                                Text(
+                                                    "Pagado completamente",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = baseColor
+                                                )
+                                            }
+                                        }
+                                        Text(
+                                            if (isFullyPaid) formatMoney(0L, data.currency) else formatMoney(data.pendingCents, data.currency),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = baseColor
+                                        )
+                                    }
+
+                                    // Total abonado
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            "Total abonado",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            formatMoney(data.paidCents, data.currency),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+
+                                    // Monto original
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            "Monto original",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            formatMoney(data.originalPrincipalCents, data.currency),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
                             }
                         }
