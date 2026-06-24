@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -39,6 +40,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -117,6 +119,7 @@ fun LoansScreen(
     onNavigateToReports: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onLogout: () -> Unit,
+    onEditTransaction: (String) -> Unit = {},
     viewModel: LoansViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -1053,7 +1056,16 @@ fun LoansScreen(
                         sortedMovements.forEach { movement ->
                             MovementItem(
                                 movement = movement,
-                                currency = historyLoanCurrency
+                                currency = historyLoanCurrency,
+                                onEdit = {
+                                    movement.linkedTransactionId?.let { transactionId ->
+                                        onEditTransaction(transactionId)
+                                    } ?: run {
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("No se encontró la transacción asociada")
+                                        }
+                                    }
+                                }
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                         }
@@ -1981,7 +1993,8 @@ private fun formatAmount(amountCents: Long): String {
 @Composable
 private fun MovementItem(
     movement: com.myfinances.ui.model.LoanMovementUiModel,
-    currency: String
+    currency: String,
+    onEdit: (() -> Unit)? = null
 ) {
     val typeColor = when (movement.movementType) {
         "CREATION" -> Income
@@ -2013,10 +2026,34 @@ private fun MovementItem(
         else -> typeLabel.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
     }
     
+    val isClickable = onEdit != null && movement.linkedTransactionId != null
+    
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (isClickable) {
+                    Modifier.clickable { onEdit?.invoke() }
+                } else {
+                    Modifier
+                }
+            ),
         shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+        colors = CardDefaults.cardColors(
+            containerColor = if (isClickable) {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            }
+        ),
+        border = if (isClickable) {
+            BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+            )
+        } else {
+            null
+        }
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -2050,12 +2087,25 @@ private fun MovementItem(
                         color = typeColor
                     )
                 }
-                Text(
-                    text = movement.amountFormatted,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = typeColor
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = movement.amountFormatted,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = typeColor
+                    )
+                    if (isClickable) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Editar transacción",
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
             }
             
             Row(

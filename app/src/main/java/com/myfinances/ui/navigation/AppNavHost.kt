@@ -312,6 +312,9 @@ fun AppNavHost(
                     navController.navigate(NavRoutes.Login.route) {
                         popUpTo(NavRoutes.Dashboard.route) { inclusive = true }
                     }
+                },
+                onEditTransaction = { id ->
+                    navController.navigate(NavRoutes.EditTransaction.createRoute(id))
                 }
             )
         }

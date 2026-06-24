@@ -15,7 +15,8 @@ data class LoanMovementUiModel(
     val occurredAtFormatted: String,
     val createdAtEpochSec: Long,
     val updatedAtEpochSec: Long,
-    val updatedBy: String?
+    val updatedBy: String?,
+    val linkedTransactionId: String?
 ) {
     companion object {
         fun fromEntity(
@@ -48,7 +49,8 @@ data class LoanMovementUiModel(
                 occurredAtFormatted = dateFormat.format(occurredDate),
                 createdAtEpochSec = entity.createdAtEpochSec,
                 updatedAtEpochSec = entity.updatedAtEpochSec,
-                updatedBy = entity.updatedBy
+                updatedBy = entity.updatedBy,
+                linkedTransactionId = entity.linkedTransactionId
             )
         }
     }
