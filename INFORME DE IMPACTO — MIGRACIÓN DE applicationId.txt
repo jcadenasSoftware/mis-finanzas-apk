@@ -1,0 +1,267 @@
+INFORME DE IMPACTO — MIGRACIÓN DE applicationId
+com.myfinances → com.jcadenas.xpendz
+
+Contexto: App NO publicada | Solo testers | Firebase renombrado a "Xpendz App"
+
+Concepto Fundamental (Leer Primero)
+En Android, build.gradle.kts distingue dos identidades separadas:
+
+
+
+kotlin
+namespace    = "com.myfinances"   // Controla: paquete de R.class, BuildConfig, declaraciones de código fuente
+applicationId = "com.myfinances"  // Controla: identidad en Play Store, identidad en el dispositivo
+Actualmente ambos son iguales. Existen dos estrategias posibles de migración:
+
+Estrategia	Qué cambia	Archivos afectados	Riesgo
+Mínima	Solo applicationId	1 línea en build.gradle.kts	Muy bajo
+Completa	namespace + applicationId + todo el código fuente	130+ archivos .kt + ProGuard + recursos	Medio
+Este informe evalúa ambas, con recomendación al final.
+
+1. Impacto Técnico
+build.gradle.kts
+Campo	Valor actual	Cambio necesario	Estrategia
+namespace	"com.myfinances"	"com.jcadenas.xpendz"	Solo migración completa
+applicationId	"com.myfinances"	"com.jcadenas.xpendz"	Ambas estrategias
+AndroidManifest.xml
+Elemento	Valor actual	Impacto
+android:name=".MyFinancesApp"	Referencia relativa	✅ Auto-resuelto — sin cambio necesario
+${applicationId}.androidx-startup	Placeholder dinámico	✅ Auto-resuelto al cambiar applicationId
+${applicationId}.fileprovider	Placeholder dinámico	✅ Auto-resuelto al cambiar applicationId
+android:theme="@style/Theme.MyFinances"	Referencia a recurso	⚠️ Solo relevante en migración completa
+Package declarations en código fuente (130 archivos)
+Todos los archivos .kt tienen package com.myfinances.* e import com.myfinances.*. Estos son gobernados por namespace, no por applicationId.
+
+Migración mínima: Los 130 archivos no se tocan. El código interno sigue siendo com.myfinances.* aunque el applicationId sea com.jcadenas.xpendz. Válido en Android.
+Migración completa: Los 130 archivos deben renombrarse. Android Studio → Refactor → Rename Package maneja esto automáticamente.
+Hallazgo crítico: PrivacyAndDataViewModel.kt usa llamadas completamente calificadas como:
+
+
+
+kotlin
+com.myfinances.ui.pdf.TransactionsPdfGenerator.generate(...)
+com.myfinances.ui.pdf.AccountsPdfGenerator.AccountWithBalance(...)
+com.myfinances.ui.pdf.MonthlySummaryPdfGenerator.BudgetLine(...)
+Estas referencias sí deben actualizarse en migración completa.
+
+Room Database
+Aspecto	Valor	Impacto
+Nombre del archivo	"myfinances.db" (string literal)	✅ No está vinculado al applicationId — no cambia
+Ruta en disco	/data/data/com.myfinances/databases/	⚠️ Al cambiar applicationId, la nueva identidad de app NO puede acceder a los datos locales de la instalación anterior
+Migraciones (1–12)	Sin referencia al package	✅ No afectadas
+SharedPreferences
+Nombre	Usado en	Impacto
+"myfinances_prefs"	DatabaseModule.kt, DeviceIdProvider.kt, AddTransactionScreen.kt	✅ Solo es un string de nombre, no vinculado al applicationId
+"budget_alert_state"	BudgetAlertHelper.kt	✅ Solo un string
+Ruta en disco	/data/data/com.myfinances/shared_prefs/	⚠️ Inaccesible desde nueva identidad al reinstalar
+DataStore
+
+
+kotlin
+// OnboardingViewModel.kt
+private val Context.dataStore by preferencesDataStore(name = "xpendz_prefs")
+Aspecto	Impacto
+Nombre del archivo	"xpendz_prefs" — no vinculado al applicationId
+Ruta en disco	/data/data/com.myfinances/files/datastore/
+Dato almacenado	Solo onboarding_completed (boolean)
+FileProvider
+
+
+kotlin
+// PrivacyAndDataViewModel.kt — dos ocurrencias
+FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+context.packageName devuelve el applicationId en tiempo de ejecución. Auto-resuelto — no requiere cambio de código.
+
+WorkManager
+
+
+kotlin
+// NotificationScheduler.kt
+private const val WORK_NAME = "xpendz_budget_check"
+WORK_NAME es un string arbitrario. No está vinculado al applicationId. Sin impacto.
+
+Deep Links
+No hay <intent-filter> con ACTION_VIEW, scheme personalizado ni App Links registrados en el manifest. Sin impacto.
+
+ProGuard / R8
+
+
+pro
+-keep class com.myfinances.data.local.entity.** { *; }
+-keepclassmembers class com.myfinances.data.local.entity.** { *; }
+Migración mínima: com.myfinances sigue siendo el namespace → reglas válidas, sin cambio.
+Migración completa: Las reglas deben actualizarse a com.jcadenas.xpendz.*.
+Exportaciones PDF
+Los generadores (TransactionsPdfGenerator, AccountsPdfGenerator, MonthlySummaryPdfGenerator) no referencian el applicationId internamente. Las llamadas en PrivacyAndDataViewModel usan el FQN del package → solo impactan en migración completa.
+
+Backup cifrado (BackupServiceImpl / BackupEncryptionManager)
+Sin referencias al applicationId ni al namespace. Opera sobre streams binarios. Sin impacto en ninguna estrategia.
+
+2. Impacto Firebase
+Mapa de impacto por servicio
+Servicio	Vinculado a packageName	Impacto al cambiar applicationId
+Firebase Authentication	No (vinculado a UID)	✅ Los usuarios existentes y sus credenciales permanecen intactos
+Firestore	No (datos indexados por UID)	✅ Todos los datos en la nube se conservan — no hay migración de datos
+Firebase Storage	No se usa	✅ N/A
+Google Sign-In (OAuth)	Sí — SHA + packageName	🔴 Requiere acción en Firebase Console
+SHA-1 / SHA-256	Sí — registrados por packageName	🔴 Deben re-registrarse bajo el nuevo packageName
+google-services.json	Sí — contiene "package_name": "com.myfinances"	🔴 Debe regenerarse con el nuevo package
+Lo que dejaría de funcionar sin acción
+Google Sign-In fallará inmediatamente — el token OAuth valida el par (packageName + SHA fingerprint). Al cambiar el applicationId, ninguno de los dos coincide con el registro en Firebase Console → error DEVELOPER_ERROR.
+El nuevo google-services.json no existirá hasta que se configure el nuevo app en Firebase Console.
+Pasos requeridos en Firebase Console
+Ir a Firebase Console → Xpendz App → Configuración del proyecto → Tus apps
+Hacer clic en "Agregar app" → Android
+Registrar el nuevo applicationId: com.jcadenas.xpendz
+Registrar el SHA-1 del keystore de debug (gradlew signingReport)
+Registrar el SHA-1 y SHA-256 del keystore de release (cuando exista)
+Descargar el nuevo google-services.json → reemplazar en [d:/Aplicaciones APK/Mis Finanzas/app/](cci:4://file://d:/Aplicaciones APK/Mis Finanzas/app/:0:0-0:0)
+Opcionalmente se puede eliminar la entrada antigua com.myfinances si no se va a seguir usando
+Lo que permanece en Firebase sin cambio
+Todos los documentos de Firestore (cuentas, categorías, transacciones, presupuestos, préstamos, etc.) — indexados por UID de usuario
+Todos los usuarios registrados en Firebase Authentication — sus UIDs no cambian
+Las reglas de seguridad de Firestore — no referencian el package name
+3. Impacto sobre Usuarios
+Escenario: testers con com.myfinances instalado
+Dado que solo existen usuarios de prueba, el escenario es:
+
+Dato	Almacenamiento	¿Sobrevive el cambio?	Detalle
+Transacciones, cuentas, categorías, préstamos, presupuestos	Firestore (nube)	✅ Sí — completamente intacto	Indexado por UID, independiente del package
+Base de datos Room (myfinances.db)	Local — /data/data/com.myfinances/	❌ No accesible desde nueva identidad	Se recupera con un pull de sync al re-login
+Preferencias de sesión (myfinances_prefs)	Local — SharedPreferences	❌ No accesible	device_id se regenera automáticamente
+Estado de onboarding (xpendz_prefs)	Local — DataStore	❌ No accesible	Onboarding aparece una vez más
+Estado de alertas de presupuesto	Local — budget_alert_state	❌ No accesible	Impacto nulo — el worker está desactivado
+Flujo para un tester después del cambio
+Desinstala com.myfinances del dispositivo
+Instala com.jcadenas.xpendz
+Ve el onboarding una vez más
+Hace login con las mismas credenciales (email/password o Google)
+Ejecuta pull-to-refresh → todos sus datos de Firestore se sincronizan de vuelta
+Estado completamente restaurado en ~10 segundos
+Pérdida efectiva de datos para el tester: cero datos financieros.
+
+4. Impacto Play Store
+Ventajas de migrar a com.jcadenas.xpendz ANTES de publicar
+Ventaja	Detalle
+Identidad de marca correcta	El applicationId es permanente e inmutable una vez publicado. Es la única oportunidad de hacerlo bien.
+Diferenciación en Play Store	com.myfinances es genérico. Existen otras apps con variaciones del mismo nombre. com.jcadenas.xpendz es único.
+Coherencia a largo plazo	Si se desea publicar en otras plataformas (Samsung Galaxy Store, Huawei AppGallery), el ID com.jcadenas.xpendz es consistente con la marca.
+Desarrollo futuro	Al lanzar Xpendz 2.0, una app nueva, o un widget, el namespace com.jcadenas.* permite consistencia de familia de apps.
+Credibilidad	Un applicationId con el nombre del desarrollador (jcadenas) es más profesional y reconocible.
+Riesgos de mantener com.myfinances
+Riesgo	Impacto
+Inmutabilidad post-publicación	Una vez publicado con com.myfinances, es imposible renombrarlo. Para cambiar habría que publicar una nueva app y perder todas las instalaciones, reseñas y posicionamiento.
+Conflicto con otras apps	"My Finances" es un nombre extremadamente común. Puede haber confusión en los resultados de búsqueda.
+Branding inconsistente	La app se llama "Xpendz" pero su ID dice "myfinances". Cualquier desarrollador que examine el APK verá la inconsistencia.
+Futuras restricciones de Play	Google puede revisar aplicaciones con IDs genéricos que no corresponden a la identidad del publisher.
+5. Riesgo de la Migración
+Clasificación: 🟢 BAJO
+Justificación:
+
+Factor	Evaluación
+App publicada en Play Store	❌ No — riesgo cero de perder instalaciones o reseñas
+Usuarios de producción con datos locales	❌ No — solo testers que pueden reinstalar
+Datos financieros en Firestore	✅ 100% sobreviven — sin migración de datos
+Deep links registrados externamente	❌ No — sin vínculos externos
+Integración con terceros que usen el package name	❌ No — solo Firebase, que se reconfigura en minutos
+Complejidad técnica de la migración	Mínima (1 línea) o Media (130 archivos con Refactor automático de Android Studio)
+Momento en el ciclo de vida	Pre-lanzamiento — es el único momento donde el riesgo es verdaderamente bajo
+El único riesgo real es que la migración completa (namespace + código fuente) genere un error de compilación si el refactor automático de Android Studio omite alguna referencia. Este riesgo se mitiga con una compilación limpia post-migración.
+
+6. Recomendación Final
+B) Migrar a com.jcadenas.xpendz
+Estrategia recomendada: Migración Completa (namespace + applicationId + código fuente)
+
+Razón principal: El applicationId es el único identificador que nunca se puede cambiar después de publicar. Una vez en Play Store con com.myfinances, esa decisión es permanente e irrevocable. Estás a días de publicar. Este es literalmente el último momento para hacerlo.
+
+Por qué migración completa (y no solo el applicationId):
+
+Tener namespace = "com.myfinances" pero applicationId = "com.jcadenas.xpendz" crea deuda técnica permanente — crash reports, logs y el código siempre mostrarán com.myfinances mientras que Play Store dice com.jcadenas.xpendz.
+Toda la infraestructura está lista: Android Studio maneja el refactor de 130 archivos en un solo paso con "Refactor → Rename Package".
+Pre-lanzamiento con solo testers es el escenario de riesgo más bajo posible.
+7. Plan de Migración (Secuencia Exacta)
+Fase 1 — Firebase Console (5 minutos)
+
+
+1. Firebase Console → Xpendz App → Configuración del proyecto → Tus apps
+2. "Agregar app" → Android
+3. Package name: com.jcadenas.xpendz
+4. Ejecutar en terminal: ./gradlew signingReport
+   → Copiar el SHA-1 del "Variant: debug"
+5. Pegar SHA-1 en Firebase Console → Registrar app
+6. Descargar el nuevo google-services.json
+7. Reemplazar app/google-services.json con el nuevo archivo
+Nota: NO eliminar la entrada com.myfinances hasta que el proyecto compile y los testers confirmen el login.
+
+Fase 2 — Refactor en Android Studio (10 minutos)
+
+
+8. Hacer commit de todo el estado actual en Git (rama: pre-lanzamiento-xpendz-1.0)
+ 
+9. En Android Studio → Project View → expandir:
+   app/src/main/java/com/myfinances
+ 
+10. Click derecho sobre el paquete raíz "myfinances"
+    → Refactor → Rename
+    → Nuevo nombre: "jcadenas" (para crear com.jcadenas)
+    → ⚠️ Esto crea com.jcadenas — luego:
+ 
+   ALTERNATIVA MÁS SEGURA:
+   Click derecho sobre "com" (la raíz)
+   → Refactor → Rename Package
+   → Introducir: com.jcadenas.xpendz
+   → "Do Refactor" → Android Studio renombra todos los archivos automáticamente
+ 
+11. Verificar en el panel "Find Usages" que todos los archivos fueron actualizados
+Fase 3 — build.gradle.kts
+
+
+kotlin
+// Cambiar AMBAS líneas:
+namespace    = "com.jcadenas.xpendz"
+applicationId = "com.jcadenas.xpendz"
+Fase 4 — Verificaciones manuales
+
+
+13. AndroidManifest.xml:
+    - android:name=".MyFinancesApp" → verificar que la clase existe en nuevo package
+    - ${applicationId} → se resuelve automáticamente, no tocar
+ 
+14. proguard-rules.pro:
+    - Cambiar: -keep class com.myfinances.data.local.entity.**
+    - Por:      -keep class com.jcadenas.xpendz.data.local.entity.**
+ 
+15. PrivacyAndDataViewModel.kt:
+    - Buscar referencias FQN hardcodeadas:
+      com.myfinances.ui.pdf.TransactionsPdfGenerator  → com.jcadenas.xpendz.ui.pdf.*
+      com.myfinances.ui.pdf.AccountsPdfGenerator      → com.jcadenas.xpendz.ui.pdf.*
+      com.myfinances.ui.pdf.MonthlySummaryPdfGenerator → com.jcadenas.xpendz.ui.pdf.*
+Fase 5 — Build y verificación
+
+
+16. Build → Clean Project
+17. Build → Rebuild Project
+    → Resolver cualquier error de compilación que quede
+ 
+18. Ejecutar en dispositivo o emulador:
+    - Verificar login con email/password
+    - Verificar login con Google Sign-In
+    - Verificar que los datos de Firestore sincronizan
+    - Verificar que los reportes PDF se generan y comparten
+    - Verificar que el backup exporta e importa correctamente
+Fase 6 — Git y limpieza
+
+
+19. git add .
+    git commit -m "Migrar applicationId y namespace a com.jcadenas.xpendz"
+    git push origin pre-lanzamiento-xpendz-1.0
+ 
+20. Comunicar a testers:
+    - Desinstalar la versión anterior
+    - Instalar el nuevo build
+    - Hacer login con las mismas credenciales
+    - Datos en la nube se sincronizan automáticamente
+ 
+21. Una vez confirmado por testers:
+    Eliminar la entrada com.myfinances de Firebase Console (opcional)
+Tiempo total estimado: 30–45 minutos de trabajo + 10 minutos de pruebas con testers.

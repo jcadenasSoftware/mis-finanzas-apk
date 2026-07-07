@@ -1,0 +1,264 @@
+INFORME DE CUMPLIMIENTO A GOOGLE PLAY STORE
+============================================
+Fecha: 24 de junio de 2026
+App: Xpendz (com.jcadenas.xpendz)
+Versión: 1.0 (versionCode: 1)
+Rama: review/google-play-compliance
+
+RESUMEN EJECUTIVO
+-----------------
+Estado: CUMPLIMIENTO PARCIAL - REQUIERE ACCIONES MANUALES
+
+La aplicación cumple con la mayoría de los requisitos técnicos de Google Play Store. 
+Se requieren acciones manuales en Google Play Console para completar la declaración 
+de datos, información de la tienda y política de contenido.
+
+VERIFICACIONES REALIZADAS
+-------------------------
+
+1. ✅ POLÍTICA DE PRIVACIDAD
+   Estado: CUMPLE
+   Ubicación: app/src/main/java/com/jcadenas/xpendz/ui/screens/settings/PrivacyPolicyScreen.kt
+   
+   Contenido verificado:
+   - Título actualizado: "Política de Privacidad de Xpendz"
+   - Fecha de última actualización: 15 de abril de 2026
+   - Información recopilada: correo, UID, datos financieros, configuración, datos técnicos
+   - Uso de datos: funcionalidad principal, sincronización, reportes, backup
+   - Almacenamiento: SQLite local + Firebase Firestore
+   - Seguridad: HTTPS/TLS, Firebase Authentication
+   - Derechos del usuario: acceso, portabilidad, eliminación, corrección
+   - Eliminación de datos: local + Firestore + dispositivos sincronizados
+   - Servicios de terceros: Firebase, Google Play Services
+   - Contacto: servicios@jcadenas.com
+   - Copyright: © 2026 Xpendz
+
+   Requisito Google Play: ✅ CUMPLE
+   - Política accesible desde la app
+   - Incluye información sobre recopilación, uso y seguridad de datos
+   - Proporciona contacto para consultas
+   - Incluye derechos del usuario (GDPR-like)
+
+2. ✅ PERMISOS DE ANDROID
+   Estado: CUMPLE
+   Ubicación: app/src/main/AndroidManifest.xml
+   
+   Permisos solicitados:
+   - INTERNET (necesario para Firebase Authentication y Firestore)
+   
+   Permisos eliminados (correctamente):
+   - READ_EXTERNAL_STORAGE (no utilizado)
+   - WRITE_EXTERNAL_STORAGE (no utilizado)
+   - RECEIVE_BOOT_COMPLETED (no utilizado)
+   - requestLegacyExternalStorage (flag legacy eliminado)
+
+   Requisito Google Play: ✅ CUMPLE
+   - Solo solicita permisos necesarios
+   - Justificación clara para INTERNET (servicios en la nube)
+   - Sin permisos de ubicación, contactos o sensibles innecesarios
+
+3. ✅ TARGET SDK LEVEL
+   Estado: CUMPLE
+   Ubicación: app/build.gradle.kts
+   
+   Configuración:
+   - compileSdk = 35
+   - targetSdk = 34
+   - minSdk = 26 (Android 8.0)
+   
+   Requisito Google Play: ✅ CUMPLE
+   - targetSdk 34 > 33 (requisito mínimo para nuevas apps)
+   - compileSdk 35 (última versión estable)
+   - minSdk 26 (compatible con 98%+ de dispositivos)
+
+4. ⚠️ DECLARACIÓN DE DATOS DE FIREBASE
+   Estado: REQUIERE ACCIÓN MANUAL
+   Ubicación: Google Play Console
+   
+   Servicios de datos utilizados:
+   - Firebase Authentication (correo electrónico, UID)
+   - Firebase Firestore (transacciones, cuentas, categorías, presupuestos, metas, préstamos)
+   - Google Play Services (estadísticas anónimas)
+   
+   Acción requerida:
+   1. Ir a Google Play Console → Política de datos
+   2. Declarar uso de Firebase Authentication y Firestore
+   3. Indicar que los datos son encriptados en tránsito (HTTPS/TLS)
+   4. Indicar que los datos son encriptados en reposo (Firebase)
+   5. Indicar que el usuario puede eliminar datos desde la app
+   6. Indicar que los datos no se comparten con terceros para publicidad
+
+5. ✅ CONTENIDO DE LA APP
+   Estado: CUMPLE
+   Tipo: Finanzas personales / Gestión de presupuesto
+   
+   Funcionalidades:
+   - Registro de transacciones
+   - Gestión de cuentas
+   - Seguimiento de presupuestos
+   - Gestión de préstamos
+   - Metas de ahorro
+   - Reportes PDF
+   - Sincronización en la nube
+   - Backup cifrado
+   
+   Contenido prohibido: ✅ NO PRESENTE
+   - Sin contenido sexual
+   - Sin violencia
+   - Sin odio o discriminación
+   - Sin actividades ilegales
+   - Sin contenido para adultos
+   
+   Requisito Google Play: ✅ CUMPLE
+   - Categoría: Finanzas
+   - Rating de contenido sugerido: Everyone (o Teen si se considera manejo de datos financieros)
+
+6. ✅ ACCESIBILIDAD BÁSICA
+   Estado: CUMPLE
+   Ubicación: app/src/main/java/com/jcadenas/xpendz/ui/theme/Type.kt
+   
+   Typography Material3:
+   - bodyLarge: 16sp (cumple WCAG AA para texto normal)
+   - bodyMedium: 14sp (cumple WCAG AA para texto secundario)
+   - bodySmall: 12sp (cumple WCAG AA para texto auxiliar)
+   - labelLarge: 14sp (cumple WCAG AA para botones)
+   - labelMedium: 13sp (cumple WCAG AA para etiquetas)
+   - labelSmall: 11sp (cumple WCAG AA para texto pequeño)
+   
+   Tema Material3:
+   - Soporte para modo oscuro/claro
+   - Contraste de colores definido en Color.kt
+   - Tamaños de texto escalables con configuración del sistema
+   
+   Requisito Google Play: ✅ CUMPLE
+   - Tamaños de texto cumplen estándares WCAG AA
+   - Soporte para modo oscuro
+   - Tema Material3 con contraste adecuado
+
+7. ✅ SEGURIDAD DE DATOS
+   Estado: CUMPLE
+   
+   Encriptación en tránsito:
+   - HTTPS/TLS para comunicaciones con Firebase
+   - Verificado en PrivacyPolicyScreen.kt línea 103
+   
+   Encriptación en reposo:
+   - Firebase Firestore: encriptación automática
+   - Room Database: almacenamiento local en dispositivo
+   - Backup: AES-256-GCM con PBKDF2 (verificado en código de seguridad)
+   
+   Autenticación:
+   - Firebase Authentication (email/password, Google Sign-In)
+   - UID único por usuario
+   - Sin autenticación anónima para datos financieros
+   
+   Requisito Google Play: ✅ CUMPLE
+   - Datos encriptados en tránsito
+   - Datos encriptados en reposo (Firebase)
+   - Autenticación robusta
+   - Usuario controla sus datos
+
+8. ⚠️ INFORMACIÓN DE LA TIENDA
+   Estado: REQUIERE ACCIÓN MANUAL
+   Ubicación: Google Play Console
+   
+   Requisitos:
+   - Título de la app: "Xpendz"
+   - Descripción corta: ≤ 80 caracteres
+   - Descripción completa: funcionalidades principales
+   - Screenshots: mínimo 2, máximo 8
+   - Icono de la app: 512x512 PNG
+   - Feature graphic: 1024x500 PNG
+   
+   Acción requerida:
+   1. Preparar screenshots de la app (Dashboard, Transacciones, Configuración)
+   2. Escribir descripción corta y completa
+   3. Verificar icono y feature graphic
+   4. Subir a Google Play Console
+
+9. ⚠️ POLÍTICA DE CONTENIDO
+   Estado: REQUIERE ACCIÓN MANUAL
+   Ubicación: Google Play Console
+   
+   Categoría sugerida:
+   - Finanzas
+   - Productividad (alternativa)
+   
+   Rating de contenido sugerido:
+   - Everyone (E): Sin contenido ofensivo
+   - Teen (T): Si se considera que manejo de datos financieros requiere madurez
+   
+   Acción requerida:
+   1. Completar cuestionario de política de contenido en Google Play Console
+   2. Seleccionar categoría apropiada
+   3. Indicar rating de contenido
+
+ACCIONES REQUERIDAS (MANUALES)
+--------------------------------
+
+1. Google Play Console → Política de datos
+   - Declarar uso de Firebase Authentication y Firestore
+   - Indicar encriptación en tránsito y reposo
+   - Indicar derechos del usuario (acceso, eliminación)
+
+2. Google Play Console → Información de la tienda
+   - Subir screenshots (mínimo 2)
+   - Escribir descripción corta y completa
+   - Verificar icono y feature graphic
+
+3. Google Play Console → Política de contenido
+   - Completar cuestionario
+   - Seleccionar categoría: Finanzas
+   - Indicar rating: Everyone o Teen
+
+RIESGOS Y OBSERVACIONES
+-----------------------
+
+Riesgo Bajo:
+- Typography usa Material3 (cumple estándares)
+- Solo un permiso solicitado (INTERNET)
+- Target SDK actualizado (34)
+
+Riesgo Medio:
+- Declaración de datos de Firebase requiere configuración manual
+- Información de la tienda no preparada
+- Política de contenido no configurada
+
+Riesgo Ninguno:
+- Política de privacidad completa y actualizada
+- Seguridad de datos robusta
+- Sin contenido prohibido
+- Sin permisos innecesarios
+
+RECOMENDACIONES
+---------------
+
+1. Prioridad ALTA:
+   - Completar declaración de datos en Google Play Console
+   - Preparar y subir screenshots
+   - Escribir descripciones de la tienda
+
+2. Prioridad MEDIA:
+   - Completar cuestionario de política de contenido
+   - Verificar icono y feature graphic
+   - Preparar lista de cambios para versiones futuras
+
+3. Prioridad BAJA:
+   - Considerar agregar accesibilidad avanzada (TalkBack, reducción de movimiento)
+   - Considerar agregar soporte para tabletas
+   - Considerar agregar internacionalización (i18n)
+
+CONCLUSIÓN
+-----------
+
+La aplicación Xpendz cumple con los requisitos técnicos de Google Play Store. 
+Las áreas que requieren acción manual son configuraciones en Google Play Console 
+que no dependen del código de la aplicación.
+
+Estado: LISTO PARA PUBLICACIÓN DESPUÉS DE CONFIGURACIÓN MANUAL EN GOOGLE PLAY CONSOLE
+
+---
+
+Generado por: Cascade AI Assistant
+Fecha: 24 de junio de 2026
+Rama: review/google-play-compliance

@@ -472,6 +472,11 @@ fun AppNavHost(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToPrivacyPolicy = {
                     navController.navigate("privacy_policy")
+                },
+                onAccountDeleted = {
+                    navController.navigate(NavRoutes.Login.route) {
+                        popUpTo(NavRoutes.Dashboard.route) { inclusive = true }
+                    }
                 }
             )
         }

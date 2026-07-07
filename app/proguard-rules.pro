@@ -36,3 +36,15 @@
 # Data classes for Firestore
 -keep class com.jcadenas.xpendz.data.local.entity.** { *; }
 -keepclassmembers class com.jcadenas.xpendz.data.local.entity.** { *; }
+
+# Remove verbose/debug/info logs in release builds.
+# Log.w and Log.e are preserved for production diagnostics and Crashlytics compatibility.
+-assumenosideeffects class android.util.Log {
+    public static int v(java.lang.String, java.lang.String);
+    public static int v(java.lang.String, java.lang.String, java.lang.Throwable);
+    public static int d(java.lang.String, java.lang.String);
+    public static int d(java.lang.String, java.lang.String, java.lang.Throwable);
+    public static int i(java.lang.String, java.lang.String);
+    public static int i(java.lang.String, java.lang.String, java.lang.Throwable);
+    public static boolean isLoggable(java.lang.String, int);
+}

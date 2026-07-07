@@ -68,43 +68,38 @@ class BudgetRepository @Inject constructor(
     }
 
     suspend fun deleteAllByUser(userUid: String) {
-        budgetDao.deleteAllByUser(userUid)
-        deleteAllFromFirestore(userUid)
+        deleteAllLocalByUser(userUid)
+        try {
+            deleteAllRemoteByUser(userUid)
+        } catch (e: Exception) {
+            Log.e("BudgetRepository", "Error al eliminar datos remotos en deleteAllByUser", e)
+        }
     }
 
-    private suspend fun deleteAllFromFirestore(userUid: String) {
-        try {
-            val batch = firestore.batch()
-            val collectionRef = firestore.collection("users")
-                .document(userUid)
-                .collection("budgets")
-            val snapshot = collectionRef.get().await()
-            snapshot.documents.forEach { doc ->
-                batch.delete(doc.reference)
-            }
-            batch.commit().await()
-        } catch (e: Exception) {
-            Log.e("BudgetRepository", "Error deleting all from Firestore", e)
+    internal suspend fun deleteAllLocalByUser(userUid: String) {
+        budgetDao.deleteAllByUser(userUid)
+    }
+
+    internal suspend fun deleteAllRemoteByUser(userUid: String) {
+        val batch = firestore.batch()
+        val collectionRef = firestore.collection("users")
+            .document(userUid)
+            .collection("budgets")
+        val snapshot = collectionRef.get().await()
+        snapshot.documents.forEach { doc ->
+            batch.delete(doc.reference)
         }
+        batch.commit().await()
     }
 
     suspend fun syncFromFirestore(userUid: String) {
         try {
             Log.d("BudgetRepository", "Syncing budgets from Firestore user=$userUid")
-            val lastUpdatedAt = budgetDao.getMaxUpdatedAtEpochSec(userUid)
-            val collectionRef = firestore.collection("users")
+            val snapshot = firestore.collection("users")
                 .document(userUid)
                 .collection("budgets")
-            val snapshot = if (lastUpdatedAt != null && lastUpdatedAt > 0L) {
-                collectionRef
-                    .whereGreaterThan("updatedAtEpochSec", lastUpdatedAt)
-                    .get()
-                    .await()
-            } else {
-                collectionRef
-                    .get()
-                    .await()
-            }
+                .get()
+                .await()
 
             val budgets = snapshot.documents.mapNotNull { doc ->
                 try {

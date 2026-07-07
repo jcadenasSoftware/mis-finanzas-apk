@@ -113,24 +113,28 @@ class LoanPaymentRepository @Inject constructor(
     }
 
     suspend fun deleteAllByUser(userUid: String) {
-        loanPaymentDao.deleteAllByUser(userUid)
-        deleteAllFromFirestore(userUid)
+        deleteAllLocalByUser(userUid)
+        try {
+            deleteAllRemoteByUser(userUid)
+        } catch (e: Exception) {
+            Log.e("LoanPaymentRepository", "Error al eliminar datos remotos en deleteAllByUser", e)
+        }
     }
 
-    private suspend fun deleteAllFromFirestore(userUid: String) {
-        try {
-            val batch = firestore.batch()
-            val collectionRef = firestore.collection("users")
-                .document(userUid)
-                .collection("loanPayments")
-            val snapshot = collectionRef.get().await()
-            snapshot.documents.forEach { doc ->
-                batch.delete(doc.reference)
-            }
-            batch.commit().await()
-        } catch (e: Exception) {
-            Log.e("LoanPaymentRepository", "Error deleting all from Firestore", e)
+    internal suspend fun deleteAllLocalByUser(userUid: String) {
+        loanPaymentDao.deleteAllByUser(userUid)
+    }
+
+    internal suspend fun deleteAllRemoteByUser(userUid: String) {
+        val batch = firestore.batch()
+        val collectionRef = firestore.collection("users")
+            .document(userUid)
+            .collection("loanPayments")
+        val snapshot = collectionRef.get().await()
+        snapshot.documents.forEach { doc ->
+            batch.delete(doc.reference)
         }
+        batch.commit().await()
     }
 
     suspend fun updateByTransaction(

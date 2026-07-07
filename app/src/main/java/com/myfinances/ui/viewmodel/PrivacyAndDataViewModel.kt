@@ -18,9 +18,15 @@ import com.jcadenas.xpendz.data.repository.LoanRepository
 import com.jcadenas.xpendz.data.repository.TransactionRepository
 import com.jcadenas.xpendz.data.repository.TransferRepository
 import com.jcadenas.xpendz.data.repository.UserSettingsRepository
+import com.jcadenas.xpendz.domain.usecase.AuthProvider
+import com.jcadenas.xpendz.domain.usecase.DeleteAccountResult
+import com.jcadenas.xpendz.domain.usecase.DeleteAccountUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.io.File
@@ -36,6 +42,17 @@ data class PrivacyAndDataState(
     val message: String? = null
 )
 
+sealed class DeleteAccountState {
+    object Idle : DeleteAccountState()
+    object Loading : DeleteAccountState()
+}
+
+sealed class DeleteAccountEvent {
+    data class RequiresReauthentication(val providers: List<AuthProvider>) : DeleteAccountEvent()
+    object Success : DeleteAccountEvent()
+    data class Error(val message: String) : DeleteAccountEvent()
+}
+
 @HiltViewModel
 class PrivacyAndDataViewModel @Inject constructor(
     application: Application,
@@ -49,46 +66,107 @@ class PrivacyAndDataViewModel @Inject constructor(
     private val goalRepository: GoalRepository,
     private val budgetRepository: BudgetRepository,
     private val loanRepository: LoanRepository,
-    private val loanPaymentRepository: LoanPaymentRepository
+    private val loanPaymentRepository: LoanPaymentRepository,
+    private val deleteAccountUseCase: DeleteAccountUseCase
 ) : AndroidViewModel(application) {
 
     private val _state = MutableStateFlow(PrivacyAndDataState())
     val state: StateFlow<PrivacyAndDataState> = _state.asStateFlow()
+
+    private val _deleteAccountState = MutableStateFlow<DeleteAccountState>(DeleteAccountState.Idle)
+    val deleteAccountState: StateFlow<DeleteAccountState> = _deleteAccountState.asStateFlow()
+
+    private val _deleteAccountEvents = MutableSharedFlow<DeleteAccountEvent>(replay = 0)
+    val deleteAccountEvents: SharedFlow<DeleteAccountEvent> = _deleteAccountEvents.asSharedFlow()
 
     private val uid: String?
         get() = authRepository.currentUser?.uid
 
     private val context get() = getApplication<Application>().applicationContext
 
-    fun deleteAllUserData(onComplete: (Boolean) -> Unit) {
-        val userUid = uid ?: return onComplete(false)
-        viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true, message = null)
-            try {
-                // Delete all data from all repositories
-                transactionRepository.deleteAllByUser(userUid)
-                transferRepository.deleteAllByUser(userUid)
-                loanPaymentRepository.deleteAllByUser(userUid)
-                loanRepository.deleteAllByUser(userUid)
-                goalRepository.deleteAllByUser(userUid)
-                budgetRepository.deleteAllByUser(userUid)
-                accountRepository.deleteAllByUser(userUid)
-                categoryRepository.deleteAllByUser(userUid)
-                exchangeRateRepository.deleteAllByUser(userUid)
-                userSettingsRepository.deleteAllByUser(userUid)
-
-                _state.value = _state.value.copy(
-                    isLoading = false,
-                    message = "Todos tus datos han sido eliminados"
-                )
-                onComplete(true)
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(
-                    isLoading = false,
-                    message = "Error: ${e.message}"
-                )
-                onComplete(false)
+    fun deleteAccount() {
+        if (_deleteAccountState.value == DeleteAccountState.Loading) return
+        val userUid = uid ?: run {
+            viewModelScope.launch {
+                _deleteAccountEvents.emit(DeleteAccountEvent.Error("Usuario no autenticado"))
             }
+            return
+        }
+        viewModelScope.launch {
+            _deleteAccountState.value = DeleteAccountState.Loading
+            when (val result = deleteAccountUseCase.execute(userUid)) {
+                is DeleteAccountResult.Success -> {
+                    _deleteAccountState.value = DeleteAccountState.Idle
+                    _deleteAccountEvents.emit(DeleteAccountEvent.Success)
+                }
+                is DeleteAccountResult.RequiresReauthentication -> {
+                    _deleteAccountState.value = DeleteAccountState.Idle
+                    _deleteAccountEvents.emit(
+                        DeleteAccountEvent.RequiresReauthentication(result.providers)
+                    )
+                }
+                is DeleteAccountResult.Error -> {
+                    _deleteAccountState.value = DeleteAccountState.Idle
+                    _deleteAccountEvents.emit(DeleteAccountEvent.Error(result.message))
+                }
+            }
+        }
+    }
+
+    fun reauthenticateWithEmailAndRetry(email: String, password: String) {
+        val userUid = uid ?: return
+        viewModelScope.launch {
+            _deleteAccountState.value = DeleteAccountState.Loading
+            val credential = authRepository.buildEmailCredential(email, password)
+            when (val result = deleteAccountUseCase.reauthenticateAndExecute(userUid, credential)) {
+                is DeleteAccountResult.Success -> {
+                    _deleteAccountState.value = DeleteAccountState.Idle
+                    _deleteAccountEvents.emit(DeleteAccountEvent.Success)
+                }
+                is DeleteAccountResult.RequiresReauthentication -> {
+                    _deleteAccountState.value = DeleteAccountState.Idle
+                    _deleteAccountEvents.emit(
+                        DeleteAccountEvent.RequiresReauthentication(result.providers)
+                    )
+                }
+                is DeleteAccountResult.Error -> {
+                    _deleteAccountState.value = DeleteAccountState.Idle
+                    _deleteAccountEvents.emit(DeleteAccountEvent.Error(result.message))
+                }
+            }
+        }
+    }
+
+    fun reauthenticateWithGoogleAndRetry(idToken: String) {
+        val userUid = uid ?: return
+        viewModelScope.launch {
+            _deleteAccountState.value = DeleteAccountState.Loading
+            val credential = authRepository.buildGoogleCredential(idToken)
+            when (val result = deleteAccountUseCase.reauthenticateAndExecute(userUid, credential)) {
+                is DeleteAccountResult.Success -> {
+                    _deleteAccountState.value = DeleteAccountState.Idle
+                    _deleteAccountEvents.emit(DeleteAccountEvent.Success)
+                }
+                is DeleteAccountResult.RequiresReauthentication -> {
+                    _deleteAccountState.value = DeleteAccountState.Idle
+                    _deleteAccountEvents.emit(
+                        DeleteAccountEvent.RequiresReauthentication(result.providers)
+                    )
+                }
+                is DeleteAccountResult.Error -> {
+                    _deleteAccountState.value = DeleteAccountState.Idle
+                    _deleteAccountEvents.emit(DeleteAccountEvent.Error(result.message))
+                }
+            }
+        }
+    }
+
+    fun onReauthCancelled() {
+        viewModelScope.launch {
+            _deleteAccountState.value = DeleteAccountState.Idle
+            _deleteAccountEvents.emit(
+                DeleteAccountEvent.Error("La eliminación de tu cuenta no se completó. Vuelve a intentarlo.")
+            )
         }
     }
 

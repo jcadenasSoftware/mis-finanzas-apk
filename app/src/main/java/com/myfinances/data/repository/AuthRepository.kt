@@ -1,5 +1,7 @@
 package com.jcadenas.xpendz.data.repository
 
+import com.google.firebase.auth.AuthCredential
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
@@ -68,7 +70,33 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    suspend fun deleteAccount(): Result<Unit> {
+        return try {
+            firebaseAuth.currentUser?.delete()?.await()
+                ?: return Result.failure(Exception("No hay usuario autenticado"))
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun reauthenticate(credential: AuthCredential): Result<Unit> {
+        return try {
+            firebaseAuth.currentUser?.reauthenticate(credential)?.await()
+                ?: return Result.failure(Exception("No hay usuario autenticado"))
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     fun signOut() {
         firebaseAuth.signOut()
     }
+
+    fun buildEmailCredential(email: String, password: String): AuthCredential =
+        EmailAuthProvider.getCredential(email, password)
+
+    fun buildGoogleCredential(idToken: String): AuthCredential =
+        GoogleAuthProvider.getCredential(idToken, null)
 }

@@ -40,21 +40,25 @@ class UserSettingsRepository @Inject constructor(
     }
 
     suspend fun deleteAllByUser(userUid: String) {
-        userSettingsDao.deleteAllByUser(userUid)
-        deleteAllFromFirestore(userUid)
+        deleteAllLocalByUser(userUid)
+        try {
+            deleteAllRemoteByUser(userUid)
+        } catch (e: Exception) {
+            Log.e("UserSettingsRepository", "Error al eliminar datos remotos en deleteAllByUser", e)
+        }
     }
 
-    private suspend fun deleteAllFromFirestore(userUid: String) {
-        try {
-            firestore.collection("users")
-                .document(userUid)
-                .collection("settings")
-                .document("user")
-                .delete()
-                .await()
-        } catch (e: Exception) {
-            Log.e("UserSettingsRepository", "Error deleting settings from Firestore", e)
-        }
+    internal suspend fun deleteAllLocalByUser(userUid: String) {
+        userSettingsDao.deleteAllByUser(userUid)
+    }
+
+    internal suspend fun deleteAllRemoteByUser(userUid: String) {
+        firestore.collection("users")
+            .document(userUid)
+            .collection("settings")
+            .document("user")
+            .delete()
+            .await()
     }
 
     suspend fun syncFromFirestore(userUid: String) {

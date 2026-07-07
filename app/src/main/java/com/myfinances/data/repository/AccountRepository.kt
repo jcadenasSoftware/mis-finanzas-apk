@@ -131,24 +131,28 @@ class AccountRepository @Inject constructor(
     }
 
     suspend fun deleteAllByUser(userUid: String) {
-        accountDao.deleteAllByUser(userUid)
-        deleteAllFromFirestore(userUid)
+        deleteAllLocalByUser(userUid)
+        try {
+            deleteAllRemoteByUser(userUid)
+        } catch (e: Exception) {
+            Log.e("AccountRepository", "Error al eliminar datos remotos en deleteAllByUser", e)
+        }
     }
 
-    private suspend fun deleteAllFromFirestore(userUid: String) {
-        try {
-            val batch = firestore.batch()
-            val collectionRef = firestore.collection("users")
-                .document(userUid)
-                .collection("accounts")
-            val snapshot = collectionRef.get().await()
-            snapshot.documents.forEach { doc ->
-                batch.delete(doc.reference)
-            }
-            batch.commit().await()
-        } catch (e: Exception) {
-            Log.e("AccountRepository", "Error deleting all from Firestore", e)
+    internal suspend fun deleteAllLocalByUser(userUid: String) {
+        accountDao.deleteAllByUser(userUid)
+    }
+
+    internal suspend fun deleteAllRemoteByUser(userUid: String) {
+        val batch = firestore.batch()
+        val collectionRef = firestore.collection("users")
+            .document(userUid)
+            .collection("accounts")
+        val snapshot = collectionRef.get().await()
+        snapshot.documents.forEach { doc ->
+            batch.delete(doc.reference)
         }
+        batch.commit().await()
     }
 
     suspend fun computeBalance(userUid: String, accountId: String): Long {
@@ -164,20 +168,12 @@ class AccountRepository @Inject constructor(
             Log.d("AccountRepository", "=== SYNC FROM FIRESTORE STARTED ===")
             Log.d("AccountRepository", "Syncing accounts from Firestore for user: $userUid")
 
-            val lastUpdatedAt = accountDao.getMaxUpdatedAtEpochSec(userUid)
-            val collectionRef = firestore.collection("users")
+            Log.d("AccountRepository", "Querying collection: users/$userUid/accounts")
+            val snapshot = firestore.collection("users")
                 .document(userUid)
                 .collection("accounts")
-            Log.d("AccountRepository", "Querying collection: users/$userUid/accounts")
-
-            val snapshot = if (lastUpdatedAt != null && lastUpdatedAt > 0L) {
-                collectionRef
-                    .whereGreaterThan("updatedAtEpochSec", lastUpdatedAt)
-                    .get(Source.SERVER)
-                    .await()
-            } else {
-                collectionRef.get(Source.SERVER).await()
-            }
+                .get(Source.SERVER)
+                .await()
             Log.d("AccountRepository", "Snapshot size: ${snapshot.size()}")
 
             val accounts = snapshot.documents.mapNotNull { doc ->
@@ -247,10 +243,7 @@ class AccountRepository @Inject constructor(
 
             Log.d("AccountRepository", "Found ${accounts.size} valid accounts in Firestore")
 
-            if (accounts.isEmpty()) {
-                Log.w("AccountRepository", "No accounts to insert")
-                return
-            }
+            val remoteIds = accounts.map { it.id }.toSet()
 
             var inserted = 0
             var updated = 0
@@ -265,6 +258,20 @@ class AccountRepository @Inject constructor(
                 }
             }
             Log.d("AccountRepository", "Accounts upserted inserted=$inserted updated=$updated")
+
+            val localAll = accountDao.getByUser(userUid)
+            var deleted = 0
+            for (local in localAll) {
+                if (!remoteIds.contains(local.id)) {
+                    try {
+                        accountDao.delete(local.id)
+                        deleted++
+                    } catch (e: Exception) {
+                        Log.w("AccountRepository", "Could not prune account ${local.id}: ${e.message}")
+                    }
+                }
+            }
+            if (deleted > 0) Log.d("AccountRepository", "Accounts pruned deleted=$deleted")
         } catch (e: Exception) {
             Log.e("AccountRepository", "Error syncing accounts from Firestore", e)
             throw e
