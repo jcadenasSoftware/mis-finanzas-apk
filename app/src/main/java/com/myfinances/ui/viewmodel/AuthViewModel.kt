@@ -42,12 +42,20 @@ class AuthViewModel @Inject constructor(
     }
 
     fun signInWithGoogle(idToken: String) {
+        Log.d("AuthViewModel", "[DIAGNOSTIC] signInWithGoogle called")
+        Log.d("AuthViewModel", "[DIAGNOSTIC] idToken length: ${idToken.length}")
+        Log.d("AuthViewModel", "[DIAGNOSTIC] idToken preview: ${if (idToken.length >= 20) idToken.take(20) + "..." else idToken}")
         viewModelScope.launch {
+            Log.d("AuthViewModel", "[DIAGNOSTIC] Setting isLoading = true")
             _authState.value = _authState.value.copy(isLoading = true, error = null)
+            Log.d("AuthViewModel", "[DIAGNOSTIC] Calling authRepository.signInWithGoogle(idToken)")
             val result = authRepository.signInWithGoogle(idToken)
+            Log.d("AuthViewModel", "[DIAGNOSTIC] authRepository.signInWithGoogle returned")
             result.fold(
                 onSuccess = { user ->
-                    Log.d("AuthViewModel", "Google sign-in successful: ${user?.email}")
+                    Log.d("AuthViewModel", "[DIAGNOSTIC] signInWithGoogle succeeded")
+                    Log.d("AuthViewModel", "[DIAGNOSTIC] user: ${user?.email}")
+                    Log.d("AuthViewModel", "[DIAGNOSTIC] user.uid: ${user?.uid}")
                     _authState.value = _authState.value.copy(
                         isLoggedIn = true,
                         user = user,
@@ -55,7 +63,11 @@ class AuthViewModel @Inject constructor(
                     )
                 },
                 onFailure = { e ->
-                    Log.e("AuthViewModel", "Google sign-in failed", e)
+                    Log.e("AuthViewModel", "[DIAGNOSTIC] signInWithGoogle failed")
+                    Log.e("AuthViewModel", "[DIAGNOSTIC] Exception class: ${e.javaClass.simpleName}")
+                    Log.e("AuthViewModel", "[DIAGNOSTIC] Exception.message: ${e.message}")
+                    Log.e("AuthViewModel", "[DIAGNOSTIC] Exception.localizedMessage: ${e.localizedMessage}")
+                    Log.e("AuthViewModel", "[DIAGNOSTIC] Exception full stack trace", e)
                     _authState.value = _authState.value.copy(
                         isLoading = false,
                         error = e.message ?: "Error al iniciar sesión"

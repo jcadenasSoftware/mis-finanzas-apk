@@ -35,6 +35,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.jcadenas.xpendz.R
+import com.jcadenas.xpendz.diagnostics.AppIdentityLogger
 import com.jcadenas.xpendz.ui.components.AddAccountDialog
 import com.jcadenas.xpendz.ui.components.CompactHeader
 import com.jcadenas.xpendz.ui.components.HamburgerMenu
@@ -183,6 +184,19 @@ fun DashboardScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showLogoutConfirmation = false
+                    // TEMP DIAGNOSTIC
+                    AppIdentityLogger.logGoogleSignInBuilder(
+                        source = "DashboardScreen.logout",
+                        defaultWebClientId = context.getString(R.string.default_web_client_id),
+                        requestEmail = true,
+                        requestIdToken = true,
+                        extraConfig = listOf(
+                            "GoogleSignInOptions.DEFAULT_SIGN_IN",
+                            "requestEmail()",
+                            "requestIdToken(default_web_client_id)",
+                            "signOut().addOnCompleteListener { onLogout }"
+                        )
+                    )
                     val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                         .requestIdToken(context.getString(R.string.default_web_client_id))
                         .requestEmail()

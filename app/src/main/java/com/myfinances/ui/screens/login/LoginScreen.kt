@@ -46,6 +46,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.jcadenas.xpendz.R
+import com.jcadenas.xpendz.diagnostics.AppIdentityLogger
 import com.jcadenas.xpendz.ui.viewmodel.AuthViewModel
 import kotlinx.coroutines.launch
 
@@ -69,22 +70,117 @@ fun LoginScreen(
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        Log.d("LoginScreen", "Google Sign-In result received: ${result.resultCode}")
+        Log.d("LoginScreen", "[DIAGNOSTIC] Google Sign-In result received")
+        Log.d("LoginScreen", "[DIAGNOSTIC] resultCode: ${result.resultCode}")
+        Log.d("LoginScreen", "[DIAGNOSTIC] RESULT_OK = ${Activity.RESULT_OK}, RESULT_CANCELED = ${Activity.RESULT_CANCELED}")
+        Log.d("LoginScreen", "[DIAGNOSTIC] result.data: ${result.data}")
+        // TEMP DIAGNOSTIC
+        AppIdentityLogger.logIntentDiagnostics("LoginScreen.googleSignInLauncher", result.data)
+        
         if (result.resultCode == Activity.RESULT_OK) {
-            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            Log.d("LoginScreen", "[DIAGNOSTIC] resultCode is RESULT_OK, proceeding to extract account")
             try {
+                // TEMP DIAGNOSTIC
+                AppIdentityLogger.logIntentDiagnostics("LoginScreen.googleSignInLauncher.RESULT_OK.beforeGetSignedInAccountFromIntent", result.data)
+                val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                Log.d("LoginScreen", "[DIAGNOSTIC] Calling task.getResult(ApiException::class.java)")
                 val account = task.getResult(ApiException::class.java)
-                Log.d("LoginScreen", "Google account retrieved: ${account?.email}")
-                account?.idToken?.let { token ->
-                    viewModel.signInWithGoogle(token)
-                } ?: run {
-                    Log.e("LoginScreen", "No ID token received from Google")
+                
+                if (account == null) {
+                    Log.e("LoginScreen", "[DIAGNOSTIC] account is NULL")
+                } else {
+                    Log.d("LoginScreen", "[DIAGNOSTIC] Google account retrieved")
+                    Log.d("LoginScreen", "[DIAGNOSTIC] account.email: ${account.email}")
+                    Log.d("LoginScreen", "[DIAGNOSTIC] account.id: ${account.id}")
+                    Log.d("LoginScreen", "[DIAGNOSTIC] account.displayName: ${account.displayName}")
+                }
+                
+                val idToken = account?.idToken
+                if (idToken == null) {
+                    Log.e("LoginScreen", "[DIAGNOSTIC] account.idToken is NULL")
+                } else {
+                    val tokenPreview = if (idToken.length >= 20) idToken.take(20) + "..." else idToken
+                    Log.d("LoginScreen", "[DIAGNOSTIC] account.idToken length: ${idToken.length}")
+                    Log.d("LoginScreen", "[DIAGNOSTIC] account.idToken preview: $tokenPreview")
+                    Log.d("LoginScreen", "[DIAGNOSTIC] Calling viewModel.signInWithGoogle(idToken)")
+                    viewModel.signInWithGoogle(idToken)
+                    Log.d("LoginScreen", "[DIAGNOSTIC] viewModel.signInWithGoogle(idToken) called successfully")
                 }
             } catch (e: ApiException) {
-                Log.e("LoginScreen", "Google Sign-In failed", e)
+                Log.e("LoginScreen", "[DIAGNOSTIC] ApiException caught")
+                Log.e("LoginScreen", "[DIAGNOSTIC] ApiException.statusCode: ${e.statusCode}")
+                Log.e("LoginScreen", "[DIAGNOSTIC] ApiException.message: ${e.message}")
+                Log.e("LoginScreen", "[DIAGNOSTIC] ApiException localizedMessage: ${e.localizedMessage}")
+                Log.e("LoginScreen", "[DIAGNOSTIC] ApiException full stack trace", e)
+                // TEMP DIAGNOSTIC
+                AppIdentityLogger.logApiException("LoginScreen.googleSignInLauncher.RESULT_OK", e)
+            } catch (e: Exception) {
+                Log.e("LoginScreen", "[DIAGNOSTIC] Unexpected Exception caught")
+                Log.e("LoginScreen", "[DIAGNOSTIC] Exception class: ${e.javaClass.simpleName}")
+                Log.e("LoginScreen", "[DIAGNOSTIC] Exception.message: ${e.message}")
+                Log.e("LoginScreen", "[DIAGNOSTIC] Exception full stack trace", e)
+                // TEMP DIAGNOSTIC
+                AppIdentityLogger.logThrowable("LoginScreen.googleSignInLauncher.RESULT_OK", e)
             }
         } else {
-            Log.e("LoginScreen", "Google Sign-In cancelled or failed with result code: ${result.resultCode}")
+            Log.e("LoginScreen", "[DIAGNOSTIC] resultCode is NOT RESULT_OK")
+            Log.e("LoginScreen", "[DIAGNOSTIC] Google Sign-In cancelled or failed with result code: ${result.resultCode}")
+            
+            // Additional diagnostic logging when resultCode != RESULT_OK
+            Log.e("LoginScreen", "[DIAGNOSTIC] result.data is null: ${result.data == null}")
+            // TEMP DIAGNOSTIC
+            AppIdentityLogger.logIntentDiagnostics("LoginScreen.googleSignInLauncher.NON_RESULT_OK", result.data)
+            
+            if (result.data != null) {
+                Log.e("LoginScreen", "[DIAGNOSTIC] result.data is NOT null, attempting to extract account")
+                Log.e("LoginScreen", "[DIAGNOSTIC] result.data.action: ${result.data?.action}")
+                Log.e("LoginScreen", "[DIAGNOSTIC] result.data.component: ${result.data?.component}")
+                Log.e("LoginScreen", "[DIAGNOSTIC] result.data.extras: ${result.data?.extras}")
+                
+                try {
+                    Log.e("LoginScreen", "[DIAGNOSTIC] Calling GoogleSignIn.getSignedInAccountFromIntent(result.data)")
+                    // TEMP DIAGNOSTIC
+                    AppIdentityLogger.logIntentDiagnostics("LoginScreen.googleSignInLauncher.NON_RESULT_OK.beforeGetSignedInAccountFromIntent", result.data)
+                    val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                    val account = task.getResult(ApiException::class.java)
+                    
+                    if (account == null) {
+                        Log.e("LoginScreen", "[DIAGNOSTIC] account is NULL (unexpected)")
+                    } else {
+                        Log.e("LoginScreen", "[DIAGNOSTIC] UNEXPECTED: account retrieved despite resultCode != RESULT_OK")
+                        Log.e("LoginScreen", "[DIAGNOSTIC] account.email: ${account.email}")
+                        Log.e("LoginScreen", "[DIAGNOSTIC] account.id: ${account.id}")
+                        Log.e("LoginScreen", "[DIAGNOSTIC] account.displayName: ${account.displayName}")
+                        val idToken = account.idToken
+                        if (idToken == null) {
+                            Log.e("LoginScreen", "[DIAGNOSTIC] account.idToken is NULL")
+                        } else {
+                            val tokenPreview = if (idToken.length >= 20) idToken.take(20) + "..." else idToken
+                            Log.e("LoginScreen", "[DIAGNOSTIC] account.idToken length: ${idToken.length}")
+                            Log.e("LoginScreen", "[DIAGNOSTIC] account.idToken preview: $tokenPreview")
+                        }
+                    }
+                } catch (e: ApiException) {
+                    Log.e("LoginScreen", "[DIAGNOSTIC] ApiException caught (resultCode != RESULT_OK)")
+                    Log.e("LoginScreen", "[DIAGNOSTIC] ApiException.statusCode: ${e.statusCode}")
+                    Log.e("LoginScreen", "[DIAGNOSTIC] ApiException.statusMessage: ${e.statusMessage}")
+                    Log.e("LoginScreen", "[DIAGNOSTIC] ApiException.message: ${e.message}")
+                    Log.e("LoginScreen", "[DIAGNOSTIC] ApiException.localizedMessage: ${e.localizedMessage}")
+                    Log.e("LoginScreen", "[DIAGNOSTIC] ApiException full stack trace", e)
+                    // TEMP DIAGNOSTIC
+                    AppIdentityLogger.logApiException("LoginScreen.googleSignInLauncher.NON_RESULT_OK", e)
+                } catch (e: Exception) {
+                    Log.e("LoginScreen", "[DIAGNOSTIC] Unexpected Exception caught (resultCode != RESULT_OK)")
+                    Log.e("LoginScreen", "[DIAGNOSTIC] Exception class: ${e.javaClass.simpleName}")
+                    Log.e("LoginScreen", "[DIAGNOSTIC] Exception.message: ${e.message}")
+                    Log.e("LoginScreen", "[DIAGNOSTIC] Exception.localizedMessage: ${e.localizedMessage}")
+                    Log.e("LoginScreen", "[DIAGNOSTIC] Exception full stack trace", e)
+                    // TEMP DIAGNOSTIC
+                    AppIdentityLogger.logThrowable("LoginScreen.googleSignInLauncher.NON_RESULT_OK", e)
+                }
+            } else {
+                Log.e("LoginScreen", "[DIAGNOSTIC] result.data is NULL - no Intent data available")
+            }
         }
     }
 
@@ -313,6 +409,19 @@ fun LoginScreen(
                 OutlinedButton(
                     onClick = {
                         try {
+                            // TEMP DIAGNOSTIC
+                            AppIdentityLogger.logGoogleSignInBuilder(
+                                source = "LoginScreen.signInButton",
+                                defaultWebClientId = context.getString(R.string.default_web_client_id),
+                                requestEmail = true,
+                                requestIdToken = true,
+                                extraConfig = listOf(
+                                    "GoogleSignInOptions.DEFAULT_SIGN_IN",
+                                    "requestEmail()",
+                                    "requestIdToken(default_web_client_id)",
+                                    "signOut().addOnCompleteListener { signInIntent.launch }"
+                                )
+                            )
                             val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                                 .requestIdToken(context.getString(R.string.default_web_client_id))
                                 .requestEmail()

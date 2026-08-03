@@ -56,6 +56,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.jcadenas.xpendz.R
+import com.jcadenas.xpendz.diagnostics.AppIdentityLogger
 import com.jcadenas.xpendz.domain.usecase.AuthProvider
 import com.jcadenas.xpendz.ui.components.CompactHeader
 import com.jcadenas.xpendz.ui.viewmodel.DeleteAccountEvent
@@ -89,14 +90,24 @@ fun PrivacyAndDataScreen(
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
+        // TEMP DIAGNOSTIC
+        AppIdentityLogger.logIntentDiagnostics("PrivacyAndDataScreen.googleSignInLauncher", result.data)
         if (result.resultCode == Activity.RESULT_OK) {
             try {
+                // TEMP DIAGNOSTIC
+                AppIdentityLogger.logIntentDiagnostics("PrivacyAndDataScreen.googleSignInLauncher.RESULT_OK.beforeGetSignedInAccountFromIntent", result.data)
                 val account = GoogleSignIn.getSignedInAccountFromIntent(result.data)
                     .getResult(ApiException::class.java)
                 account?.idToken?.let { token ->
                     viewModel.reauthenticateWithGoogleAndRetry(token)
                 } ?: viewModel.onReauthCancelled()
-            } catch (_: ApiException) {
+            } catch (e: ApiException) {
+                // TEMP DIAGNOSTIC
+                AppIdentityLogger.logApiException("PrivacyAndDataScreen.googleSignInLauncher.RESULT_OK", e)
+                viewModel.onReauthCancelled()
+            } catch (e: Exception) {
+                // TEMP DIAGNOSTIC
+                AppIdentityLogger.logThrowable("PrivacyAndDataScreen.googleSignInLauncher.RESULT_OK", e)
                 viewModel.onReauthCancelled()
             }
         } else {
@@ -115,6 +126,19 @@ fun PrivacyAndDataScreen(
                     availableProviders = event.providers
                     when {
                         AuthProvider.GOOGLE in event.providers -> {
+                            // TEMP DIAGNOSTIC
+                            AppIdentityLogger.logGoogleSignInBuilder(
+                                source = "PrivacyAndDataScreen.reauthGoogle",
+                                defaultWebClientId = context.getString(R.string.default_web_client_id),
+                                requestEmail = true,
+                                requestIdToken = true,
+                                extraConfig = listOf(
+                                    "GoogleSignInOptions.DEFAULT_SIGN_IN",
+                                    "requestEmail()",
+                                    "requestIdToken(default_web_client_id)",
+                                    "signOut().addOnCompleteListener { signInIntent.launch }"
+                                )
+                            )
                             val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                                 .requestIdToken(context.getString(R.string.default_web_client_id))
                                 .requestEmail()

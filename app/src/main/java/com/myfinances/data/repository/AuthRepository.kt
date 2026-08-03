@@ -1,5 +1,6 @@
 package com.jcadenas.xpendz.data.repository
 
+import android.util.Log
 import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
@@ -31,12 +32,31 @@ class AuthRepository @Inject constructor(
     }
 
     suspend fun signInWithGoogle(idToken: String): Result<FirebaseUser> {
+        Log.d("AuthRepository", "[DIAGNOSTIC] signInWithGoogle called")
+        Log.d("AuthRepository", "[DIAGNOSTIC] idToken length: ${idToken.length}")
+        Log.d("AuthRepository", "[DIAGNOSTIC] idToken preview: ${if (idToken.length >= 20) idToken.take(20) + "..." else idToken}")
         return try {
+            Log.d("AuthRepository", "[DIAGNOSTIC] Creating GoogleAuthProvider.getCredential(idToken, null)")
             val credential = GoogleAuthProvider.getCredential(idToken, null)
+            Log.d("AuthRepository", "[DIAGNOSTIC] Credential created successfully")
+            Log.d("AuthRepository", "[DIAGNOSTIC] Calling firebaseAuth.signInWithCredential(credential)")
             val result = firebaseAuth.signInWithCredential(credential).await()
-            result.user?.let { Result.success(it) }
-                ?: Result.failure(Exception("Usuario no encontrado"))
+            Log.d("AuthRepository", "[DIAGNOSTIC] firebaseAuth.signInWithCredential completed")
+            Log.d("AuthRepository", "[DIAGNOSTIC] result.user: ${result.user?.email}")
+            Log.d("AuthRepository", "[DIAGNOSTIC] result.user.uid: ${result.user?.uid}")
+            result.user?.let { 
+                Log.d("AuthRepository", "[DIAGNOSTIC] Returning Result.success(user)")
+                Result.success(it) 
+            } ?: run {
+                Log.e("AuthRepository", "[DIAGNOSTIC] result.user is NULL")
+                Result.failure(Exception("Usuario no encontrado"))
+            }
         } catch (e: Exception) {
+            Log.e("AuthRepository", "[DIAGNOSTIC] Exception caught in signInWithGoogle")
+            Log.e("AuthRepository", "[DIAGNOSTIC] Exception class: ${e.javaClass.simpleName}")
+            Log.e("AuthRepository", "[DIAGNOSTIC] Exception.message: ${e.message}")
+            Log.e("AuthRepository", "[DIAGNOSTIC] Exception.localizedMessage: ${e.localizedMessage}")
+            Log.e("AuthRepository", "[DIAGNOSTIC] Exception full stack trace", e)
             Result.failure(e)
         }
     }
