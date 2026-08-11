@@ -16,15 +16,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import com.jcadenas.xpendz.ui.util.CountryCurrency
+import com.jcadenas.xpendz.ui.theme.XpendzThemeTokens
 import java.util.Currency
 import java.util.Locale
 
@@ -57,6 +57,11 @@ fun AddAccountDialog(
     onDismiss: () -> Unit,
     onConfirm: (name: String, type: String, currency: String, iconKey: String?, colorHex: String?) -> Unit
 ) {
+    val spacing = XpendzThemeTokens.spacing
+    val colors = XpendzThemeTokens.colors
+    val elevation = XpendzThemeTokens.elevation
+    val shapes = XpendzThemeTokens.shapes
+
     var name by remember { mutableStateOf("") }
     var selectedType by remember { mutableStateOf("BANK") }
     val deviceCountry = remember { Locale.getDefault().country }
@@ -137,14 +142,14 @@ fun AddAccountDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Nueva cuenta") },
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = colors.surface,
         text = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
                     .imePadding(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(spacing.m)
             ) {
                 OutlinedTextField(
                     value = name,
@@ -172,7 +177,7 @@ fun AddAccountDialog(
                     ExposedDropdownMenu(
                         expanded = typeExpanded,
                         onDismissRequest = { typeExpanded = false },
-                        containerColor = MaterialTheme.colorScheme.surface
+                        containerColor = colors.surface
                     ) {
                         accountTypes.forEach { (value, label) ->
                             DropdownMenuItem(
@@ -217,7 +222,7 @@ fun AddAccountDialog(
                             .fillMaxWidth()
                             .animateContentSize(),
                         colors = CardDefaults.elevatedCardColors(
-                            containerColor = MaterialTheme.colorScheme.surface
+                            containerColor = colors.surface
                         )
                     ) {
                         Column(
@@ -231,7 +236,7 @@ fun AddAccountDialog(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .focusRequester(currencySearchFocusRequester)
-                                    .padding(12.dp)
+                                    .padding(spacing.s)
                             )
 
                             Divider()
@@ -251,8 +256,11 @@ fun AddAccountDialog(
                                 LazyColumn(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .heightIn(min = 180.dp, max = 320.dp),
-                                    contentPadding = PaddingValues(vertical = 8.dp)
+                                        .heightIn(
+                                            min = spacing.xxxl * 3 + spacing.xxl + spacing.xxs,
+                                            max = spacing.xxxl * 4 + spacing.xxl * 4
+                                        ),
+                                    contentPadding = PaddingValues(vertical = spacing.xs)
                                 ) {
                                     items(showList) { (value, label) ->
                                         DropdownMenuItem(
@@ -270,29 +278,29 @@ fun AddAccountDialog(
                     }
                 }
 
-                Text(text = "Icono", style = MaterialTheme.typography.labelLarge)
+                Text(text = "Icono", style = XpendzThemeTokens.typography.labelLarge)
                 Surface(
-                    modifier = Modifier.size(56.dp),
-                    shape = MaterialTheme.shapes.extraLarge,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                    modifier = Modifier.size(spacing.xxxl + spacing.xs),
+                    shape = RoundedCornerShape(shapes.extraLarge),
+                    color = colors.brand.copy(alpha = 0.12f)
                 ) {
                     Box(contentAlignment = androidx.compose.ui.Alignment.Center) {
                         Icon(
                             imageVector = accountIconForKey(selectedIconKey),
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(26.dp)
+                            tint = colors.brand,
+                            modifier = Modifier.size(spacing.xl + spacing.xxs / 2)
                         )
                     }
                 }
 
-                Text(text = "Color", style = MaterialTheme.typography.labelLarge)
+                Text(text = "Color", style = XpendzThemeTokens.typography.labelLarge)
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(horizontal = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    contentPadding = PaddingValues(horizontal = spacing.xxs),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.s - spacing.xxs / 2)
                 ) {
-                    val colors = listOf(
+                    val colorOptions = listOf(
                         "#8A05BE",
                         "#FF6B6B",
                         "#D32F2F",
@@ -312,18 +320,18 @@ fun AddAccountDialog(
                         "#6B7280"
                     )
 
-                    items(colors) { hex ->
+                    items(colorOptions) { hex ->
                         val c = runCatching { Color(android.graphics.Color.parseColor(hex)) }
-                            .getOrNull() ?: MaterialTheme.colorScheme.primary
+                            .getOrNull() ?: colors.brand
                         val selected = selectedColorHex.equals(hex, ignoreCase = true)
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(spacing.xxl + spacing.xxs)
                                 .clip(CircleShape)
                                 .background(c)
                                 .border(
-                                    width = if (selected) 3.dp else 1.dp,
-                                    color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f),
+                                    width = if (selected) elevation.level2 else elevation.level1,
+                                    color = if (selected) colors.onSurface else colors.onSurface.copy(alpha = 0.18f),
                                     shape = CircleShape
                                 )
                                 .clickable { selectedColorHex = hex },
@@ -333,8 +341,8 @@ fun AddAccountDialog(
                                 Icon(
                                     imageVector = Icons.Default.Check,
                                     contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
+                                    tint = colors.onBrand,
+                                    modifier = Modifier.size(spacing.l - spacing.xxs / 2)
                                 )
                             }
                         }

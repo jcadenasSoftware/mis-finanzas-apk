@@ -1,20 +1,30 @@
 package com.jcadenas.xpendz.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
+import com.jcadenas.xpendz.ui.theme.XpendzThemeTokens
 
 @Composable
 fun UserAccountHeader(
@@ -24,18 +34,23 @@ fun UserAccountHeader(
     syncStatus: SyncStatus = SyncStatus.SYNCED,
     modifier: Modifier = Modifier
 ) {
+    val spacing = XpendzThemeTokens.spacing
+    val colors = XpendzThemeTokens.colors
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(shapes.extraLarge + spacing.xxs / 2),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = colors.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = elevation.level0)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp),
+                .padding(shapes.extraLarge),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically
@@ -43,9 +58,9 @@ fun UserAccountHeader(
                 // Avatar
                 Box(
                     modifier = Modifier
-                        .size(56.dp)
+                        .size(spacing.xxxl + spacing.xs)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary),
+                        .background(colors.brand),
                     contentAlignment = Alignment.Center
                 ) {
                     if (photoUrl != null) {
@@ -53,8 +68,8 @@ fun UserAccountHeader(
                         Icon(
                             imageVector = Icons.Default.Person,
                             contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(32.dp)
+                            tint = colors.onBrand,
+                            modifier = Modifier.size(spacing.xxl)
                         )
                     } else {
                         val initial = displayName.takeIf { it.isNotBlank() }
@@ -64,13 +79,13 @@ fun UserAccountHeader(
                             ?: "?"
                         Text(
                             text = initial,
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = Color.White,
+                            style = XpendzThemeTokens.typography.headlineMedium,
+                            color = colors.onBrand,
                             fontWeight = FontWeight.Bold
                         )
                     }
                 }
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(spacing.s))
 
                 // User info
                 Column(
@@ -78,23 +93,23 @@ fun UserAccountHeader(
                 ) {
                     Text(
                         text = displayName,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = XpendzThemeTokens.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(spacing.xxs))
                     Text(
                         text = email,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = XpendzThemeTokens.typography.bodyMedium,
+                        color = colors.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(spacing.s))
 
             Box(
                 modifier = Modifier.fillMaxWidth(),

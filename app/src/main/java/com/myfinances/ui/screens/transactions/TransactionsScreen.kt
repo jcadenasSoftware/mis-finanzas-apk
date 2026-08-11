@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.verticalScroll
@@ -27,7 +28,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.jcadenas.xpendz.data.local.dao.TransactionWithDetails
@@ -37,6 +37,7 @@ import com.jcadenas.xpendz.ui.components.HamburgerMenuButton
 import com.jcadenas.xpendz.ui.components.SyncSwipeRefresh
 import com.jcadenas.xpendz.ui.theme.Income
 import com.jcadenas.xpendz.ui.theme.Expense
+import com.jcadenas.xpendz.ui.theme.XpendzThemeTokens
 import com.jcadenas.xpendz.ui.viewmodel.SyncViewModel
 import com.jcadenas.xpendz.ui.viewmodel.TransactionsPeriodPreset
 import com.jcadenas.xpendz.ui.viewmodel.TransactionsViewModel
@@ -63,6 +64,11 @@ fun TransactionsScreen(
     viewModel: TransactionsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("es", "CO")) }
     val monthLabelFormat = remember { SimpleDateFormat("MMMM yyyy", Locale("es")) }
     var showHamburgerMenu by remember { mutableStateOf(false) }
@@ -93,7 +99,7 @@ fun TransactionsScreen(
                 title = {
                     Text(
                         text = "Transacciones",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                 },
@@ -138,8 +144,8 @@ fun TransactionsScreen(
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 state = mainListState,
-                contentPadding = PaddingValues(bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                contentPadding = PaddingValues(bottom = spacing.m),
+                verticalArrangement = Arrangement.spacedBy(spacing.s - spacing.xxs - spacing.xxs / 2)
             ) {
                 item {
                     TransactionsFiltersHeader(
@@ -190,14 +196,14 @@ fun TransactionsScreen(
                                         Icon(
                                             Icons.Default.Receipt,
                                             contentDescription = null,
-                                            modifier = Modifier.size(64.dp),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            modifier = Modifier.size(spacing.xxxl + spacing.m),
+                                            tint = colors.onSurfaceVariant
                                         )
-                                        Spacer(modifier = Modifier.height(16.dp))
+                                        Spacer(modifier = Modifier.height(spacing.m))
                                         Text(
                                             "No hay transacciones",
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            style = typography.bodyLarge,
+                                            color = colors.onSurfaceVariant
                                         )
                                     }
                                 }
@@ -207,8 +213,8 @@ fun TransactionsScreen(
                                 LazyColumn(
                                     modifier = Modifier.fillMaxSize(),
                                     state = transactionsListState,
-                                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    contentPadding = PaddingValues(start = spacing.m, end = spacing.m, bottom = spacing.m),
+                                    verticalArrangement = Arrangement.spacedBy(spacing.xs)
                                 ) {
                                     itemsIndexed(state.transactions) { index, transaction ->
                                         val headerUi = remember(transaction.occurredAtEpochSec) {
@@ -258,6 +264,9 @@ private fun CustomPeriodBottomSheet(
     onDismiss: () -> Unit,
     onApply: (Long, Long) -> Unit
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val typography = XpendzThemeTokens.typography
     val context = LocalContext.current
     val titleFormat = remember { SimpleDateFormat("dd MMM yyyy", Locale("es")) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -335,30 +344,30 @@ private fun CustomPeriodBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = colors.surface
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = spacing.m)
         ) {
             Text(
                 text = "Rango personalizado",
-                style = MaterialTheme.typography.titleMedium,
+                style = typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(spacing.xs))
             Text(
                 text = "Selecciona dos fechas para filtrar las transacciones.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = typography.bodyMedium,
+                color = colors.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(spacing.s))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(spacing.s)
             ) {
                 FilterSelectorChip(
                     text = "Desde ${dateLabel(draftFromEpochSec)}",
@@ -374,11 +383,11 @@ private fun CustomPeriodBottomSheet(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(spacing.m))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(spacing.s)
             ) {
                 OutlinedButton(
                     onClick = onDismiss,
@@ -398,7 +407,7 @@ private fun CustomPeriodBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(spacing.m))
         }
     }
 }
@@ -470,30 +479,33 @@ private fun MonthPickerBottomSheet(
     onDismiss: () -> Unit,
     onSelected: (Int, Int) -> Unit
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val typography = XpendzThemeTokens.typography
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scrollState = rememberScrollState()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = colors.surface
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = spacing.m)
         ) {
             Text(
                 text = "Seleccionar mes",
-                style = MaterialTheme.typography.titleMedium,
+                style = typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(spacing.s))
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 420.dp)
+                    .heightIn(max = spacing.xxxl * 8 + spacing.xxl + spacing.xxs)
             ) {
                 Column(
                     modifier = Modifier
@@ -513,22 +525,22 @@ private fun MonthPickerBottomSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onSelected(year, month) }
-                                .padding(vertical = 12.dp),
+                                .padding(vertical = spacing.s),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(spacing.s)
                         ) {
                             Icon(Icons.Default.DateRange, contentDescription = null)
                             Text(
                                 text = "$optLabel $year",
-                                style = MaterialTheme.typography.bodyLarge
+                                style = typography.bodyLarge
                             )
                         }
-                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
+                        HorizontalDivider(color = colors.onSurfaceVariant.copy(alpha = 0.08f))
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(spacing.m))
         }
     }
 }
@@ -541,30 +553,33 @@ private fun AccountPickerBottomSheet(
     onDismiss: () -> Unit,
     onSelected: (String?) -> Unit
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val typography = XpendzThemeTokens.typography
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scrollState = rememberScrollState()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = colors.surface
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = spacing.m)
         ) {
             Text(
                 text = "Seleccionar cuenta",
-                style = MaterialTheme.typography.titleMedium,
+                style = typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(spacing.s))
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 420.dp)
+                    .heightIn(max = spacing.xxxl * 8 + spacing.xxl + spacing.xxs)
             ) {
                 Column(
                     modifier = Modifier
@@ -576,7 +591,7 @@ private fun AccountPickerBottomSheet(
                         selected = selectedAccountId == null,
                         onClick = { onSelected(null) }
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
+                    HorizontalDivider(color = colors.onSurfaceVariant.copy(alpha = 0.08f))
 
                     accounts.forEach { account ->
                         SelectableSheetRow(
@@ -584,12 +599,12 @@ private fun AccountPickerBottomSheet(
                             selected = selectedAccountId == account.id,
                             onClick = { onSelected(account.id) }
                         )
-                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
+                        HorizontalDivider(color = colors.onSurfaceVariant.copy(alpha = 0.08f))
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(spacing.m))
         }
     }
 }
@@ -600,17 +615,20 @@ private fun SelectableSheetRow(
     selected: Boolean,
     onClick: () -> Unit
 ) {
-    val rowTint = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else Color.Transparent
-    val iconTint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val typography = XpendzThemeTokens.typography
+    val rowTint = if (selected) colors.brand.copy(alpha = 0.08f) else Color.Transparent
+    val iconTint = if (selected) colors.brand else colors.onSurfaceVariant
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(rowTint)
             .clickable { onClick() }
-            .padding(vertical = 12.dp),
+            .padding(vertical = spacing.s),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(spacing.s)
     ) {
         Icon(
             imageVector = if (selected) Icons.Default.RadioButtonChecked else Icons.Default.RadioButtonUnchecked,
@@ -619,8 +637,8 @@ private fun SelectableSheetRow(
         )
         Text(
             text = text,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface
+            style = typography.bodyLarge,
+            color = colors.onSurface
         )
     }
 }
@@ -633,30 +651,33 @@ private fun PeriodPickerBottomSheet(
     onSelected: (TransactionsPeriodPreset) -> Unit,
     onCustomRequested: () -> Unit
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val typography = XpendzThemeTokens.typography
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scrollState = rememberScrollState()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = colors.surface
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = spacing.m)
         ) {
             Text(
                 text = "Seleccionar periodo",
-                style = MaterialTheme.typography.titleMedium,
+                style = typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(spacing.s))
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 420.dp)
+                    .heightIn(max = spacing.xxxl * 8 + spacing.xxl + spacing.xxs)
             ) {
                 Column(
                     modifier = Modifier
@@ -682,12 +703,12 @@ private fun PeriodPickerBottomSheet(
                                 }
                             }
                         )
-                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
+                        HorizontalDivider(color = colors.onSurfaceVariant.copy(alpha = 0.08f))
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(spacing.m))
         }
     }
 }
@@ -700,6 +721,9 @@ private fun CategoryPickerBottomSheet(
     onDismiss: () -> Unit,
     onSelected: (String?) -> Unit
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val typography = XpendzThemeTokens.typography
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scrollState = rememberScrollState()
     val rootCategories = remember(categories) { categories.filter { it.parentId == null } }
@@ -707,24 +731,24 @@ private fun CategoryPickerBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = colors.surface
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = spacing.m)
         ) {
             Text(
                 text = "Seleccionar categoría",
-                style = MaterialTheme.typography.titleMedium,
+                style = typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(spacing.s))
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 420.dp)
+                    .heightIn(max = spacing.xxxl * 8 + spacing.xxl + spacing.xxs)
             ) {
                 Column(
                     modifier = Modifier
@@ -736,7 +760,7 @@ private fun CategoryPickerBottomSheet(
                         selected = selectedCategoryId == null,
                         onClick = { onSelected(null) }
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
+                    HorizontalDivider(color = colors.onSurfaceVariant.copy(alpha = 0.08f))
 
                     rootCategories.forEach { category ->
                         SelectableSheetRow(
@@ -744,12 +768,12 @@ private fun CategoryPickerBottomSheet(
                             selected = selectedCategoryId == category.id,
                             onClick = { onSelected(category.id) }
                         )
-                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
+                        HorizontalDivider(color = colors.onSurfaceVariant.copy(alpha = 0.08f))
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(spacing.m))
         }
     }
 }
@@ -765,10 +789,12 @@ private fun TransactionsFiltersHeader(
     onAccountSelected: (String?) -> Unit,
     onCategorySelected: (String?) -> Unit
 ) {
+    val spacing = XpendzThemeTokens.spacing
+    val typography = XpendzThemeTokens.typography
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 0.dp)
+            .padding(top = XpendzThemeTokens.elevation.level0)
     ) {
         var showMonthSheet by remember { mutableStateOf(false) }
         var showAccountsSheet by remember { mutableStateOf(false) }
@@ -858,8 +884,8 @@ private fun TransactionsFiltersHeader(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = spacing.m),
+            horizontalArrangement = Arrangement.spacedBy(spacing.s),
             verticalAlignment = Alignment.CenterVertically
         ) {
             FilterSelectorChip(
@@ -877,7 +903,7 @@ private fun TransactionsFiltersHeader(
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(spacing.s))
 
         val periodText = when (state.selectedPeriodPreset) {
             TransactionsPeriodPreset.TODAY -> "Hoy"
@@ -897,8 +923,8 @@ private fun TransactionsFiltersHeader(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = spacing.m),
+            horizontalArrangement = Arrangement.spacedBy(spacing.s)
         ) {
             // Period selector
             FilterSelectorChip(
@@ -917,7 +943,7 @@ private fun TransactionsFiltersHeader(
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(spacing.xs))
 
         // Search
         OutlinedTextField(
@@ -926,20 +952,20 @@ private fun TransactionsFiltersHeader(
             placeholder = {
                 Text(
                     "Buscar transacción, categoría o nota...",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = typography.bodyMedium,
                     maxLines = 1
                 )
             },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             singleLine = true,
-            textStyle = MaterialTheme.typography.bodyMedium,
+            textStyle = typography.bodyMedium,
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 44.dp)
-                .padding(horizontal = 16.dp, vertical = 0.dp)
+                .heightIn(min = spacing.xxl + spacing.xl / 2 + spacing.xxs / 2)
+                .padding(horizontal = spacing.m, vertical = XpendzThemeTokens.elevation.level0)
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(spacing.m))
     }
 }
 
@@ -950,6 +976,10 @@ private fun FilterSelectorChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val typography = XpendzThemeTokens.typography
     AssistChip(
         onClick = onClick,
         label = {
@@ -957,21 +987,21 @@ private fun FilterSelectorChip(
                 text,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodyMedium
+                style = typography.bodyMedium
             )
         },
         leadingIcon = {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(spacing.m)
             )
         },
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = RoundedCornerShape(shapes.extraLarge),
         colors = AssistChipDefaults.assistChipColors(
-            leadingIconContentColor = MaterialTheme.colorScheme.primary
+            leadingIconContentColor = colors.brand
         ),
-        modifier = modifier.heightIn(min = 36.dp)
+        modifier = modifier.heightIn(min = spacing.xxl + spacing.xxs)
     )
 }
 
@@ -982,6 +1012,11 @@ private fun TransactionsSummaryCard(
     balanceCents: Long,
     currencyFormat: NumberFormat
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
     val incomeText = currencyFormat.format(incomeCents / 100.0)
     val expenseText = currencyFormat.format(expenseCents / 100.0)
     val balanceText = currencyFormat.format(balanceCents / 100.0)
@@ -990,40 +1025,40 @@ private fun TransactionsSummaryCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            .padding(horizontal = spacing.m, vertical = spacing.xxs),
+        shape = RoundedCornerShape(shapes.extraLarge),
+        colors = CardDefaults.cardColors(containerColor = colors.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = elevation.level2 + elevation.level1)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = spacing.m, vertical = spacing.s),
+            verticalArrangement = Arrangement.spacedBy(spacing.s)
         ) {
             Text(
                 text = "Resumen",
-                style = MaterialTheme.typography.titleMedium,
+                style = typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = colors.onSurface
             )
 
             Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                shape = MaterialTheme.shapes.extraLarge,
+                color = colors.surfaceVariant.copy(alpha = 0.45f),
+                shape = RoundedCornerShape(shapes.extraLarge),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Box(modifier = Modifier.fillMaxWidth()) {
                     TransactionsSummaryBackgroundGraph(
                         modifier = Modifier
                             .matchParentSize()
-                            .padding(horizontal = 6.dp, vertical = 6.dp)
+                            .padding(horizontal = spacing.s - spacing.xxs - spacing.xxs / 2, vertical = spacing.s - spacing.xxs - spacing.xxs / 2)
                     )
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                            .padding(horizontal = spacing.s, vertical = spacing.s),
+                        verticalArrangement = Arrangement.spacedBy(spacing.s - spacing.xxs / 2)
                     ) {
                         TransactionsSummaryBalanceRow(
                             balanceText = (if (balancePositive) "+" else "") + balanceText,
@@ -1031,13 +1066,13 @@ private fun TransactionsSummaryCard(
                         )
 
                         HorizontalDivider(
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f),
-                            thickness = 1.dp
+                            color = colors.onSurfaceVariant.copy(alpha = 0.15f),
+                            thickness = elevation.level1
                         )
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(spacing.s),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             TransactionsSummaryMetricColumnWithIcon(
@@ -1070,38 +1105,41 @@ private fun TransactionsSummaryMetricColumnWithIcon(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     modifier: Modifier = Modifier
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val typography = XpendzThemeTokens.typography
     Row(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(spacing.s - spacing.xxs - spacing.xxs / 2),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Surface(
-            shape = MaterialTheme.shapes.small,
+            shape = RoundedCornerShape(shapes.small),
             color = accentColor.copy(alpha = 0.12f),
-            modifier = Modifier.size(28.dp)
+            modifier = Modifier.size(spacing.xl + spacing.xxs)
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
                     tint = accentColor,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(spacing.m)
                 )
             }
         }
         Column(
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            verticalArrangement = Arrangement.spacedBy(spacing.xxs / 2)
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.labelSmall,
+                style = typography.labelSmall,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = colors.onSurfaceVariant
             )
             Text(
                 text = value,
-                fontSize = 13.sp,
-                lineHeight = 15.sp,
+                style = typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 15.sp),
                 fontWeight = FontWeight.Medium,
                 color = accentColor,
                 maxLines = 1,
@@ -1116,6 +1154,10 @@ private fun TransactionsSummaryBalanceRow(
     balanceText: String,
     balancePositive: Boolean
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val typography = XpendzThemeTokens.typography
     val balanceColor = if (balancePositive) Income else Expense
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -1123,34 +1165,33 @@ private fun TransactionsSummaryBalanceRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(spacing.xs),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = "Balance",
-                style = MaterialTheme.typography.titleSmall,
+                style = typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = colors.onSurface
             )
             Surface(
-                shape = MaterialTheme.shapes.small,
+                shape = RoundedCornerShape(shapes.small),
                 color = balanceColor.copy(alpha = 0.12f),
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(spacing.xl)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = if (balancePositive) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
                         contentDescription = null,
                         tint = balanceColor,
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(spacing.s + spacing.xxs / 2)
                     )
                 }
             }
         }
         Text(
             text = balanceText,
-            fontSize = 18.sp,
-            lineHeight = 21.sp,
+            style = typography.titleMedium.copy(fontSize = 18.sp, lineHeight = 21.sp),
             fontWeight = FontWeight.Bold,
             color = balanceColor,
             maxLines = 1,
@@ -1163,7 +1204,7 @@ private fun TransactionsSummaryBalanceRow(
 private fun TransactionsSummaryBackgroundGraph(
     modifier: Modifier = Modifier
 ) {
-    val primaryOverlay = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+    val primaryOverlay = XpendzThemeTokens.colors.brand.copy(alpha = 0.08f)
     Canvas(modifier = modifier) {
         val width = size.width
         val height = size.height
@@ -1248,34 +1289,39 @@ private fun DateGroupHeader(
     text: String,
     relative: Boolean
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
     val backgroundColor = if (relative) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+        colors.brand.copy(alpha = 0.08f)
     } else {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+        colors.surfaceVariant.copy(alpha = 0.55f)
     }
     val contentColor = if (relative) {
-        MaterialTheme.colorScheme.primary
+        colors.brand
     } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
+        colors.onSurfaceVariant
     }
     val borderColor = if (relative) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+        colors.brand.copy(alpha = 0.18f)
     } else {
-        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f)
+        colors.onSurfaceVariant.copy(alpha = 0.10f)
     }
 
     Surface(
         color = backgroundColor,
         contentColor = contentColor,
-        shape = MaterialTheme.shapes.large,
-        border = BorderStroke(1.dp, borderColor),
-        modifier = Modifier.padding(top = 10.dp, bottom = 4.dp)
+        shape = RoundedCornerShape(shapes.large),
+        border = BorderStroke(elevation.level1, borderColor),
+        modifier = Modifier.padding(top = spacing.s - spacing.xxs / 2, bottom = spacing.xxs)
     ) {
         Text(
             text = text,
-            style = if (relative) MaterialTheme.typography.labelLarge else MaterialTheme.typography.labelMedium,
+            style = if (relative) typography.labelLarge else typography.labelMedium,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+            modifier = Modifier.padding(horizontal = spacing.s - spacing.xxs / 2, vertical = spacing.s - spacing.xxs - spacing.xxs / 2)
         )
     }
 }
@@ -1286,34 +1332,39 @@ private fun FilterChipsRow(
     selectedAccountId: String?,
     onAccountSelected: (String?) -> Unit
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(vertical = spacing.xs),
+        contentPadding = PaddingValues(horizontal = spacing.m),
+        horizontalArrangement = Arrangement.spacedBy(spacing.xs)
     ) {
         item {
             val selected = selectedAccountId == null
             FilterChip(
                 selected = selected,
                 onClick = { onAccountSelected(null) },
-                shape = MaterialTheme.shapes.extraLarge,
+                shape = RoundedCornerShape(shapes.extraLarge),
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.secondary,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    labelColor = MaterialTheme.colorScheme.onSurface
+                    selectedContainerColor = colors.secondary,
+                    selectedLabelColor = colors.onBrand,
+                    containerColor = colors.surface,
+                    labelColor = colors.onSurface
                 ),
                 border = if (selected) null else BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                    elevation.level1,
+                    colors.onSurfaceVariant.copy(alpha = 0.25f)
                 ),
-                modifier = Modifier.heightIn(min = 34.dp),
+                modifier = Modifier.heightIn(min = spacing.xl + spacing.s - spacing.xxs / 2),
                 label = {
                     Text(
                         "Todas",
-                        style = MaterialTheme.typography.labelMedium,
+                        style = typography.labelMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -1326,22 +1377,22 @@ private fun FilterChipsRow(
             FilterChip(
                 selected = selected,
                 onClick = { onAccountSelected(account.id) },
-                shape = MaterialTheme.shapes.extraLarge,
+                shape = RoundedCornerShape(shapes.extraLarge),
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.secondary,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    labelColor = MaterialTheme.colorScheme.onSurface
+                    selectedContainerColor = colors.secondary,
+                    selectedLabelColor = colors.onBrand,
+                    containerColor = colors.surface,
+                    labelColor = colors.onSurface
                 ),
                 border = if (selected) null else BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                    elevation.level1,
+                    colors.onSurfaceVariant.copy(alpha = 0.25f)
                 ),
-                modifier = Modifier.heightIn(min = 34.dp),
+                modifier = Modifier.heightIn(min = spacing.xl + spacing.s - spacing.xxs / 2),
                 label = {
                     Text(
                         account.name,
-                        style = MaterialTheme.typography.labelMedium,
+                        style = typography.labelMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -1358,6 +1409,11 @@ private fun TransactionItem(
     onDelete: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("es", "CO")) }
     val timeFormat = remember { SimpleDateFormat("h:mm a", Locale("es")) }
 
@@ -1365,9 +1421,9 @@ private fun TransactionItem(
     val amountColor = if (isIncome) Income else Expense
     val sign = if (isIncome) "+" else "-"
 
-    val primary = MaterialTheme.colorScheme.primary
-    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
-    val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
+    val primary = colors.brand
+    val onSurfaceVariant = colors.onSurfaceVariant
+    val surfaceVariant = colors.surfaceVariant
     val displayNote = remember(transaction.kind, transaction.note) {
         formatTransactionNote(transaction.kind, transaction.note)
     }
@@ -1397,54 +1453,55 @@ private fun TransactionItem(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = colors.surface
         ),
         border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f)
+            elevation.level1,
+            colors.onSurfaceVariant.copy(alpha = 0.10f)
         )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = spacing.s + spacing.xxs / 2, vertical = spacing.s),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                shape = MaterialTheme.shapes.extraLarge,
+                shape = RoundedCornerShape(shapes.extraLarge),
                 color = iconSpec.third,
-                modifier = Modifier.size(44.dp)
+                modifier = Modifier.size(spacing.xxl + spacing.xl / 2 + spacing.xxs / 2)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = iconSpec.first,
                         contentDescription = null,
-                        tint = iconSpec.second
+                        tint = iconSpec.second,
+                        modifier = Modifier.size(spacing.l + spacing.xs)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(spacing.s))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     transaction.categoryName,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 2
                 )
                 Text(
                     transaction.accountName,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = typography.bodySmall,
+                    color = colors.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 if (!displayNote.isNullOrBlank()) {
                     Text(
                         displayNote,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = typography.bodySmall,
+                        color = colors.onSurfaceVariant,
                         maxLines = 2
                     )
                 }
@@ -1453,14 +1510,14 @@ private fun TransactionItem(
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     text = "$sign${currencyFormat.format(transaction.amountCents / 100.0)}",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = amountColor
                 )
                 Text(
                     timeFormat.format(Date(transaction.occurredAtEpochSec * 1000)),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = typography.bodySmall,
+                    color = colors.onSurfaceVariant
                 )
             }
 
@@ -1468,7 +1525,7 @@ private fun TransactionItem(
             Box {
                 IconButton(
                     onClick = { showMenu = true },
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(spacing.xxl + spacing.xxs)
                 ) {
                     Icon(Icons.Default.MoreVert, contentDescription = "Opciones")
                 }

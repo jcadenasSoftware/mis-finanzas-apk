@@ -13,14 +13,13 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.dp
+import com.jcadenas.xpendz.ui.theme.XpendzThemeTokens
 
 @Composable
 fun CompactHeader(
@@ -29,12 +28,17 @@ fun CompactHeader(
     navigationIcon: (@Composable () -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {}
 ) {
+    val spacing = XpendzThemeTokens.spacing
+    val colors = XpendzThemeTokens.colors
+
     Surface(
-        color = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.onSurface,
+        color = colors.surface,
+        contentColor = colors.onSurface,
         modifier = modifier
     ) {
-        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 40.dp) {
+        CompositionLocalProvider(
+            LocalMinimumInteractiveComponentSize provides (spacing.xxl + spacing.m / 2)
+        ) {
             val density = LocalDensity.current
             val statusBarTop = with(density) { WindowInsets.statusBars.asPaddingValues().calculateTopPadding().toPx() }
             val statusBarTopDp = with(density) { (statusBarTop * 0.35f).toDp() }
@@ -43,15 +47,18 @@ fun CompactHeader(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = statusBarTopDp)
-                    .padding(horizontal = 12.dp, vertical = 2.dp),
+                    .padding(horizontal = spacing.s, vertical = spacing.xxs / 2),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Start
             ) {
                 if (navigationIcon != null) {
-                    Box(modifier = Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier.size(spacing.xxl + spacing.xxs),
+                        contentAlignment = Alignment.Center
+                    ) {
                         navigationIcon()
                     }
-                    Spacer(modifier = Modifier.width(2.dp))
+                    Spacer(modifier = Modifier.width(spacing.xxs / 2))
                 }
 
                 Box(modifier = Modifier.weight(1f)) {

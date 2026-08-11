@@ -12,14 +12,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
+import com.jcadenas.xpendz.ui.theme.XpendzThemeTokens
 
 @Composable
 fun SettingsRow(
@@ -30,36 +29,37 @@ fun SettingsRow(
     showChevron: Boolean = true,
     modifier: Modifier = Modifier
 ) {
+    val spacing = XpendzThemeTokens.spacing
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = spacing.m, vertical = spacing.s + spacing.xxs / 2),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(24.dp)
+            tint = XpendzThemeTokens.colors.brand,
+            modifier = Modifier.size(spacing.xl)
         )
 
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(spacing.m))
 
         Column(
             modifier = Modifier.weight(1f)
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge,
+                style = XpendzThemeTokens.typography.bodyLarge,
                 fontWeight = FontWeight.Medium
             )
             if (subtitle != null) {
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(spacing.xxs / 2))
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = XpendzThemeTokens.typography.bodySmall,
+                    color = XpendzThemeTokens.colors.onSurfaceVariant
                 )
             }
         }
@@ -68,8 +68,8 @@ fun SettingsRow(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
+                tint = XpendzThemeTokens.colors.onSurfaceVariant,
+                modifier = Modifier.size(spacing.l)
             )
         }
     }

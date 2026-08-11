@@ -1,6 +1,8 @@
 package com.jcadenas.xpendz.ui.components
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -8,7 +10,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.jcadenas.xpendz.ui.theme.XpendzThemeTokens
 
 data class SettingsItem(
     val icon: ImageVector,
@@ -24,21 +27,26 @@ fun SettingsSection(
     items: List<SettingsItem>,
     modifier: Modifier = Modifier
 ) {
+    val spacing = XpendzThemeTokens.spacing
+    val colors = XpendzThemeTokens.colors
+    val shapeTokens = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+
     Column(modifier = modifier.fillMaxWidth()) {
         SectionHeader(
             title = title,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            modifier = Modifier.padding(horizontal = spacing.m, vertical = spacing.xs)
         )
 
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            shape = MaterialTheme.shapes.large,
+                .padding(horizontal = spacing.m),
+            shape = RoundedCornerShape(shapeTokens.large),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
+                containerColor = colors.surface
             ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = elevation.level0)
         ) {
             Column {
                 items.forEachIndexed { index, item ->
@@ -51,7 +59,7 @@ fun SettingsSection(
                     )
                     if (index < items.size - 1) {
                         HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 16.dp),
+                            modifier = Modifier.padding(horizontal = spacing.m),
                             color = MaterialTheme.colorScheme.outlineVariant
                         )
                     }

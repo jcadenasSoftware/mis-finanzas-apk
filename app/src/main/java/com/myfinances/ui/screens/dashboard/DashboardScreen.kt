@@ -16,6 +16,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Modifier
@@ -43,6 +44,7 @@ import com.jcadenas.xpendz.ui.components.HamburgerMenuButton
 import com.jcadenas.xpendz.ui.components.SyncSwipeRefresh
 import com.jcadenas.xpendz.ui.theme.Income
 import com.jcadenas.xpendz.ui.theme.Expense
+import com.jcadenas.xpendz.ui.theme.XpendzThemeTokens
 import com.jcadenas.xpendz.ui.screens.transactions.AddTransactionSheet
 import com.jcadenas.xpendz.ui.viewmodel.DashboardViewModel
 import com.jcadenas.xpendz.ui.viewmodel.DashboardBalancePoint
@@ -84,6 +86,11 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("es", "CO")) }
     var showTotalBalance by rememberSaveable { mutableStateOf(false) }
     var showBalanceDetail by rememberSaveable { mutableStateOf(false) }
@@ -217,41 +224,41 @@ fun DashboardScreen(
                 TextButton(onClick = { showLogoutConfirmation = false }) {
                     Text(
                         text = "Cancelar",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = colors.onSurfaceVariant,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
             },
             icon = {
                 Surface(
-                    shape = MaterialTheme.shapes.extraLarge,
+                    shape = RoundedCornerShape(shapes.extraLarge),
                     color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.65f)
                 ) {
                     Icon(
                         imageVector = Icons.Default.PowerSettingsNew,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(10.dp)
+                        modifier = Modifier.padding(spacing.s - spacing.xxs / 2)
                     )
                 }
             },
             title = {
                 Text(
                     text = "¿Seguro que deseas cerrar sesión?",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
             },
             text = {
                 Text(
                     text = "Volverás a la pantalla de acceso y podrás iniciar sesión nuevamente cuando quieras.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = typography.bodyMedium,
+                    color = colors.onSurfaceVariant
                 )
             },
-            containerColor = MaterialTheme.colorScheme.surface,
-            tonalElevation = 8.dp,
-            shape = MaterialTheme.shapes.extraLarge
+            containerColor = colors.surface,
+            tonalElevation = elevation.level4,
+            shape = RoundedCornerShape(shapes.extraLarge)
         )
     }
 
@@ -262,18 +269,18 @@ fun DashboardScreen(
                     Column {
                         Text(
                             text = if (greetingName.isNotBlank()) "Hola, $greetingName 👋" else "Hola 👋",
-                            style = MaterialTheme.typography.headlineSmall,
+                            style = typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = colors.onSurface
                         )
                         Text(
                             text = financialSummaryLabel,
-                            style = MaterialTheme.typography.titleSmall,
+                            style = typography.titleSmall,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
+                            color = colors.brand.copy(alpha = 0.9f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(top = 2.dp)
+                            modifier = Modifier.padding(top = spacing.xxs / 2)
                         )
                     }
                 },
@@ -303,41 +310,41 @@ fun DashboardScreen(
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = 8.dp, bottom = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                contentPadding = PaddingValues(top = spacing.xs, bottom = spacing.l),
+                verticalArrangement = Arrangement.spacedBy(spacing.xs)
             ) {
                 if (isSyncing) {
                     item {
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            shape = MaterialTheme.shapes.extraLarge,
-                            tonalElevation = 2.dp,
-                            shadowElevation = 2.dp
+                                .padding(horizontal = spacing.m, vertical = spacing.xs),
+                            color = colors.surface,
+                            shape = RoundedCornerShape(shapes.extraLarge),
+                            tonalElevation = elevation.level1 + elevation.level1,
+                            shadowElevation = elevation.level1 + elevation.level1
                         ) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 14.dp)
+                                    .padding(horizontal = spacing.m, vertical = spacing.s + spacing.xxs / 2)
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(spacing.s)
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = if (syncProgress.isCancelling) "Cancelando sincronización" else "Sincronizando datos",
-                                            style = MaterialTheme.typography.titleSmall,
+                                            style = typography.titleSmall,
                                             fontWeight = FontWeight.Bold
                                         )
-                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Spacer(modifier = Modifier.height(spacing.xxs / 2))
                                         Text(
                                             text = syncProgress.message ?: syncStatus.orEmpty(),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            style = typography.bodySmall,
+                                            color = colors.onSurfaceVariant
                                         )
                                     }
 
@@ -349,14 +356,14 @@ fun DashboardScreen(
                                     }
                                 }
 
-                                Spacer(modifier = Modifier.height(10.dp))
+                                Spacer(modifier = Modifier.height(spacing.s - spacing.xxs / 2))
 
                                 LinearProgressIndicator(
                                     progress = { syncProgress.progress.coerceIn(0f, 1f) },
                                     modifier = Modifier.fillMaxWidth()
                                 )
 
-                                Spacer(modifier = Modifier.height(6.dp))
+                                Spacer(modifier = Modifier.height(spacing.s - spacing.xxs - spacing.xxs / 2))
 
                                 Text(
                                     text = if (syncProgress.totalSteps > 0) {
@@ -364,8 +371,8 @@ fun DashboardScreen(
                                     } else {
                                         "Preparando sincronización"
                                     },
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    style = typography.labelSmall,
+                                    color = colors.onSurfaceVariant
                                 )
                             }
                         }
@@ -411,9 +418,9 @@ fun DashboardScreen(
                 item {
                     Text(
                         text = "Acciones principales",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 16.dp)
+                        modifier = Modifier.padding(horizontal = spacing.m)
                     )
                 }
 
@@ -422,8 +429,8 @@ fun DashboardScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(IntrinsicSize.Min)
-                            .padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            .padding(horizontal = spacing.m),
+                        horizontalArrangement = Arrangement.spacedBy(spacing.s)
                     ) {
                         ActionButton(
                             icon = Icons.Default.RemoveCircle,
@@ -541,20 +548,20 @@ fun DashboardScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                            .padding(horizontal = spacing.m, vertical = spacing.xs),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column {
                             Text(
                                 text = "Tus cuentas",
-                                style = MaterialTheme.typography.titleMedium,
+                                style = typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
                                 text = "Ordenadas por saldo (de mayor a menor)",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                style = typography.labelSmall,
+                                color = colors.onSurfaceVariant
                             )
                         }
                     }
@@ -565,7 +572,7 @@ fun DashboardScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 24.dp),
+                                .padding(vertical = spacing.xl),
                             contentAlignment = Alignment.Center
                         ) {
                             CircularProgressIndicator()
@@ -576,26 +583,26 @@ fun DashboardScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(32.dp),
+                                .padding(spacing.xxl),
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(
                                     Icons.Default.AccountBalance,
                                     contentDescription = null,
-                                    modifier = Modifier.size(64.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    modifier = Modifier.size(spacing.xxxl + spacing.m),
+                                    tint = colors.onSurfaceVariant
                                 )
-                                Spacer(modifier = Modifier.height(16.dp))
+                                Spacer(modifier = Modifier.height(spacing.m))
                                 Text(
                                     "No tienes cuentas",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    style = typography.bodyLarge,
+                                    color = colors.onSurfaceVariant
                                 )
                                 Text(
                                     "Agrega tu primera cuenta para comenzar",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    style = typography.bodySmall,
+                                    color = colors.onSurfaceVariant
                                 )
                             }
                         }
@@ -612,7 +619,7 @@ fun DashboardScreen(
                             onDelete = { accountId ->
                                 viewModel.deleteAccount(accountId)
                             },
-                            modifier = Modifier.padding(horizontal = 16.dp)
+                            modifier = Modifier.padding(horizontal = spacing.m)
                         )
                     }
                 }
@@ -654,10 +661,10 @@ fun DashboardScreen(
             ModalBottomSheet(
                 onDismissRequest = { showAddTransactionSheet = false },
                 sheetState = addTransactionSheetState,
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                shape = MaterialTheme.shapes.extraLarge,
-                tonalElevation = 0.dp,
+                containerColor = colors.surface,
+                contentColor = colors.onSurface,
+                shape = RoundedCornerShape(shapes.extraLarge),
+                tonalElevation = elevation.level0,
                 dragHandle = { BottomSheetDefaults.DragHandle() }
             ) {
                 Box(
@@ -690,6 +697,11 @@ private fun AccountsScrollPanel(
     onDelete: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
     val sortedAccounts = remember(accounts) {
         accounts.sortedByDescending { it.balanceCents }
     }
@@ -711,33 +723,33 @@ private fun AccountsScrollPanel(
 
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = Color.White,
-        shape = MaterialTheme.shapes.extraLarge,
-        tonalElevation = 0.dp,
-        shadowElevation = 6.dp
+        color = colors.surface,
+        shape = RoundedCornerShape(shapes.extraLarge),
+        tonalElevation = elevation.level0,
+        shadowElevation = elevation.level3
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(horizontal = spacing.s, vertical = spacing.s - spacing.xxs / 2),
+            verticalArrangement = Arrangement.spacedBy(spacing.s - spacing.xxs / 2)
         ) {
             if (top != null && totalBalanceCents > 0L) {
                 Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                    shape = MaterialTheme.shapes.extraLarge,
+                    color = colors.surfaceVariant.copy(alpha = 0.45f),
+                    shape = RoundedCornerShape(shapes.extraLarge),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                            .padding(horizontal = spacing.s, vertical = spacing.s - spacing.xxs / 2),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(spacing.s - spacing.xxs / 2)
                     ) {
                         Surface(
-                            modifier = Modifier.size(28.dp),
-                            shape = MaterialTheme.shapes.large,
+                            modifier = Modifier.size(spacing.xl + spacing.xxs),
+                            shape = RoundedCornerShape(shapes.large),
                             color = Color(0xFFE8F0FF)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
@@ -745,14 +757,14 @@ private fun AccountsScrollPanel(
                                     imageVector = Icons.Default.Lightbulb,
                                     contentDescription = null,
                                     tint = Color(0xFF2463EB),
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(spacing.m)
                                 )
                             }
                         }
                         Text(
                             text = "La mayor parte de tu dinero está en ${top.account.name} (${topPercentText}%)",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface
+                            style = typography.bodySmall,
+                            color = colors.onSurface
                         )
                     }
                 }
@@ -761,9 +773,9 @@ private fun AccountsScrollPanel(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 420.dp),
-                contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                    .heightIn(max = spacing.xxxl * 8 + spacing.xxl + spacing.xxs),
+                contentPadding = PaddingValues(horizontal = elevation.level0, vertical = elevation.level0),
+                verticalArrangement = Arrangement.spacedBy(spacing.s - spacing.xxs / 2)
             ) {
                 items(sortedAccounts) { accountWithBalance ->
                     val isTop = accountWithBalance.account.id == top?.account?.id
@@ -784,13 +796,13 @@ private fun AccountsScrollPanel(
                         onClick = onAddAccount,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(52.dp),
-                        shape = MaterialTheme.shapes.extraLarge,
-                        colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
+                            .height(spacing.xxxl + spacing.xxs),
+                        shape = RoundedCornerShape(shapes.extraLarge),
+                        colors = ButtonDefaults.outlinedButtonColors(containerColor = colors.surface)
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Nueva cuenta", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Spacer(modifier = Modifier.width(spacing.xs))
+                        Text("Nueva cuenta", style = typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -865,6 +877,11 @@ private fun RankedAccountCard(
     var showRenameDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("es", "CO")) }
     val safeTotal = totalBalanceCents.coerceAtLeast(0L)
     val safeBalance = accountWithBalance.balanceCents.coerceAtLeast(0L)
@@ -879,8 +896,8 @@ private fun RankedAccountCard(
             runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrNull()
         } ?: accent
     }
-    val cardElevation = if (isTop) 8.dp else 4.dp
-    val verticalPadding = if (isTop) 14.dp else 10.dp
+    val cardElevation = if (isTop) elevation.level4 else elevation.level2 + elevation.level1
+    val verticalPadding = if (isTop) spacing.s + spacing.xxs / 2 else spacing.s - spacing.xxs / 2
 
     val mainIcon = remember(accountWithBalance.account.iconKey, accountWithBalance.account.type) {
         accountIconForKey(accountWithBalance.account.iconKey, accountWithBalance.account.type)
@@ -890,28 +907,28 @@ private fun RankedAccountCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onOpen() },
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = colors.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = cardElevation),
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = RoundedCornerShape(shapes.extraLarge),
         border = CardDefaults.outlinedCardBorder().copy(
-            width = 1.dp,
+            width = elevation.level1,
             brush = androidx.compose.ui.graphics.SolidColor(accountAccent.copy(alpha = if (isTop) 0.14f else 0.08f))
         )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = verticalPadding),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = spacing.s + spacing.xxs / 2, vertical = verticalPadding),
+            verticalArrangement = Arrangement.spacedBy(spacing.xs)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(spacing.s)
             ) {
                 Surface(
-                    modifier = Modifier.size(if (isTop) 52.dp else 46.dp),
-                    shape = MaterialTheme.shapes.extraLarge,
+                    modifier = Modifier.size(if (isTop) spacing.xxxl + spacing.xxs else spacing.xxxl - spacing.xxs / 2),
+                    shape = RoundedCornerShape(shapes.extraLarge),
                     color = accountAccent.copy(alpha = 0.12f)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -919,42 +936,42 @@ private fun RankedAccountCard(
                             imageVector = mainIcon,
                             contentDescription = null,
                             tint = accountAccent,
-                            modifier = Modifier.size(if (isTop) 26.dp else 22.dp)
+                            modifier = Modifier.size(if (isTop) spacing.xl + spacing.xxs / 2 else spacing.l + spacing.xxs / 2)
                         )
                     }
                 }
 
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.xxs / 2)) {
                     Text(
                         text = accountWithBalance.account.name,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 2
                     )
                     Text(
                         text = "${accountTypeLabel(accountWithBalance.account.type)}  •  ${accountWithBalance.account.currency}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = typography.labelSmall,
+                        color = colors.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = currencyFormat.format(accountWithBalance.balanceCents / 100.0),
-                        style = MaterialTheme.typography.titleMedium,
+                        style = typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = if (accountWithBalance.balanceCents >= 0) Income else Expense
                     )
                 }
 
                 Box {
-                    IconButton(onClick = { showMenu = true }, modifier = Modifier.size(38.dp)) {
+                    IconButton(onClick = { showMenu = true }, modifier = Modifier.size(spacing.xxl + spacing.xxs / 2)) {
                         Icon(Icons.Default.MoreVert, contentDescription = "Opciones")
                     }
                     DropdownMenu(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false },
-                        containerColor = Color.White,
-                        tonalElevation = 0.dp
+                        containerColor = colors.surface,
+                        tonalElevation = elevation.level0
                     ) {
                         DropdownMenuItem(
                             text = { Text("Editar") },
@@ -979,20 +996,20 @@ private fun RankedAccountCard(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(spacing.s - spacing.xxs / 2)
             ) {
                 LinearProgressIndicator(
                     progress = { pct },
                     modifier = Modifier
                         .weight(1f)
-                        .height(8.dp),
+                        .height(spacing.xs),
                     color = accountAccent,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    trackColor = colors.surfaceVariant
                 )
                 Text(
                     text = "${pctText}%",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = typography.labelMedium,
+                    color = colors.onSurfaceVariant
                 )
             }
         }
@@ -1035,12 +1052,12 @@ private fun RankedAccountCard(
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                    verticalArrangement = Arrangement.spacedBy(spacing.l)
                 ) {
                     Text(
                         text = "Personaliza la información de esta cuenta",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = typography.bodyMedium,
+                        color = colors.onSurfaceVariant
                     )
 
                     // Vista previa de cuenta
@@ -1073,23 +1090,23 @@ private fun RankedAccountCard(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                        shape = MaterialTheme.shapes.extraLarge,
+                        elevation = CardDefaults.cardElevation(defaultElevation = elevation.level1 + elevation.level1),
+                        shape = RoundedCornerShape(shapes.extraLarge),
                         border = CardDefaults.outlinedCardBorder().copy(
-                            width = 1.dp,
+                            width = elevation.level1,
                             brush = androidx.compose.ui.graphics.SolidColor(animatedBorderColor)
                         )
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                                .padding(horizontal = spacing.m, vertical = spacing.s + spacing.xxs / 2),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(spacing.s)
                         ) {
                             Surface(
-                                modifier = Modifier.size(46.dp),
-                                shape = MaterialTheme.shapes.extraLarge,
+                                modifier = Modifier.size(spacing.xxxl - spacing.xxs / 2),
+                                shape = RoundedCornerShape(shapes.extraLarge),
                                 color = animatedPreviewColor.copy(alpha = 0.12f)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
@@ -1102,16 +1119,16 @@ private fun RankedAccountCard(
                                             imageVector = icon,
                                             contentDescription = null,
                                             tint = animatedPreviewColor,
-                                            modifier = Modifier.size(22.dp)
+                                            modifier = Modifier.size(spacing.l + spacing.xxs / 2)
                                         )
                                     }
                                 }
                             }
 
-                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.xxs / 2)) {
                                 Text(
                                     text = newName.ifBlank { accountWithBalance.account.name },
-                                    style = MaterialTheme.typography.titleSmall,
+                                    style = typography.titleSmall,
                                     fontWeight = FontWeight.SemiBold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -1127,8 +1144,8 @@ private fun RankedAccountCard(
                                 ) { label ->
                                     Text(
                                         text = "$label  •  ${accountWithBalance.account.currency}",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = typography.labelSmall,
+                                        color = colors.onSurfaceVariant,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -1177,10 +1194,10 @@ private fun RankedAccountCard(
                         }
                     }
 
-                    Text(text = "Icono", style = MaterialTheme.typography.labelLarge)
+                    Text(text = "Icono", style = typography.labelLarge)
                     Surface(
-                        modifier = Modifier.size(56.dp),
-                        shape = MaterialTheme.shapes.extraLarge,
+                        modifier = Modifier.size(spacing.xxxl + spacing.xs),
+                        shape = RoundedCornerShape(shapes.extraLarge),
                         color = accountAccent.copy(alpha = 0.12f)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -1188,15 +1205,15 @@ private fun RankedAccountCard(
                                 imageVector = accountIconForKey(selectedIconKey, selectedType),
                                 contentDescription = null,
                                 tint = accountAccent,
-                                modifier = Modifier.size(26.dp)
+                                modifier = Modifier.size(spacing.xl + spacing.xxs / 2)
                             )
                         }
                     }
 
-                    Text(text = "Color", style = MaterialTheme.typography.labelLarge)
+                    Text(text = "Color", style = typography.labelLarge)
                     LazyRow(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(spacing.s)
                     ) {
                         items(colorOptions) { (hex, _) ->
                             val c = runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrNull() ?: accent
@@ -1209,33 +1226,33 @@ private fun RankedAccountCard(
                             )
 
                             val animatedBorderWidth by animateDpAsState(
-                                targetValue = if (selected) 3.dp else 1.dp,
+                                targetValue = if (selected) elevation.level2 else elevation.level1,
                                 animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
                                 label = "borderWidth"
                             )
 
                             val animatedBorderColor by animateColorAsState(
-                                targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                                targetValue = if (selected) colors.brand else colors.onSurface.copy(alpha = 0.12f),
                                 animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
                                 label = "borderColor"
                             )
 
                             Surface(
                                 modifier = Modifier
-                                    .size(40.dp)
+                                    .size(spacing.xxl + spacing.xs)
                                     .graphicsLayer {
                                         scaleX = animatedScale
                                         scaleY = animatedScale
                                     }
-                                    .clip(MaterialTheme.shapes.extraLarge)
+                                    .clip(RoundedCornerShape(shapes.extraLarge))
                                     .border(
                                         width = animatedBorderWidth,
                                         color = animatedBorderColor,
-                                        shape = MaterialTheme.shapes.extraLarge
+                                        shape = RoundedCornerShape(shapes.extraLarge)
                                     )
                                     .clickable { selectedColorHex = hex },
                                 color = c,
-                                tonalElevation = if (selected) 1.dp else 0.dp
+                                tonalElevation = if (selected) elevation.level1 else elevation.level0
                             ) {
                                 Box(
                                     modifier = Modifier.fillMaxSize(),
@@ -1255,8 +1272,8 @@ private fun RankedAccountCard(
                                         Icon(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(20.dp)
+                                            tint = colors.onBrand,
+                                            modifier = Modifier.size(spacing.l)
                                         )
                                     }
                                 }
@@ -1281,7 +1298,7 @@ private fun RankedAccountCard(
             dismissButton = {
                 TextButton(onClick = { showRenameDialog = false }) { Text("Cancelar") }
             },
-            shape = MaterialTheme.shapes.extraLarge
+            shape = RoundedCornerShape(shapes.extraLarge)
         )
     }
 
@@ -1321,68 +1338,73 @@ private fun MonthlyOverviewCard(
     totalBalanceFormatted: String,
     totalBalancePositive: Boolean
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
     val periodLabel = "$monthLabel actual"
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        shape = MaterialTheme.shapes.extraLarge
+            .padding(horizontal = spacing.m, vertical = spacing.xxs),
+        colors = CardDefaults.cardColors(containerColor = colors.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = elevation.level2 + elevation.level1),
+        shape = RoundedCornerShape(shapes.extraLarge)
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            modifier = Modifier.padding(horizontal = spacing.m, vertical = spacing.s - spacing.xxs / 2),
+            verticalArrangement = Arrangement.spacedBy(spacing.s - spacing.xxs - spacing.xxs / 2)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.xxs / 2)) {
                     Text(
                         text = "Este mes",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = colors.onSurface
                     )
                     Text(
                         text = periodLabel,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = typography.labelSmall,
+                        color = colors.onSurfaceVariant
                     )
                 }
                 TextButton(
                     onClick = onToggleHistory,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                    contentPadding = PaddingValues(horizontal = spacing.xs, vertical = spacing.xxs / 2)
                 ) {
                     Text(
                         text = if (showHistory) "Ocultar" else "Ver meses",
-                        style = MaterialTheme.typography.labelLarge
+                        style = typography.labelLarge
                     )
                 }
             }
 
             Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                shape = MaterialTheme.shapes.extraLarge,
+                color = colors.surfaceVariant.copy(alpha = 0.45f),
+                shape = RoundedCornerShape(shapes.extraLarge),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Box(modifier = Modifier.fillMaxWidth()) {
                     MonthlyCardBackgroundGraph(
                         modifier = Modifier
                             .matchParentSize()
-                            .padding(horizontal = 6.dp, vertical = 6.dp)
+                            .padding(horizontal = spacing.s - spacing.xxs - spacing.xxs / 2, vertical = spacing.s - spacing.xxs - spacing.xxs / 2)
                     )
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 10.dp, vertical = 10.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                            .padding(horizontal = spacing.s - spacing.xxs / 2, vertical = spacing.s - spacing.xxs / 2),
+                        verticalArrangement = Arrangement.spacedBy(spacing.s - spacing.xxs - spacing.xxs / 2)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(spacing.s - spacing.xxs / 2),
                             verticalAlignment = Alignment.Top
                         ) {
                             MonthlyMetricColumn(
@@ -1409,7 +1431,7 @@ private fun MonthlyOverviewCard(
             }
 
             if (showHistory && previousMonths.isNotEmpty()) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.s - spacing.xxs - spacing.xxs / 2)) {
                     previousMonths.forEach { item ->
                         PreviousMonthRow(
                             item = item,
@@ -1418,38 +1440,38 @@ private fun MonthlyOverviewCard(
                     }
 
                     Surface(
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                        shape = MaterialTheme.shapes.large,
+                        color = colors.surfaceVariant.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(shapes.large),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                .padding(horizontal = spacing.s, vertical = spacing.xs),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = "Total período",
-                                style = MaterialTheme.typography.titleSmall,
+                                style = typography.titleSmall,
                                 fontWeight = FontWeight.Bold
                             )
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
                                     text = totalIncomeFormatted,
-                                    style = MaterialTheme.typography.labelMedium,
+                                    style = typography.labelMedium,
                                     color = Income,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
                                     text = totalExpenseFormatted,
-                                    style = MaterialTheme.typography.labelMedium,
+                                    style = typography.labelMedium,
                                     color = Expense,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
                                     text = totalBalanceFormatted,
-                                    style = MaterialTheme.typography.titleSmall,
+                                    style = typography.titleSmall,
                                     color = if (totalBalancePositive) Income else Expense,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -1469,20 +1491,22 @@ private fun MonthlyMetricColumn(
     accentColor: Color,
     modifier: Modifier = Modifier
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val typography = XpendzThemeTokens.typography
     Column(
-        modifier = modifier.padding(horizontal = 2.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp)
+        modifier = modifier.padding(horizontal = spacing.xxs / 2),
+        verticalArrangement = Arrangement.spacedBy(spacing.xxs / 2)
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.labelLarge,
+            style = typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
+            color = colors.onSurface
         )
         Text(
             text = value,
-            fontSize = 16.sp,
-            lineHeight = 17.sp,
+            style = typography.bodyLarge.copy(fontSize = 16.sp, lineHeight = 17.sp),
             fontWeight = FontWeight.Bold,
             color = accentColor,
             maxLines = 2,
@@ -1498,6 +1522,9 @@ private fun MonthlyInlineBalanceMetric(
     accentColor: Color,
     modifier: Modifier = Modifier
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val typography = XpendzThemeTokens.typography
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1505,15 +1532,14 @@ private fun MonthlyInlineBalanceMetric(
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.labelLarge,
+            style = typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(end = 8.dp)
+            color = colors.onSurface,
+            modifier = Modifier.padding(end = spacing.xs)
         )
         Text(
             text = value,
-            fontSize = 16.sp,
-            lineHeight = 17.sp,
+            style = typography.bodyLarge.copy(fontSize = 16.sp, lineHeight = 17.sp),
             fontWeight = FontWeight.Bold,
             color = accentColor,
             textAlign = TextAlign.End,
@@ -1528,7 +1554,7 @@ private fun MonthlyInlineBalanceMetric(
 private fun MonthlyCardBackgroundGraph(
     modifier: Modifier = Modifier
 ) {
-    val primaryOverlay = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+    val primaryOverlay = XpendzThemeTokens.colors.brand.copy(alpha = 0.08f)
     Canvas(modifier = modifier) {
         val width = size.width
         val height = size.height
@@ -1570,53 +1596,57 @@ private fun PreviousMonthRow(
     item: DashboardMonthlyHistoryItem,
     balanceColor: Color
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
     val currencyFormatter = remember { NumberFormat.getCurrencyInstance(Locale("es", "CO")) }
     Surface(
-        color = Color.White,
-        shape = MaterialTheme.shapes.large,
-        shadowElevation = 1.dp,
+        color = colors.surface,
+        shape = RoundedCornerShape(shapes.large),
+        shadowElevation = elevation.level1,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                .padding(horizontal = spacing.s, vertical = spacing.s - spacing.xxs / 2),
+            horizontalArrangement = Arrangement.spacedBy(spacing.s - spacing.xxs / 2),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = item.label,
-                style = MaterialTheme.typography.labelMedium,
+                style = typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.width(62.dp)
+                modifier = Modifier.width(spacing.xxxl + spacing.s + spacing.xxs / 2)
             )
             Column(
                 modifier = Modifier.weight(1f),
                 horizontalAlignment = Alignment.Start,
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(spacing.xxs / 2)
             ) {
                 Text(
                     text = "Ing. ${currencyFormatter.format(item.incomeCents / 100.0)}",
-                    style = MaterialTheme.typography.bodySmall,
+                    style = typography.bodySmall,
                     color = Income
                 )
                 Text(
                     text = "Gas. ${currencyFormatter.format(item.expenseCents / 100.0)}",
-                    style = MaterialTheme.typography.bodySmall,
+                    style = typography.bodySmall,
                     color = Expense
                 )
             }
             Text(
                 text = currencyFormatter.format(item.balanceCents / 100.0),
-                fontSize = 12.sp,
-                lineHeight = 13.sp,
+                style = typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 13.sp),
                 fontWeight = FontWeight.Bold,
                 color = balanceColor,
                 textAlign = TextAlign.End,
                 maxLines = 1,
                 softWrap = false,
                 overflow = TextOverflow.Clip,
-                modifier = Modifier.width(84.dp)
+                modifier = Modifier.width(spacing.xxxl + spacing.xxl + spacing.xxs)
             )
         }
     }
@@ -1639,25 +1669,30 @@ private fun BalanceSummaryCard(
     trendFormatted: String,
     trendPositive: Boolean
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .padding(horizontal = spacing.m, vertical = spacing.xxs)
             .clickable { onToggleDetail() },
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = elevation.level3)
     ) {
         val gradient = Brush.linearGradient(
             colors = listOf(
-                MaterialTheme.colorScheme.primary,
+                colors.brand,
                 MaterialTheme.colorScheme.primaryContainer
             )
         )
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(MaterialTheme.shapes.medium)
+                .clip(RoundedCornerShape(shapes.medium))
                 .background(gradient)
-                .padding(horizontal = 16.dp, vertical = 2.dp),
+                .padding(horizontal = spacing.m, vertical = spacing.xxs / 2),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Row(
@@ -1667,13 +1702,13 @@ private fun BalanceSummaryCard(
             ) {
                 Text(
                     "Saldo total · $balancePeriodLabel",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.92f)
+                    style = typography.labelMedium,
+                    color = colors.onBrand.copy(alpha = 0.92f)
                 )
                 IconButton(
                     onClick = onToggleBalanceVisibility,
                     colors = IconButtonDefaults.iconButtonColors(
-                        contentColor = MaterialTheme.colorScheme.onPrimary
+                        contentColor = colors.onBrand
                     )
                 ) {
                     Icon(
@@ -1683,76 +1718,76 @@ private fun BalanceSummaryCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(spacing.xxs / 2))
             Text(
                 totalBalanceFormatted,
-                style = MaterialTheme.typography.displaySmall,
+                style = typography.displaySmall,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimary
+                color = colors.onBrand
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(spacing.xxs))
 
             Surface(
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.16f),
-                shape = MaterialTheme.shapes.extraLarge
+                color = colors.surface.copy(alpha = 0.16f),
+                shape = RoundedCornerShape(shapes.extraLarge)
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                    modifier = Modifier.padding(horizontal = spacing.s, vertical = spacing.xs - spacing.xxs / 2 - elevation.level1),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(spacing.xs)
                 ) {
                     Icon(
                         imageVector = realTrendIcon,
                         contentDescription = null,
                         tint = realTrendAccentColor,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(spacing.l - spacing.xxs / 2)
                     )
                     Text(
                         text = realTrendText,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onPrimary,
+                        style = typography.labelLarge,
+                        color = colors.onBrand,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
                         text = if (realTrendIsPositive) "🟢" else "🔴",
-                        style = MaterialTheme.typography.labelLarge
+                        style = typography.labelLarge
                     )
                 }
             }
 
             if (monthlyPoints.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(1.dp))
+                Spacer(modifier = Modifier.height(elevation.level1))
                 BalanceSparkline(
                     points = monthlyPoints,
                     lineColor = Color(0xFF7DFFB3),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(38.dp)
+                        .height(spacing.xxl + spacing.xs - spacing.xxs / 2)
                 )
             }
 
             if (showBalanceDetail) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(spacing.xs))
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.14f),
-                    shape = MaterialTheme.shapes.large
+                    color = colors.surface.copy(alpha = 0.14f),
+                    shape = RoundedCornerShape(shapes.large)
                 ) {
                     Column(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        modifier = Modifier.padding(horizontal = spacing.s + spacing.xxs / 2, vertical = spacing.s - spacing.xxs / 2),
+                        verticalArrangement = Arrangement.spacedBy(spacing.xxs)
                     ) {
                         Text(
                             text = "Detalle rápido",
-                            style = MaterialTheme.typography.labelLarge,
+                            style = typography.labelLarge,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimary
+                            color = colors.onBrand
                         )
                         Text(
                             text = balanceDetailText,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.92f)
+                            style = typography.bodySmall,
+                            color = colors.onBrand.copy(alpha = 0.92f)
                         )
                         BalanceMetricChip(
                             title = "Variación vs periodo anterior",
@@ -1762,8 +1797,8 @@ private fun BalanceSummaryCard(
                         )
                         Text(
                             text = "Toca esta tarjeta para ocultar o mostrar este desglose.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.78f)
+                            style = typography.bodySmall,
+                            color = colors.onBrand.copy(alpha = 0.78f)
                         )
                     }
                 }
@@ -1780,23 +1815,27 @@ private fun BottomToolsPanel(
     onNavigateToBudget: () -> Unit,
     onNavigateToLoans: () -> Unit
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
     var selected by rememberSaveable { mutableStateOf("Categorías") }
 
     Surface(
-        color = Color.White,
-        tonalElevation = 0.dp,
-        shadowElevation = 10.dp,
-        shape = MaterialTheme.shapes.extraLarge,
+        color = colors.surface,
+        tonalElevation = elevation.level0,
+        shadowElevation = elevation.level4 + elevation.level1 + elevation.level1,
+        shape = RoundedCornerShape(shapes.extraLarge),
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .padding(horizontal = spacing.s, vertical = spacing.xs)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(0.dp),
+                .padding(horizontal = spacing.s - spacing.xxs - spacing.xxs / 2, vertical = spacing.s - spacing.xxs / 2),
+            horizontalArrangement = Arrangement.spacedBy(elevation.level0),
             verticalAlignment = Alignment.CenterVertically
         ) {
             BottomToolItem(
@@ -1861,24 +1900,27 @@ private fun BottomToolItem(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val typography = XpendzThemeTokens.typography
+    val tint = if (selected) colors.brand else colors.onSurfaceVariant.copy(alpha = 0.75f)
 
     Column(
         modifier = modifier
             .clickable(onClick = onClick)
-            .padding(horizontal = 2.dp, vertical = 6.dp),
+            .padding(horizontal = spacing.xxs / 2, vertical = spacing.s - spacing.xxs - spacing.xxs / 2),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(spacing.xxs)
     ) {
         Icon(
             imageVector = icon,
             contentDescription = label,
             tint = tint,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(spacing.xl)
         )
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall,
+            style = typography.labelSmall,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
             color = tint,
             maxLines = 1,
@@ -1894,23 +1936,27 @@ private fun BalanceMetricChip(
     accentColor: Color,
     modifier: Modifier = Modifier
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val typography = XpendzThemeTokens.typography
     Surface(
         modifier = modifier,
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.14f),
-        shape = MaterialTheme.shapes.medium
+        color = colors.surface.copy(alpha = 0.14f),
+        shape = RoundedCornerShape(shapes.medium)
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            modifier = Modifier.padding(horizontal = spacing.s - spacing.xxs / 2, vertical = spacing.xs),
+            verticalArrangement = Arrangement.spacedBy(spacing.xxs / 2)
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.78f)
+                style = typography.labelSmall,
+                color = colors.onBrand.copy(alpha = 0.78f)
             )
             Text(
                 text = value,
-                style = MaterialTheme.typography.labelLarge,
+                style = typography.labelLarge,
                 fontWeight = FontWeight.Bold,
                 color = accentColor
             )
@@ -1979,27 +2025,32 @@ private fun ActionButton(
     emphasis: ActionButtonEmphasis = ActionButtonEmphasis.Secondary,
     accentColor: Color = MaterialTheme.colorScheme.primary
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
     val isPrimary = emphasis == ActionButtonEmphasis.Primary
     val containerColor = if (isPrimary) {
         accentColor
     } else {
-        MaterialTheme.colorScheme.surface
+        colors.surface
     }
-    val contentColor = if (isPrimary) Color.White else MaterialTheme.colorScheme.onSurface
+    val contentColor = if (isPrimary) colors.onBrand else colors.onSurface
     val supportingColor = if (isPrimary) {
-        Color.White.copy(alpha = 0.95f)
+        colors.onBrand.copy(alpha = 0.95f)
     } else {
-        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f)
+        colors.onSurfaceVariant.copy(alpha = 0.82f)
     }
 
     ElevatedCard(
         onClick = onClick,
-        modifier = modifier.heightIn(min = if (isPrimary) 108.dp else 0.dp),
+        modifier = modifier.heightIn(min = if (isPrimary) spacing.xxxl * 2 + spacing.s else elevation.level0),
         colors = CardDefaults.elevatedCardColors(
             containerColor = containerColor
         ),
         elevation = CardDefaults.elevatedCardElevation(
-            defaultElevation = if (isPrimary) 8.dp else 2.dp
+            defaultElevation = if (isPrimary) elevation.level4 else elevation.level1 + elevation.level1
         )
     ) {
         Box(
@@ -2007,8 +2058,8 @@ private fun ActionButton(
                 .fillMaxWidth()
                 .fillMaxHeight()
                 .padding(
-                    horizontal = if (isPrimary) 10.dp else 12.dp,
-                    vertical = if (isPrimary) 12.dp else 12.dp
+                    horizontal = if (isPrimary) spacing.s - spacing.xxs / 2 else spacing.s,
+                    vertical = spacing.s
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -2028,21 +2079,21 @@ private fun ActionButton(
                     verticalArrangement = Arrangement.Center
                 ) {
                     Surface(
-                        color = Color.White.copy(alpha = 0.92f),
-                        shape = MaterialTheme.shapes.large
+                        color = colors.onBrand.copy(alpha = 0.92f),
+                        shape = RoundedCornerShape(shapes.large)
                     ) {
                         Icon(
                             icon,
                             contentDescription = null,
                             modifier = Modifier
-                                .padding(8.dp)
-                                .size(18.dp),
+                                .padding(spacing.xs)
+                                .size(spacing.l - spacing.xxs / 2),
                             tint = accentColor
                         )
                     }
                     Text(
                         label,
-                        style = MaterialTheme.typography.labelLarge,
+                        style = typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
@@ -2052,7 +2103,7 @@ private fun ActionButton(
                     if (supportingText.isNotBlank()) {
                         Text(
                             supportingText,
-                            style = MaterialTheme.typography.bodySmall,
+                            style = typography.bodySmall,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             color = supportingColor,
@@ -2067,21 +2118,21 @@ private fun ActionButton(
                 ) {
                     Surface(
                         color = accentColor.copy(alpha = 0.12f),
-                        shape = MaterialTheme.shapes.large
+                        shape = RoundedCornerShape(shapes.large)
                     ) {
                         Icon(
                             icon,
                             contentDescription = null,
                             modifier = Modifier
-                                .padding(10.dp)
-                                .size(22.dp),
+                                .padding(spacing.s - spacing.xxs / 2)
+                                .size(spacing.l + spacing.xxs / 2),
                             tint = accentColor
                         )
                     }
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(spacing.s - spacing.xxs / 2))
                     Text(
                         label,
-                        style = MaterialTheme.typography.labelLarge,
+                        style = typography.labelLarge,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
@@ -2089,7 +2140,7 @@ private fun ActionButton(
                     )
                     Text(
                         supportingText,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = typography.bodySmall,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         color = supportingColor
