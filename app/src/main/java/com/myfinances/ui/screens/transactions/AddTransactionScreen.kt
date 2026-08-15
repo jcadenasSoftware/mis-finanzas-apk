@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -37,6 +38,7 @@ import com.jcadenas.xpendz.data.local.entity.CategoryEntity
 import com.jcadenas.xpendz.ui.components.CompactHeader
 import com.jcadenas.xpendz.ui.theme.Income
 import com.jcadenas.xpendz.ui.theme.Expense
+import com.jcadenas.xpendz.ui.theme.XpendzThemeTokens
 import com.jcadenas.xpendz.ui.viewmodel.TransactionsViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -53,6 +55,11 @@ fun AddTransactionScreen(
     onTransactionSaved: () -> Unit,
     viewModel: TransactionsViewModel = hiltViewModel()
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val typography = XpendzThemeTokens.typography
+
     val formState by viewModel.formState.collectAsState()
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale("es")) }
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("es", "CO")) }
@@ -86,12 +93,12 @@ fun AddTransactionScreen(
                         Image(
                             painter = painterResource(id = com.jcadenas.xpendz.R.drawable.ic_launcher),
                             contentDescription = null,
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(spacing.xl + spacing.xs)
                         )
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(spacing.s))
                         Text(
                             if (transactionId != null) "Editar transacción" else "Nueva transacción",
-                            style = MaterialTheme.typography.titleMedium,
+                            style = typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -146,6 +153,12 @@ fun AddTransactionSheet(
     onTransactionSaved: () -> Unit,
     viewModel: TransactionsViewModel = hiltViewModel()
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
+
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val amountFocusRequester = remember { FocusRequester() }
@@ -250,30 +263,30 @@ fun AddTransactionSheet(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         bottomBar = {
             Surface(
-                tonalElevation = 3.dp,
-                color = MaterialTheme.colorScheme.surface
+                tonalElevation = elevation.level2,
+                color = colors.surface
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(horizontal = spacing.m, vertical = spacing.s)
                 ) {
                     Button(
                         onClick = { viewModel.saveTransaction() },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(52.dp),
+                            .height(spacing.xxxl + spacing.xl / 2),
                         enabled = !formState.isLoading,
-                        shape = MaterialTheme.shapes.extraLarge,
+                        shape = RoundedCornerShape(shapes.extraLarge),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
+                            containerColor = colors.brand,
+                            contentColor = colors.onBrand
                         )
                     ) {
                         if (formState.isLoading) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = MaterialTheme.colorScheme.onPrimary
+                                modifier = Modifier.size(spacing.xl),
+                                color = colors.onBrand
                             )
                         } else {
                             Text("Guardar transacción")
@@ -291,13 +304,13 @@ fun AddTransactionSheet(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 18.dp, end = 10.dp, top = 6.dp, bottom = 6.dp),
+                    .padding(start = spacing.m + spacing.xxs / 2, end = spacing.s, top = spacing.xs, bottom = spacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
                     text = "Nueva transacción",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 IconButton(onClick = onDismiss) {
@@ -305,13 +318,13 @@ fun AddTransactionSheet(
                 }
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f))
+            HorizontalDivider(color = colors.onSurfaceVariant.copy(alpha = 0.12f))
 
             if (formState.isLoading && formState.accounts.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp),
+                        .padding(spacing.xl),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator()
@@ -356,6 +369,12 @@ fun AddTransactionFormContent(
     modifier: Modifier = Modifier,
     amountFocusRequester: FocusRequester? = null
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
+
     fun isCompatibleCategoryKind(categoryKind: String, txKind: String): Boolean {
         val k = categoryKind.trim().uppercase()
         val t = txKind.trim().uppercase()
@@ -383,8 +402,8 @@ fun AddTransactionFormContent(
     Column(
         modifier = modifier
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(spacing.m),
+        verticalArrangement = Arrangement.spacedBy(spacing.m)
     ) {
         // Transaction Type
         val isLoanRepayment = formState.id != null && (
@@ -392,42 +411,42 @@ fun AddTransactionFormContent(
             formState.kind == "LOAN_REPAYMENT_PRINCIPAL_OUT"
         )
         
-        Text("Tipo de transacción", style = MaterialTheme.typography.labelLarge)
+        Text("Tipo de transacción", style = typography.labelLarge)
         
         if (isLoanRepayment) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                shape = MaterialTheme.shapes.extraLarge,
+                color = colors.surfaceVariant.copy(alpha = 0.3f),
+                shape = RoundedCornerShape(shapes.extraLarge),
                 border = BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                    elevation.level1,
+                    colors.brand.copy(alpha = 0.3f)
                 )
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        .padding(spacing.m),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.s),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         Icons.Default.RequestQuote,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
+                        tint = colors.brand,
+                        modifier = Modifier.size(spacing.s + spacing.xxs)
                     )
                     Text(
                         text = "Abono de préstamo (no editable)",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = typography.bodyMedium,
+                        color = colors.onSurfaceVariant
                     )
                 }
             }
         } else {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(spacing.s)
             ) {
                 FilterChip(
                     selected = formState.kind == "EXPENSE",
@@ -437,21 +456,21 @@ fun AddTransactionFormContent(
                         Icon(
                             Icons.Default.ArrowUpward,
                             contentDescription = null,
-                            tint = if (formState.kind == "EXPENSE") Expense else MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = if (formState.kind == "EXPENSE") Expense else colors.onSurfaceVariant
                         )
                     },
-                    shape = MaterialTheme.shapes.extraLarge,
+                    shape = RoundedCornerShape(shapes.extraLarge),
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = Expense.copy(alpha = 0.18f),
                         selectedLabelColor = Expense,
                         selectedLeadingIconColor = Expense,
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        labelColor = MaterialTheme.colorScheme.onSurface,
-                        iconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        containerColor = colors.surface,
+                        labelColor = colors.onSurface,
+                        iconColor = colors.onSurfaceVariant
                     ),
                     border = if (formState.kind == "EXPENSE") null else BorderStroke(
-                        1.dp,
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                        elevation.level1,
+                        colors.onSurfaceVariant.copy(alpha = 0.25f)
                     ),
                     modifier = Modifier.weight(1f)
                 )
@@ -463,21 +482,21 @@ fun AddTransactionFormContent(
                         Icon(
                             Icons.Default.ArrowDownward,
                             contentDescription = null,
-                            tint = if (formState.kind == "INCOME") Income else MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = if (formState.kind == "INCOME") Income else colors.onSurfaceVariant
                         )
                     },
-                    shape = MaterialTheme.shapes.extraLarge,
+                    shape = RoundedCornerShape(shapes.extraLarge),
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = Income.copy(alpha = 0.18f),
                         selectedLabelColor = Income,
                         selectedLeadingIconColor = Income,
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        labelColor = MaterialTheme.colorScheme.onSurface,
-                        iconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        containerColor = colors.surface,
+                        labelColor = colors.onSurface,
+                        iconColor = colors.onSurfaceVariant
                     ),
                     border = if (formState.kind == "INCOME") null else BorderStroke(
-                        1.dp,
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                        elevation.level1,
+                        colors.onSurfaceVariant.copy(alpha = 0.25f)
                     ),
                     modifier = Modifier.weight(1f)
                 )
@@ -486,18 +505,18 @@ fun AddTransactionFormContent(
 
         // Amount (hero)
         Surface(
-            shape = MaterialTheme.shapes.extraLarge,
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+            shape = RoundedCornerShape(shapes.extraLarge),
+            color = colors.surfaceVariant.copy(alpha = 0.45f),
             border = BorderStroke(
-                1.dp,
-                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f)
+                elevation.level1,
+                colors.onSurfaceVariant.copy(alpha = 0.10f)
             ),
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 18.dp),
+                    .padding(horizontal = spacing.m, vertical = spacing.s + spacing.xxs),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
@@ -506,10 +525,10 @@ fun AddTransactionFormContent(
                     style = TextStyle(
                         fontSize = 22.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = colors.onSurfaceVariant
                     )
                 )
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(spacing.s))
                 BasicTextField(
                     value = formState.amountText,
                     onValueChange = { onAmount(sanitizeAmountInput(it)) },
@@ -518,7 +537,7 @@ fun AddTransactionFormContent(
                         fontSize = 36.sp,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = colors.onSurface
                     ),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier
@@ -549,8 +568,8 @@ fun AddTransactionFormContent(
                 expanded = rootCategoryExpanded,
                 onDismissRequest = { rootCategoryExpanded = false },
                 modifier = Modifier
-                    .background(MaterialTheme.colorScheme.surface)
-                    .heightIn(max = 320.dp)
+                    .background(colors.surface)
+                    .heightIn(max = spacing.xxxl * 4 + spacing.xxl * 4)
                     .verticalScroll(rememberScrollState())
             ) {
                 compatibleRootCategories.forEach { category ->
@@ -586,8 +605,8 @@ fun AddTransactionFormContent(
                     expanded = subCategoryExpanded,
                     onDismissRequest = { subCategoryExpanded = false },
                     modifier = Modifier
-                        .background(MaterialTheme.colorScheme.surface)
-                        .heightIn(max = 320.dp)
+                        .background(colors.surface)
+                        .heightIn(max = spacing.xxxl * 4 + spacing.xxl * 4)
                         .verticalScroll(rememberScrollState())
                 ) {
                     formState.subCategories.forEach { category ->
@@ -604,7 +623,7 @@ fun AddTransactionFormContent(
         }
 
         // Account
-        Text("Cuenta", style = MaterialTheme.typography.labelLarge)
+        Text("Cuenta", style = typography.labelLarge)
         var accountExpanded by remember { mutableStateOf(false) }
         ExposedDropdownMenuBox(
             expanded = accountExpanded,
@@ -615,36 +634,36 @@ fun AddTransactionFormContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .menuAnchor(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
-                shape = MaterialTheme.shapes.extraLarge,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f))
+                colors = CardDefaults.cardColors(containerColor = colors.surfaceVariant.copy(alpha = 0.45f)),
+                shape = RoundedCornerShape(shapes.extraLarge),
+                border = BorderStroke(elevation.level1, colors.onSurfaceVariant.copy(alpha = 0.10f))
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { accountExpanded = true }
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                        .padding(horizontal = spacing.s + spacing.xxs / 2, vertical = spacing.s),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = selectedAccount?.name ?: "",
-                            style = MaterialTheme.typography.titleSmall,
+                            style = typography.titleSmall,
                             fontWeight = FontWeight.SemiBold
                         )
                         formState.accountBalanceCents?.let { balanceCents ->
                             Text(
                                 text = "Saldo: ${currencyFormat.format(balanceCents / 100.0)}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                style = typography.bodySmall,
+                                color = colors.onSurfaceVariant
                             )
                         }
                     }
                     Icon(
                         imageVector = if (accountExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = colors.onSurfaceVariant
                     )
                 }
             }
@@ -653,7 +672,7 @@ fun AddTransactionFormContent(
                 onDismissRequest = { accountExpanded = false },
                 modifier = Modifier
                     .background(Color.White)
-                    .heightIn(max = 320.dp)
+                    .heightIn(max = spacing.xxxl * 4 + spacing.xxl * 4)
                     .verticalScroll(rememberScrollState())
             ) {
                 formState.accounts.forEach { account ->
@@ -710,13 +729,13 @@ fun AddTransactionFormContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { showDatePicker = true },
-            shape = MaterialTheme.shapes.extraLarge,
+            shape = RoundedCornerShape(shapes.extraLarge),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = Color.White,
                 unfocusedContainerColor = Color.White,
                 disabledContainerColor = Color.White,
-                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                focusedBorderColor = colors.brand,
+                unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.25f)
             )
         )
 
@@ -731,23 +750,23 @@ fun AddTransactionFormContent(
         )
 
         if (showStickySave) {
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(spacing.s))
             Button(
                 onClick = onSubmit,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp),
+                    .height(spacing.xxxl + spacing.xl / 2),
                 enabled = !formState.isLoading,
-                shape = MaterialTheme.shapes.extraLarge,
+                shape = RoundedCornerShape(shapes.extraLarge),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
+                    containerColor = colors.brand,
+                    contentColor = colors.onBrand
                 )
             ) {
                 if (formState.isLoading) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
+                        modifier = Modifier.size(spacing.xl),
+                        color = colors.onBrand
                     )
                 } else {
                     Text(if (formState.id != null) "Actualizar" else "Guardar")

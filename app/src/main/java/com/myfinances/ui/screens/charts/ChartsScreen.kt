@@ -8,6 +8,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.*
@@ -42,6 +43,7 @@ import com.jcadenas.xpendz.ui.components.SyncSwipeRefresh
 import com.jcadenas.xpendz.ui.theme.Expense
 import com.jcadenas.xpendz.ui.theme.Income
 import com.jcadenas.xpendz.ui.theme.Primary
+import com.jcadenas.xpendz.ui.theme.XpendzThemeTokens
 import com.jcadenas.xpendz.ui.viewmodel.ChartsDashboardTab
 import com.jcadenas.xpendz.ui.viewmodel.ChartsKind
 import com.jcadenas.xpendz.ui.viewmodel.ChartsViewMode
@@ -74,6 +76,12 @@ fun ChartsScreen(
     onLogout: () -> Unit,
     viewModel: ChartsViewModel = hiltViewModel()
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
+
     val state by viewModel.state.collectAsState()
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("es", "CO")) }
 
@@ -93,7 +101,7 @@ fun ChartsScreen(
                 title = {
                     Text(
                         text = "Resumen financiero",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                 },

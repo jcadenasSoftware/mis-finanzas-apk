@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
@@ -106,6 +107,7 @@ import com.jcadenas.xpendz.ui.components.HamburgerMenuButton
 import com.jcadenas.xpendz.ui.components.SyncSwipeRefresh
 import com.jcadenas.xpendz.ui.theme.Expense
 import com.jcadenas.xpendz.ui.theme.Income
+import com.jcadenas.xpendz.ui.theme.XpendzThemeTokens
 import com.jcadenas.xpendz.ui.viewmodel.LoansViewModel
 import com.jcadenas.xpendz.ui.viewmodel.SyncViewModel
 import java.math.BigDecimal
@@ -127,6 +129,12 @@ fun LoansScreen(
     onEditTransaction: (String) -> Unit = {},
     viewModel: LoansViewModel = hiltViewModel()
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
+
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -188,7 +196,7 @@ fun LoansScreen(
                 title = {
                     Text(
                         text = "Préstamos",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                 },
@@ -238,25 +246,25 @@ fun LoansScreen(
         Column(
             modifier = Modifier
                 .padding(padding)
-                .padding(16.dp)
+                .padding(spacing.m)
         ) {
             LoansSummaryCard(
                 lentRemainingCents = state.totalLentRemainingCents,
                 borrowedRemainingCents = state.totalBorrowedRemainingCents
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(spacing.s + spacing.xs / 2))
 
             LoansSegmentedTabs(
                 selectedTab = state.selectedTab,
                 onSelectTab = { viewModel.setTab(it) }
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(spacing.s))
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 96.dp)
+                contentPadding = PaddingValues(bottom = spacing.xxxl * 3 + spacing.xl)
             ) {
                 items(state.loans, key = { it.id }) { loan ->
                     val paidCents = state.loanPaidCents[loan.id] ?: 0L
@@ -310,12 +318,12 @@ fun LoansScreen(
                 createLoanError = null
             },
             title = { Text(dialogTitle) },
-            containerColor = Color.White,
+            containerColor = colors.surface,
             confirmButton = {
                 Button(onClick = {
                     // Protección adicional contra doble clic
                     if (state.isSavingLoan) return@Button
-                    
+
                     createLoanError = null
                     val cents = runCatching {
                         // Eliminar separadores de miles antes de parsear
@@ -347,17 +355,17 @@ fun LoansScreen(
                     }
                 },
                     enabled = !state.isSavingLoan,
-                    shape = MaterialTheme.shapes.extraLarge,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2463EB))
+                    shape = RoundedCornerShape(shapes.extraLarge),
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.brand)
                 ) {
                     if (state.isSavingLoan) {
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(spacing.s),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(spacing.xl),
+                                strokeWidth = elevation.level1,
                                 color = Color.White
                             )
                             Text("Guardando...")
@@ -373,7 +381,7 @@ fun LoansScreen(
                         showCreateLoan = false
                         createLoanError = null
                     },
-                    shape = MaterialTheme.shapes.extraLarge
+                    shape = RoundedCornerShape(shapes.extraLarge)
                 ) { Text("Cancelar") }
             },
             text = {
@@ -387,17 +395,17 @@ fun LoansScreen(
                     createLoanError?.let { error ->
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFEE2E2)),
-                            shape = MaterialTheme.shapes.medium
+                            colors = CardDefaults.cardColors(containerColor = colors.negative.copy(alpha = 0.12f)),
+                            shape = RoundedCornerShape(shapes.medium)
                         ) {
                             Text(
                                 text = error,
-                                color = Color(0xFFDC2626),
-                                modifier = Modifier.padding(12.dp),
-                                style = MaterialTheme.typography.bodySmall
+                                color = colors.negative,
+                                modifier = Modifier.padding(spacing.m),
+                                style = typography.bodySmall
                             )
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(spacing.m))
                     }
 
                     LoanTypeSegmentedTabs(
@@ -405,7 +413,7 @@ fun LoansScreen(
                         onSelect = { loanType = it }
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(spacing.m))
 
                     Box(
                         modifier = Modifier
@@ -440,13 +448,13 @@ fun LoansScreen(
                                 .fillMaxWidth()
                                 .onGloballyPositioned { anchorSize = it.size }
                             ,
-                            shape = MaterialTheme.shapes.extraLarge,
+                            shape = RoundedCornerShape(shapes.extraLarge),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedContainerColor = Color.White,
                                 unfocusedContainerColor = Color.White,
                                 disabledContainerColor = Color.White,
-                                focusedBorderColor = Color(0xFF2463EB),
-                                unfocusedBorderColor = Color(0xFFD8DFEA)
+                                focusedBorderColor = colors.brand,
+                                unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.30f)
                             )
                         )
                         DropdownMenu(
@@ -455,13 +463,13 @@ fun LoansScreen(
                             ,
                             modifier = Modifier
                                 .width(with(density) { anchorSize.width.toDp() })
-                                .clip(MaterialTheme.shapes.extraLarge)
+                                .clip(RoundedCornerShape(shapes.extraLarge))
                                 .background(Color.White),
                             properties = PopupProperties(focusable = true)
                         ) {
                             Column(
                                 modifier = Modifier
-                                    .heightIn(max = 320.dp)
+                                    .heightIn(max = spacing.xxxl * 8 + spacing.xl + spacing.s)
                                     .verticalScroll(rememberScrollState())
                             ) {
                                 if (state.accounts.isEmpty()) {
@@ -513,17 +521,17 @@ fun LoansScreen(
                                 showLoanDatePicker = true
                             }
                         ,
-                        shape = MaterialTheme.shapes.extraLarge,
+                        shape = RoundedCornerShape(shapes.extraLarge),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = Color.White,
                             unfocusedContainerColor = Color.White,
                             disabledContainerColor = Color.White,
-                            focusedBorderColor = Color(0xFF2463EB),
-                            unfocusedBorderColor = Color(0xFFD8DFEA)
+                            focusedBorderColor = colors.brand,
+                            unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.30f)
                         )
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(spacing.s))
 
                     LoanModernTextField(
                         value = counterparty,
@@ -533,7 +541,7 @@ fun LoansScreen(
                     )
                     val accountCurrency = state.accounts.firstOrNull { it.id == selectedAccountId }?.currency.orEmpty()
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(spacing.s))
 
                     OutlinedTextField(
                         value = amountText,
@@ -543,18 +551,18 @@ fun LoansScreen(
                         },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.extraLarge,
-                        textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        shape = RoundedCornerShape(shapes.extraLarge),
+                        textStyle = typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color(0xFFF5F7FA),
-                            unfocusedContainerColor = Color(0xFFF5F7FA),
-                            disabledContainerColor = Color(0xFFF5F7FA),
-                            focusedBorderColor = Color(0xFF2463EB),
-                            unfocusedBorderColor = Color(0xFFD8DFEA)
+                            focusedContainerColor = colors.surfaceVariant.copy(alpha = 0.30f),
+                            unfocusedContainerColor = colors.surfaceVariant.copy(alpha = 0.30f),
+                            disabledContainerColor = colors.surfaceVariant.copy(alpha = 0.30f),
+                            focusedBorderColor = colors.brand,
+                            unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.30f)
                         )
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(spacing.s))
 
                     LoanModernTextField(
                         value = notes,
@@ -563,7 +571,7 @@ fun LoansScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(spacing.xs))
                 }
             }
         )
@@ -1606,6 +1614,12 @@ private fun LoansSummaryCard(
     lentRemainingCents: Long,
     borrowedRemainingCents: Long
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
+
     val currency = ""
     val teDebenText = formatMoney(lentRemainingCents, currency).trim()
     val debesText = formatMoney(borrowedRemainingCents, currency).trim()
@@ -1616,41 +1630,41 @@ private fun LoansSummaryCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 4.dp),
-        shape = MaterialTheme.shapes.extraLarge,
+            .padding(horizontal = spacing.xxs, vertical = spacing.xxs),
+        shape = RoundedCornerShape(shapes.extraLarge),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = elevation.level2)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp)
+                .padding(horizontal = spacing.m, vertical = spacing.s + spacing.xxs / 2)
         ) {
             Text(
                 text = "Balance de préstamos",
-                style = MaterialTheme.typography.titleMedium,
+                style = typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = colors.onSurface
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(spacing.s + spacing.xxs / 2))
 
             Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                shape = MaterialTheme.shapes.extraLarge,
+                color = colors.surfaceVariant.copy(alpha = 0.45f),
+                shape = RoundedCornerShape(shapes.extraLarge),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Box(modifier = Modifier.fillMaxWidth()) {
                     LoansSummaryBackgroundGraph(
                         modifier = Modifier
                             .matchParentSize()
-                            .padding(horizontal = 6.dp, vertical = 6.dp)
+                            .padding(horizontal = spacing.xxs, vertical = spacing.xxs)
                     )
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            .padding(horizontal = spacing.m, vertical = spacing.m),
+                        verticalArrangement = Arrangement.spacedBy(spacing.s)
                     ) {
                         SummaryRow(label = "Te deben", value = teDebenText, valueColor = Income, labelBold = true)
                         SummaryRow(label = "Debes", value = debesText, valueColor = Expense, labelBold = true)
@@ -1672,7 +1686,9 @@ private fun LoansSummaryCard(
 private fun LoansSummaryBackgroundGraph(
     modifier: Modifier = Modifier
 ) {
-    val primaryOverlay = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+    val colors = XpendzThemeTokens.colors
+
+    val primaryOverlay = colors.brand.copy(alpha = 0.08f)
     Canvas(modifier = modifier) {
         val width = size.width
         val height = size.height
@@ -1720,6 +1736,9 @@ private fun SummaryRow(
     emphasize: Boolean = false,
     labelBold: Boolean = false
 ) {
+    val colors = XpendzThemeTokens.colors
+    val typography = XpendzThemeTokens.typography
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1727,13 +1746,13 @@ private fun SummaryRow(
     ) {
         Text(
             text = label,
-            style = if (emphasize) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = if (emphasize) typography.bodyMedium else typography.bodySmall,
+            color = colors.onSurfaceVariant,
             fontWeight = if (labelBold) FontWeight.Bold else FontWeight.Normal
         )
         Text(
             text = value,
-            style = if (emphasize) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium,
+            style = if (emphasize) typography.titleSmall else typography.bodyMedium,
             fontWeight = if (emphasize) FontWeight.Bold else FontWeight.SemiBold,
             color = valueColor
         )
@@ -1745,19 +1764,23 @@ private fun LoansSegmentedTabs(
     selectedTab: String,
     onSelectTab: (String) -> Unit
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+
     val lentSelected = selectedTab != "BORROWED"
-    val lentBg by animateColorAsState(if (lentSelected) Color(0xFF2463EB) else Color(0xFFF1F3F7), label = "lentBg")
-    val borrowedBg by animateColorAsState(if (!lentSelected) Color(0xFF2463EB) else Color(0xFFF1F3F7), label = "borrowedBg")
-    val lentFg = if (lentSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-    val borrowedFg = if (!lentSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+    val lentBg by animateColorAsState(if (lentSelected) colors.brand else Color(0xFFF1F3F7), label = "lentBg")
+    val borrowedBg by animateColorAsState(if (!lentSelected) colors.brand else Color(0xFFF1F3F7), label = "borrowedBg")
+    val lentFg = if (lentSelected) Color.White else colors.onSurfaceVariant
+    val borrowedFg = if (!lentSelected) Color.White else colors.onSurfaceVariant
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(MaterialTheme.shapes.extraLarge)
+            .clip(RoundedCornerShape(shapes.extraLarge))
             .background(Color(0xFFF1F3F7))
-            .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+            .padding(spacing.xxs),
+        horizontalArrangement = Arrangement.spacedBy(spacing.xs)
     ) {
         SegmentTab(
             label = "Me deben",
@@ -1787,27 +1810,31 @@ private fun SegmentTab(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val shapes = XpendzThemeTokens.shapes
+    val spacing = XpendzThemeTokens.spacing
+    val typography = XpendzThemeTokens.typography
+
     Surface(
         modifier = modifier
-            .height(44.dp)
+            .height(spacing.xl + spacing.xxs)
             .clickable(onClick = onClick),
         color = background,
-        shape = MaterialTheme.shapes.extraLarge
+        shape = RoundedCornerShape(shapes.extraLarge)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 12.dp),
+                .padding(horizontal = spacing.m),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Icon(icon, contentDescription = null, tint = foreground, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(8.dp))
+            Icon(icon, contentDescription = null, tint = foreground, modifier = Modifier.size(spacing.s))
+            Spacer(modifier = Modifier.width(spacing.xs))
             Text(
                 text = label,
                 color = foreground,
                 fontWeight = FontWeight.SemiBold,
-                style = MaterialTheme.typography.bodyMedium
+                style = typography.bodyMedium
             )
         }
     }
@@ -1818,6 +1845,10 @@ private fun LoanTypeSegmentedTabs(
     selectedType: String,
     onSelect: (String) -> Unit
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+
     val isLent = selectedType != "BORROWED"
     val lentBg by animateColorAsState(
         targetValue = if (isLent) Income else Color(0xFFF1F3F7),
@@ -1827,16 +1858,16 @@ private fun LoanTypeSegmentedTabs(
         targetValue = if (!isLent) Expense else Color(0xFFF1F3F7),
         label = "borrowedTypeBg"
     )
-    val lentFg = if (isLent) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-    val borrowedFg = if (!isLent) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+    val lentFg = if (isLent) Color.White else colors.onSurfaceVariant
+    val borrowedFg = if (!isLent) Color.White else colors.onSurfaceVariant
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(MaterialTheme.shapes.extraLarge)
+            .clip(RoundedCornerShape(shapes.extraLarge))
             .background(Color(0xFFF1F3F7))
-            .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+            .padding(spacing.xxs),
+        horizontalArrangement = Arrangement.spacedBy(spacing.xs)
     ) {
         SegmentTab(
             label = "Presto",
@@ -1864,19 +1895,22 @@ private fun LoanModernTextField(
     label: String,
     modifier: Modifier = Modifier
 ) {
+    val colors = XpendzThemeTokens.colors
+    val shapes = XpendzThemeTokens.shapes
+
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier,
         singleLine = true,
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = RoundedCornerShape(shapes.extraLarge),
         placeholder = { Text(label) },
         colors = OutlinedTextFieldDefaults.colors(
-            focusedContainerColor = Color(0xFFF5F7FA),
-            unfocusedContainerColor = Color(0xFFF5F7FA),
-            disabledContainerColor = Color(0xFFF5F7FA),
-            focusedBorderColor = Color(0xFF2463EB),
-            unfocusedBorderColor = Color(0xFFD8DFEA)
+            focusedContainerColor = colors.surfaceVariant.copy(alpha = 0.30f),
+            unfocusedContainerColor = colors.surfaceVariant.copy(alpha = 0.30f),
+            disabledContainerColor = colors.surfaceVariant.copy(alpha = 0.30f),
+            focusedBorderColor = colors.brand,
+            unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.30f)
         )
     )
 }
@@ -1896,6 +1930,12 @@ private fun LoanCard(
     onViewHistory: () -> Unit = {},
     onEditLoan: () -> Unit = {}
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
+
     val remainingCents = (loan.principalCents - paidCents).coerceAtLeast(0L)
     val remainingText = formatMoney(remainingCents, loan.currency)
 
@@ -1923,12 +1963,12 @@ private fun LoanCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        shape = MaterialTheme.shapes.extraLarge,
+            .padding(vertical = spacing.s),
+        elevation = CardDefaults.cardElevation(defaultElevation = elevation.level2),
+        shape = RoundedCornerShape(shapes.extraLarge),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+        Column(modifier = Modifier.padding(horizontal = spacing.m, vertical = spacing.s + spacing.xxs / 2)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1937,26 +1977,26 @@ private fun LoanCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = loan.counterpartyName,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(spacing.xxs))
                     Text(
                         text = if (isLent) "Te deben" else "Tú debes",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = typography.bodySmall,
+                        color = colors.onSurfaceVariant
                     )
                 }
 
                 Text(
                     text = remainingText,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = baseColor
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(spacing.s + spacing.xxs / 2))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1965,24 +2005,24 @@ private fun LoanCard(
             ) {
                 Text(
                     text = "Pendiente: ${formatMoney(remainingCents, loan.currency)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = typography.bodySmall,
+                    color = colors.onSurfaceVariant
                 )
                 Surface(
-                    shape = MaterialTheme.shapes.extraLarge,
+                    shape = RoundedCornerShape(shapes.extraLarge),
                     color = statusColor.copy(alpha = 0.12f)
                 ) {
                     Text(
                         text = statusLabel,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = spacing.s, vertical = spacing.xxs),
+                        style = typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = statusColor
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(spacing.s + spacing.xxs / 2))
 
             LinearProgressIndicator(
                 progress = { progress },
@@ -1991,29 +2031,29 @@ private fun LoanCard(
                 trackColor = statusColor.copy(alpha = 0.18f)
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(spacing.xs))
 
             Text(
                 text = "$percent% pagado",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = typography.labelSmall,
+                color = colors.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(spacing.s))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(spacing.s)
             ) {
                 FilledTonalButton(
                     onClick = onRegisterPayment,
                     modifier = Modifier.weight(1f),
-                    shape = MaterialTheme.shapes.extraLarge,
+                    shape = RoundedCornerShape(shapes.extraLarge),
                     colors = ButtonDefaults.filledTonalButtonColors(containerColor = baseColor.copy(alpha = 0.12f)),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                    contentPadding = PaddingValues(horizontal = spacing.m, vertical = spacing.s)
                 ) {
-                    Icon(Icons.Default.AttachMoney, contentDescription = null, tint = baseColor, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Icon(Icons.Default.AttachMoney, contentDescription = null, tint = baseColor, modifier = Modifier.size(spacing.s))
+                    Spacer(modifier = Modifier.width(spacing.xs))
                     Text(
                         text = if (isLent) "+ Abono" else "+ Pago",
                         color = baseColor,
@@ -2024,15 +2064,15 @@ private fun LoanCard(
                 FilledTonalButton(
                     onClick = onViewHistory,
                     modifier = Modifier.weight(1f),
-                    shape = MaterialTheme.shapes.extraLarge,
-                    colors = ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                    shape = RoundedCornerShape(shapes.extraLarge),
+                    colors = ButtonDefaults.filledTonalButtonColors(containerColor = colors.surfaceVariant),
+                    contentPadding = PaddingValues(horizontal = spacing.m, vertical = spacing.s)
                 ) {
-                    Icon(Icons.Default.Payments, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Icon(Icons.Default.Payments, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(spacing.s))
+                    Spacer(modifier = Modifier.width(spacing.xs))
                     Text(
                         text = "Historial",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = colors.onSurfaceVariant,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 13.sp
                     )
@@ -2042,7 +2082,7 @@ private fun LoanCard(
                 Box(modifier = Modifier.wrapContentSize(Alignment.TopEnd)) {
                     IconButton(
                         onClick = { showMenu = true },
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier.size(spacing.xxl + spacing.xxs)
                     ) {
                         Icon(Icons.Default.MoreVert, contentDescription = "Más opciones")
                     }
@@ -2102,6 +2142,12 @@ private fun MovementItem(
     currency: String,
     onEdit: (() -> Unit)? = null
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
+
     val typeColor = when (movement.movementType) {
         "CREATION" -> Income
         "TOPUP" -> Color(0xFFF4B400)
@@ -2109,7 +2155,7 @@ private fun MovementItem(
         "PAYMENT_OUT" -> Color(0xFF3B82F6)
         "ADJUSTMENT" -> Color(0xFF9E9E9E)
         "CLOSE" -> Color(0xFF8B5CF6)
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
+        else -> colors.onSurfaceVariant
     }
 
     val typeLabel = when (movement.movementType) {
@@ -2131,7 +2177,7 @@ private fun MovementItem(
         "CLOSE" -> "✓"
         else -> typeLabel.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
     }
-    
+
     val isClickable = onEdit != null && movement.linkedTransactionId != null
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
@@ -2156,67 +2202,67 @@ private fun MovementItem(
                     Modifier
                 }
             ),
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = RoundedCornerShape(shapes.extraLarge),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = colors.surface
         ),
         border = if (isClickable) {
             BorderStroke(
-                1.dp,
-                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f)
+                elevation.level1,
+                colors.onSurfaceVariant.copy(alpha = 0.10f)
             )
         } else {
             BorderStroke(
-                1.dp,
-                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.05f)
+                elevation.level1,
+                colors.onSurfaceVariant.copy(alpha = 0.05f)
             )
         }
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = spacing.s + spacing.xxs / 2, vertical = spacing.s),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Icon container
             Surface(
-                shape = MaterialTheme.shapes.extraLarge,
+                shape = RoundedCornerShape(shapes.extraLarge),
                 color = typeColor.copy(alpha = 0.12f),
-                modifier = Modifier.size(44.dp)
+                modifier = Modifier.size(spacing.xl + spacing.xxs)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
                         text = typeSymbol,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = typeColor
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(spacing.s))
 
             // Main content
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(spacing.xxs)
             ) {
                 Text(
                     text = typeLabel,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = colors.onSurface
                 )
                 Text(
                     text = movement.occurredAtFormatted,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = typography.bodySmall,
+                    color = colors.onSurfaceVariant
                 )
                 if (!movement.note.isNullOrBlank()) {
                     Text(
                         text = movement.note,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = typography.bodySmall,
+                        color = colors.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -2226,11 +2272,11 @@ private fun MovementItem(
             // Amount and edit icon
             Column(
                 horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(spacing.xxs)
             ) {
                 Text(
                     text = movement.amountFormatted,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = typeColor
                 )
@@ -2238,8 +2284,8 @@ private fun MovementItem(
                     Icon(
                         imageVector = Icons.Default.Edit,
                         contentDescription = "Editar transacción",
-                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                        modifier = Modifier.size(18.dp)
+                        tint = colors.brand.copy(alpha = 0.5f),
+                        modifier = Modifier.size(spacing.s)
                     )
                 }
             }

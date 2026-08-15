@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -34,6 +35,7 @@ import com.jcadenas.xpendz.ui.components.HamburgerMenuButton
 import com.jcadenas.xpendz.ui.components.SyncSwipeRefresh
 import com.jcadenas.xpendz.ui.theme.Expense
 import com.jcadenas.xpendz.ui.theme.Income
+import com.jcadenas.xpendz.ui.theme.XpendzThemeTokens
 import com.jcadenas.xpendz.ui.viewmodel.CategoryMonthlyInsight
 import com.jcadenas.xpendz.ui.viewmodel.CategoriesViewModel
 import com.jcadenas.xpendz.ui.viewmodel.SyncViewModel
@@ -52,6 +54,11 @@ fun CategoriesScreen(
     onLogout: () -> Unit,
     viewModel: CategoriesViewModel = hiltViewModel()
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val typography = XpendzThemeTokens.typography
+
     val state by viewModel.state.collectAsState()
     val currencyFormat = remember(state.baseCurrency) {
         NumberFormat.getCurrencyInstance(Locale("es", "CO")).apply {
@@ -97,7 +104,7 @@ fun CategoriesScreen(
                 title = {
                     Text(
                         text = "Categorías",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                 },
@@ -165,27 +172,27 @@ fun CategoriesScreen(
                             Icon(
                                 Icons.Default.Category,
                                 contentDescription = null,
-                                modifier = Modifier.size(64.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                modifier = Modifier.size(spacing.xxxl + spacing.xl),
+                                tint = colors.onSurfaceVariant
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(spacing.m))
                             Text(
                                 "No hay categorías",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                style = typography.bodyLarge,
+                                color = colors.onSurfaceVariant
                             )
                             Text(
                                 "Crea tu primera categoría",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                style = typography.bodySmall,
+                                color = colors.onSurfaceVariant
                             )
                         }
                     }
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                        contentPadding = PaddingValues(spacing.m),
+                        verticalArrangement = Arrangement.spacedBy(spacing.s + spacing.xxs)
                     ) {
                         if (showSearch) {
                             item {
@@ -194,7 +201,7 @@ fun CategoriesScreen(
                                     onValueChange = { searchQuery = it },
                                     modifier = Modifier.fillMaxWidth(),
                                     singleLine = true,
-                                    shape = MaterialTheme.shapes.extraLarge,
+                                    shape = RoundedCornerShape(shapes.extraLarge),
                                     placeholder = { Text("Buscar categorías o subcategorías") },
                                     leadingIcon = {
                                         Icon(Icons.Default.Search, contentDescription = null)
@@ -268,7 +275,7 @@ fun CategoriesScreen(
                                     CategorySectionHeader(
                                         title = "OTRAS",
                                         subtitle = "${otherRoots.size} categorías",
-                                        accentColor = MaterialTheme.colorScheme.tertiary,
+                                        accentColor = colors.secondary,
                                         icon = Icons.Default.Category
                                     )
                                 }
@@ -315,31 +322,37 @@ private fun MonthlyInsightCard(
     insight: CategoryMonthlyInsight,
     formattedAmount: String
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-        shape = MaterialTheme.shapes.extraLarge,
-        tonalElevation = 1.dp,
-        shadowElevation = 0.dp
+        color = colors.surfaceVariant.copy(alpha = 0.55f),
+        shape = RoundedCornerShape(shapes.extraLarge),
+        tonalElevation = elevation.level1,
+        shadowElevation = elevation.level0
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = spacing.s + spacing.xxs / 2, vertical = spacing.s),
+            horizontalArrangement = Arrangement.spacedBy(spacing.s),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
                 color = Color.White.copy(alpha = 0.92f),
-                shape = MaterialTheme.shapes.large,
-                modifier = Modifier.size(34.dp)
+                shape = RoundedCornerShape(shapes.large),
+                modifier = Modifier.size(spacing.xl + spacing.xxs)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Default.Insights,
                         contentDescription = null,
                         tint = Expense,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(spacing.s + spacing.xxs)
                     )
                 }
             }
@@ -347,22 +360,22 @@ private fun MonthlyInsightCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Insight del mes",
-                    style = MaterialTheme.typography.labelMedium,
+                    style = typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = Expense
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(spacing.xxs))
                 Text(
                     text = "Este mes has gastado más en ${insight.categoryName}.",
-                    style = MaterialTheme.typography.bodySmall,
+                    style = typography.bodySmall,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = "Acumulas $formattedAmount en esta categoría.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = typography.bodySmall,
+                    color = colors.onSurfaceVariant,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -384,38 +397,43 @@ private fun CategorySectionHeader(
     accentColor: Color,
     icon: androidx.compose.ui.graphics.vector.ImageVector
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val typography = XpendzThemeTokens.typography
+
     Surface(
         color = accentColor.copy(alpha = 0.10f),
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = RoundedCornerShape(shapes.extraLarge),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = spacing.s + spacing.xxs / 2, vertical = spacing.s),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(spacing.s)
         ) {
             Surface(
                 color = Color.White.copy(alpha = 0.9f),
-                shape = MaterialTheme.shapes.large,
-                modifier = Modifier.size(38.dp)
+                shape = RoundedCornerShape(shapes.large),
+                modifier = Modifier.size(spacing.xl + spacing.xxs)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null, tint = accentColor, modifier = Modifier.size(20.dp))
+                    Icon(icon, contentDescription = null, tint = accentColor, modifier = Modifier.size(spacing.s))
                 }
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = accentColor
                 )
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = typography.bodySmall,
+                    color = colors.onSurfaceVariant
                 )
             }
         }
@@ -429,22 +447,27 @@ private fun PreviewChip(
     accentColor: Color,
     modifier: Modifier = Modifier
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val typography = XpendzThemeTokens.typography
+
     Surface(
         modifier = modifier
-            .widthIn(min = 150.dp, max = 220.dp),
+            .widthIn(min = spacing.xxxl + spacing.xxs, max = spacing.xxxl * 3 + spacing.xxs),
         color = accentColor.copy(alpha = 0.08f),
-        shape = MaterialTheme.shapes.large
+        shape = RoundedCornerShape(shapes.large)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = spacing.s, vertical = spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(spacing.xs)
         ) {
-            Icon(icon, contentDescription = null, tint = accentColor, modifier = Modifier.size(14.dp))
+            Icon(icon, contentDescription = null, tint = accentColor, modifier = Modifier.size(spacing.xs))
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+                style = typography.labelMedium,
+                color = colors.onSurface,
                 maxLines = 1,
                 softWrap = false,
                 overflow = TextOverflow.Clip
@@ -458,21 +481,27 @@ private fun CategoryFabAction(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
+
     ElevatedCard(
         onClick = onClick,
-        shape = MaterialTheme.shapes.extraLarge,
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp),
+        shape = RoundedCornerShape(shapes.extraLarge),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = elevation.level2),
         colors = CardDefaults.elevatedCardColors(containerColor = Color.White)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            modifier = Modifier.padding(horizontal = spacing.s + spacing.xxs / 2, vertical = spacing.s),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(spacing.xs)
         ) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Icon(icon, contentDescription = null, tint = colors.brand)
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelLarge,
+                style = typography.labelLarge,
                 fontWeight = FontWeight.SemiBold
             )
         }
@@ -481,35 +510,41 @@ private fun CategoryFabAction(
 
 @Composable
 private fun EmptySearchState(searchQuery: String) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = MaterialTheme.shapes.extraLarge,
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(shapes.extraLarge),
+        elevation = CardDefaults.cardElevation(defaultElevation = elevation.level1)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 28.dp),
+                .padding(horizontal = spacing.xl, vertical = spacing.xl + spacing.xxs),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(spacing.s)
         ) {
             Icon(
                 imageVector = Icons.Default.SearchOff,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(36.dp)
+                tint = colors.onSurfaceVariant,
+                modifier = Modifier.size(spacing.xxxl - spacing.xs)
             )
             Text(
                 text = "No encontramos categorías para \"$searchQuery\"",
-                style = MaterialTheme.typography.titleSmall,
+                style = typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
             )
             Text(
                 text = "Prueba con otro nombre o crea una nueva categoría desde el botón +.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = typography.bodySmall,
+                color = colors.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
         }
@@ -532,10 +567,11 @@ private fun resolveCategoryKind(category: CategoryEntity): CategoryKind {
 
 @Composable
 private fun categoryAccentColor(kind: CategoryKind): Color {
+    val colors = XpendzThemeTokens.colors
     return when (kind) {
         CategoryKind.Income -> Income
         CategoryKind.Expense -> Expense
-        CategoryKind.Other -> MaterialTheme.colorScheme.primary
+        CategoryKind.Other -> colors.brand
     }
 }
 
@@ -583,6 +619,12 @@ private fun CategoryItem(
     onRenameChild: (String, String, String?) -> Unit,
     onDeleteChild: (String) -> Unit
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
+
     var showMenu by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
     val kind = remember(category.name) { resolveCategoryKind(category) }
@@ -605,16 +647,16 @@ private fun CategoryItem(
             containerColor = Color.White
         ),
         border = BorderStroke(
-            1.dp,
+            elevation.level1,
             accentColor.copy(alpha = 0.10f)
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        shape = MaterialTheme.shapes.extraLarge
+        elevation = CardDefaults.cardElevation(defaultElevation = elevation.level2),
+        shape = RoundedCornerShape(shapes.extraLarge)
     ) {
         Row(modifier = Modifier.fillMaxWidth()) {
             Box(
                 modifier = Modifier
-                    .width(6.dp)
+                    .width(spacing.xxs)
                     .fillMaxHeight()
                     .background(accentColor.copy(alpha = 0.85f))
             )
@@ -624,49 +666,49 @@ private fun CategoryItem(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable(enabled = children.isNotEmpty(), onClick = onToggleExpand)
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                        .padding(horizontal = spacing.m, vertical = spacing.s),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Surface(
-                        shape = MaterialTheme.shapes.large,
+                        shape = RoundedCornerShape(shapes.large),
                         color = accentColor.copy(alpha = 0.12f),
-                        modifier = Modifier.size(44.dp)
+                        modifier = Modifier.size(spacing.xl + spacing.xs)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 categoryIcon,
                                 contentDescription = null,
                                 tint = accentColor,
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(spacing.s + spacing.xxs)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(spacing.s))
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             category.name,
-                            style = MaterialTheme.typography.titleMedium,
+                            style = typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(spacing.xxs))
                         Text(
                             if (children.isNotEmpty()) "$kindLabel • ${children.size} subcategorías" else kindLabel,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = typography.bodySmall,
+                            color = colors.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         if (previewChildren.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(spacing.xs))
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(spacing.xs)
                             ) {
                                 previewChildren.forEach { child ->
                                     PreviewChip(
@@ -679,28 +721,28 @@ private fun CategoryItem(
                                     PreviewChip(
                                         label = "+${children.size - previewChildren.size}",
                                         icon = Icons.Default.MoreHoriz,
-                                        accentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                        accentColor = colors.onSurfaceVariant
                                     )
                                 }
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(spacing.xs))
 
                     Column(
                         horizontalAlignment = Alignment.End,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(spacing.xs)
                     ) {
                         if (children.isNotEmpty()) {
                             Surface(
-                                shape = MaterialTheme.shapes.extraLarge,
+                                shape = RoundedCornerShape(shapes.extraLarge),
                                 color = accentColor.copy(alpha = 0.14f)
                             ) {
                                 Text(
                                     text = "${children.size}",
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                    style = MaterialTheme.typography.labelMedium,
+                                    modifier = Modifier.padding(horizontal = spacing.s, vertical = spacing.xxs + spacing.xxs / 2),
+                                    style = typography.labelMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = accentColor
                                 )
@@ -709,17 +751,17 @@ private fun CategoryItem(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (children.isNotEmpty()) {
                                 Surface(
-                                    shape = MaterialTheme.shapes.large,
+                                    shape = RoundedCornerShape(shapes.large),
                                     color = accentColor.copy(alpha = 0.10f)
                                 ) {
                                     Row(
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                        modifier = Modifier.padding(horizontal = spacing.s, vertical = spacing.xs),
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(spacing.xxs)
                                     ) {
                                         Text(
                                             text = if (isExpanded) "Ocultar" else "Ver",
-                                            style = MaterialTheme.typography.labelSmall,
+                                            style = typography.labelSmall,
                                             fontWeight = FontWeight.SemiBold,
                                             color = accentColor
                                         )
@@ -727,7 +769,7 @@ private fun CategoryItem(
                                             imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                                             contentDescription = if (isExpanded) "Colapsar" else "Expandir",
                                             tint = accentColor,
-                                            modifier = Modifier.size(18.dp)
+                                            modifier = Modifier.size(spacing.s)
                                         )
                                     }
                                 }
@@ -741,7 +783,7 @@ private fun CategoryItem(
                                     expanded = showMenu,
                                     onDismissRequest = { showMenu = false },
                                     containerColor = Color.White,
-                                    tonalElevation = 0.dp
+                                    tonalElevation = elevation.level0
                                 ) {
                                     DropdownMenuItem(
                                         text = { Text("Agregar subcategoría") },
@@ -778,8 +820,8 @@ private fun CategoryItem(
                         color = accentColor.copy(alpha = 0.12f)
                     )
                     Column(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier.padding(horizontal = spacing.s, vertical = spacing.s),
+                        verticalArrangement = Arrangement.spacedBy(spacing.xs)
                     ) {
                         children.forEach { child ->
                             SubcategoryItem(
@@ -820,6 +862,12 @@ private fun SubcategoryItem(
     onRename: (String, String?) -> Unit,
     onDelete: () -> Unit
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
+
     var showMenu by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
     val accentColor = categoryAccentColor(kind)
@@ -828,36 +876,36 @@ private fun SubcategoryItem(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(MaterialTheme.shapes.large),
+            .clip(RoundedCornerShape(shapes.large)),
         color = accentColor.copy(alpha = 0.06f),
-        shape = MaterialTheme.shapes.large
+        shape = RoundedCornerShape(shapes.large)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 12.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
+                .padding(start = spacing.s, end = spacing.xs, top = spacing.s, bottom = spacing.s),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                shape = MaterialTheme.shapes.medium,
+                shape = RoundedCornerShape(shapes.medium),
                 color = Color.White.copy(alpha = 0.8f),
-                modifier = Modifier.size(34.dp)
+                modifier = Modifier.size(spacing.xl + spacing.xxs)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         itemIcon,
                         contentDescription = null,
                         tint = accentColor,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(spacing.s)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(spacing.s))
 
             Text(
                 category.name,
-                style = MaterialTheme.typography.bodyMedium,
+                style = typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.weight(1f),
                 maxLines = 2,
@@ -867,19 +915,19 @@ private fun SubcategoryItem(
             Box {
                 IconButton(
                     onClick = { showMenu = true },
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(spacing.xl)
                 ) {
                     Icon(
                         Icons.Default.MoreVert,
                         contentDescription = "Opciones",
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(spacing.s)
                     )
                 }
                 DropdownMenu(
                     expanded = showMenu,
                     onDismissRequest = { showMenu = false },
                     containerColor = Color.White,
-                    tonalElevation = 0.dp
+                    tonalElevation = elevation.level0
                 ) {
                     DropdownMenuItem(
                         text = { Text("Renombrar") },
@@ -984,6 +1032,12 @@ private fun CategoryEditorDialog(
     onDismiss: () -> Unit,
     onConfirm: (String, String?, String?) -> Unit
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
+
     var name by remember(initialName) { mutableStateOf(initialName) }
     var selectedIconKey by remember(initialIconKey) { mutableStateOf(initialIconKey) }
     var kind by remember(initialKind) {
@@ -992,10 +1046,10 @@ private fun CategoryEditorDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = colors.surface,
         title = { Text(title) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s)) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -1007,7 +1061,7 @@ private fun CategoryEditorDialog(
                 if (showKindSelector) {
                     Text(
                         text = "Tipo",
-                        style = MaterialTheme.typography.labelLarge,
+                        style = typography.labelLarge,
                         fontWeight = FontWeight.SemiBold
                     )
 
@@ -1031,57 +1085,57 @@ private fun CategoryEditorDialog(
 
                 Text(
                     text = "Icono",
-                    style = MaterialTheme.typography.labelLarge,
+                    style = typography.labelLarge,
                     fontWeight = FontWeight.SemiBold
                 )
 
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(horizontal = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    contentPadding = PaddingValues(horizontal = spacing.xxs),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.s)
                 ) {
                     items(categoryIconOptions) { option ->
                         val selected = selectedIconKey == option.key
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(spacing.xs),
                             modifier = Modifier
-                                .widthIn(min = 64.dp)
+                                .widthIn(min = spacing.xxxl)
                                 .clickable {
                                     selectedIconKey = if (selected) null else option.key
                                 }
                         ) {
                             Surface(
-                                modifier = Modifier.size(44.dp),
+                                modifier = Modifier.size(spacing.xl + spacing.xs),
                                 shape = CircleShape,
                                 color = if (selected) {
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                                    colors.brand.copy(alpha = 0.14f)
                                 } else {
-                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+                                    colors.surfaceVariant.copy(alpha = 0.55f)
                                 },
                                 border = BorderStroke(
-                                    width = if (selected) 2.dp else 1.dp,
-                                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                                    width = if (selected) spacing.xxs else spacing.xxs / 2,
+                                    color = if (selected) colors.brand else colors.onSurface.copy(alpha = 0.12f)
                                 ),
-                                tonalElevation = 0.dp,
-                                shadowElevation = 0.dp
+                                tonalElevation = elevation.level0,
+                                shadowElevation = elevation.level0
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = option.icon,
                                         contentDescription = null,
-                                        modifier = Modifier.size(22.dp),
-                                        tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        modifier = Modifier.size(spacing.s),
+                                        tint = if (selected) colors.brand else colors.onSurfaceVariant
                                     )
                                 }
                             }
 
                             Text(
                                 text = option.label,
-                                style = MaterialTheme.typography.labelSmall,
+                                style = typography.labelSmall,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (selected) colors.brand else colors.onSurfaceVariant
                             )
                         }
                     }

@@ -30,6 +30,14 @@ Planes de trabajo, roadmaps y cronogramas de desarrollo.
 ### `06_Sprints/`
 Documentación específica de sprints, objetivos, entregables y retrospectivas.
 
+### `07_Quality/`
+Documentación de aseguramiento de calidad, mantenimiento técnico y estabilidad:
+- `Technical Maintenance/` - Sprints de mantenimiento técnico, corrección de APIs y reducción de deuda
+- `Visual QA/` - Control de calidad visual y validación de temas (futura)
+- `Accessibility/` - Auditorías de accesibilidad y cumplimiento WCAG (futura)
+- `Regression Reports/` - Pruebas de regresión y validación funcional (futura)
+- `Release Readiness/` - Checklists de pre-release y métricas de calidad (futura)
+
 ## Principio fundamental
 
 **Toda decisión importante del proyecto debe quedar documentada en la carpeta correspondiente.**

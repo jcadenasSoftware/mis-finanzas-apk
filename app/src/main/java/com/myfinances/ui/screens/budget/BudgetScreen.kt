@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -101,6 +102,7 @@ import com.jcadenas.xpendz.ui.components.HamburgerMenuButton
 import com.jcadenas.xpendz.ui.components.SyncSwipeRefresh
 import com.jcadenas.xpendz.ui.theme.Income
 import com.jcadenas.xpendz.ui.theme.Expense
+import com.jcadenas.xpendz.ui.theme.XpendzThemeTokens
 import com.jcadenas.xpendz.ui.util.CountryCurrency
 import com.jcadenas.xpendz.ui.viewmodel.BudgetViewModel
 import com.jcadenas.xpendz.ui.viewmodel.SyncViewModel
@@ -1387,47 +1389,53 @@ private fun GoalsGlobalSummaryCard(
     progress: Float,
     currencyFormat: NumberFormat
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
+
     val pct = (progress * 100).toInt().coerceIn(0, 100)
     val pctColor = goalProgressColor(progress)
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        shape = MaterialTheme.shapes.extraLarge,
+            .padding(vertical = spacing.xxs),
+        shape = RoundedCornerShape(shapes.extraLarge),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = elevation.level2)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .padding(horizontal = spacing.s, vertical = spacing.s + spacing.xxs / 2)
         ) {
             Text(
                 text = "Tus metas",
-                style = MaterialTheme.typography.titleMedium,
+                style = typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = colors.onSurface
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(spacing.s + spacing.xxs / 2))
 
             Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                shape = MaterialTheme.shapes.extraLarge,
+                color = colors.surfaceVariant.copy(alpha = 0.45f),
+                shape = RoundedCornerShape(shapes.extraLarge),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Box(modifier = Modifier.fillMaxWidth()) {
                     GoalsSummaryBackgroundGraph(
                         modifier = Modifier
                             .matchParentSize()
-                            .padding(horizontal = 6.dp, vertical = 6.dp)
+                            .padding(horizontal = spacing.xxs, vertical = spacing.xxs)
                     )
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            .padding(horizontal = spacing.s, vertical = spacing.s),
+                        verticalArrangement = Arrangement.spacedBy(spacing.s)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -1437,18 +1445,18 @@ private fun GoalsGlobalSummaryCard(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     "Progreso general",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    style = typography.bodySmall,
+                                    color = colors.onSurfaceVariant
                                 )
                             }
 
                             Surface(
                                 color = pctColor.copy(alpha = 0.12f),
-                                shape = MaterialTheme.shapes.extraLarge
+                                shape = RoundedCornerShape(shapes.extraLarge)
                             ) {
                                 Text(
                                     "$pct%",
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    modifier = Modifier.padding(horizontal = spacing.m, vertical = spacing.xs),
                                     color = pctColor,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -1456,14 +1464,14 @@ private fun GoalsGlobalSummaryCard(
                         }
 
                         SummaryLine(label = "Ahorrado total", value = currencyFormat.format(totalSavedCents / 100.0), valueColor = Income)
-                        SummaryLine(label = "Objetivo total", value = currencyFormat.format(totalTargetCents / 100.0), valueColor = MaterialTheme.colorScheme.onSurface)
+                        SummaryLine(label = "Objetivo total", value = currencyFormat.format(totalTargetCents / 100.0), valueColor = colors.onSurface)
 
                         LinearProgressIndicator(
                             progress = { progress.coerceIn(0f, 1f) },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(10.dp)
-                                .clip(MaterialTheme.shapes.extraLarge),
+                                .height(spacing.s)
+                                .clip(RoundedCornerShape(shapes.extraLarge)),
                             color = goalProgressColor(progress),
                             trackColor = Color(0xFFE9EEF6)
                         )
@@ -1478,7 +1486,9 @@ private fun GoalsGlobalSummaryCard(
 private fun GoalsSummaryBackgroundGraph(
     modifier: Modifier = Modifier
 ) {
-    val primaryOverlay = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+    val colors = XpendzThemeTokens.colors
+
+    val primaryOverlay = colors.brand.copy(alpha = 0.08f)
     Canvas(modifier = modifier) {
         val width = size.width
         val height = size.height
@@ -1524,12 +1534,15 @@ private fun SummaryLine(
     value: String,
     valueColor: Color
 ) {
+    val colors = XpendzThemeTokens.colors
+    val typography = XpendzThemeTokens.typography
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
+        Text(label, color = colors.onSurfaceVariant, style = typography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
         Text(value, color = valueColor, fontWeight = FontWeight.Bold)
     }
 }
@@ -1549,6 +1562,12 @@ private fun GoalModernCard(
     onDeposit: () -> Unit,
     onWithdraw: () -> Unit
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
+
     val pct = (progress.coerceIn(0f, 1f) * 100).toInt()
     val pctColor = goalProgressColor(progress)
     val remainingText = currencyFormat.format(remainingCents / 100.0)
@@ -1568,15 +1587,15 @@ private fun GoalModernCard(
 
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
+        shape = RoundedCornerShape(shapes.extraLarge),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = elevation.level1),
+        colors = CardDefaults.elevatedCardColors(containerColor = colors.surface)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(horizontal = spacing.m, vertical = spacing.s + spacing.xxs / 2),
+            verticalArrangement = Arrangement.spacedBy(spacing.s)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1585,16 +1604,16 @@ private fun GoalModernCard(
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(spacing.s))
                 Text(
                     text = "$pct%",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = pctColor
                 )
@@ -1602,16 +1621,16 @@ private fun GoalModernCard(
 
             Text(
                 text = "$savedText / $targetText",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium
+                color = colors.onSurfaceVariant,
+                style = typography.bodyMedium
             )
 
             LinearProgressIndicator(
                 progress = { progress.coerceIn(0f, 1f) },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(10.dp)
-                    .clip(MaterialTheme.shapes.extraLarge),
+                    .height(spacing.s)
+                    .clip(RoundedCornerShape(shapes.extraLarge)),
                 color = pctColor,
                 trackColor = Color(0xFFE9EEF6)
             )
@@ -1623,66 +1642,66 @@ private fun GoalModernCard(
             ) {
                 Text(
                     text = "Faltan: $remainingText",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold
                 )
                 Column(
                     horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                    verticalArrangement = Arrangement.spacedBy(spacing.xxs)
                 ) {
                     Text(
                         text = "📅 $timeRemainingText",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = typography.bodySmall,
+                        color = colors.onSurfaceVariant
                     )
                     Text(
                         text = dateText,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        style = typography.bodySmall,
+                        color = colors.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                 }
             }
 
             Surface(
                 color = pctColor.copy(alpha = 0.08f),
-                shape = MaterialTheme.shapes.extraLarge
+                shape = RoundedCornerShape(shapes.extraLarge)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                        .padding(horizontal = spacing.m, vertical = spacing.s),
+                    verticalArrangement = Arrangement.spacedBy(spacing.xxs)
                 ) {
                     Text(
                         motivationalTitle,
                         fontWeight = FontWeight.Bold,
                         color = pctColor,
-                        style = MaterialTheme.typography.bodyMedium
+                        style = typography.bodyMedium
                     )
                     Text(
                         motivationalDescription,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall
+                        color = colors.onSurfaceVariant,
+                        style = typography.bodySmall
                     )
                 }
             }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(spacing.s)
             ) {
                 Button(
                     onClick = onDeposit,
                     modifier = Modifier.weight(1f),
-                    shape = MaterialTheme.shapes.extraLarge,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2463EB))
+                    shape = RoundedCornerShape(shapes.extraLarge),
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.brand)
                 ) {
                     Text("+ Depositar")
                 }
                 OutlinedButton(
                     onClick = onWithdraw,
                     modifier = Modifier.weight(1f),
-                    shape = MaterialTheme.shapes.extraLarge
+                    shape = RoundedCornerShape(shapes.extraLarge)
                 ) {
                     Text("Retirar")
                 }
@@ -1740,19 +1759,23 @@ private fun GoalDialogHeader(
     subtitle: String,
     intentColor: Color? = null
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val typography = XpendzThemeTokens.typography
+
     Column(
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(spacing.xxs)
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.headlineSmall,
+            style = typography.headlineSmall,
             fontWeight = FontWeight.Bold,
-            color = intentColor ?: MaterialTheme.colorScheme.onSurface
+            color = intentColor ?: colors.onSurface
         )
         Text(
             text = subtitle,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style = typography.bodyMedium,
+            color = colors.onSurfaceVariant
         )
     }
 }
