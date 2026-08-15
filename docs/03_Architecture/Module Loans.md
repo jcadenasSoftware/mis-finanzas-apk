@@ -142,3 +142,25 @@ sequenceDiagram
 - Extraer lógica de cálculo de saldo a un UseCase.
 - Dividir `LoansScreen.kt` en subcomponentes.
 - Automatizar creación de transacciones vinculadas mediante triggers en Repository.
+
+## Module Health
+
+| Dimension | Score |
+|-----------|-------|
+| Architecture Quality | 3/5 |
+| Documentation Quality | 4/5 |
+| Complexity | 5/5 |
+| Test Coverage | 1/5 |
+| Technical Debt | 4/5 |
+| Risk Level | High |
+| Refactor Recommended | Yes |
+| Last Reviewed | 2026-08-15 |
+| Next Review | 2026-09-15 |
+
+## Related Documents
+
+- [Master Architecture v1.0](Master%20Architecture%20v1.0.md)
+- [Glossary](../00_Project/Glossary.md)
+- [Module Dashboard](Module%20Dashboard.md)
+- [ADR-002 Room and Firebase Offline-First](../04_Decisions/ADR-002%20Room%20and%20Firebase%20Offline-First.md)
+- [LOANS_DOUBLE_CLICK_PROTECTION.md](../LOANS_DOUBLE_CLICK_PROTECTION.md)

@@ -172,3 +172,25 @@ sequenceDiagram
 - Permitir respaldo en la nube propia (Drive, Dropbox) mediante sharesheet.
 - Añadir pruebas de cifrado y restauración.
 - Reducir uso de memoria en respaldos grandes mediante streaming.
+
+## Module Health
+
+| Dimension | Score |
+|-----------|-------|
+| Architecture Quality | 4/5 |
+| Documentation Quality | 4/5 |
+| Complexity | 3/5 |
+| Test Coverage | 1/5 |
+| Technical Debt | 2/5 |
+| Risk Level | Med |
+| Refactor Recommended | No |
+| Last Reviewed | 2026-08-15 |
+| Next Review | 2026-11-15 |
+
+## Related Documents
+
+- [Master Architecture v1.0](Master%20Architecture%20v1.0.md)
+- [Glossary](../00_Project/Glossary.md)
+- [Module Dashboard](Module%20Dashboard.md)
+- [ADR-006 Backup Encryption](../04_Decisions/ADR-006%20Backup%20Encryption.md)
+- [Xpendz Design System v1.0](../02_DesignSystem/Xpendz%20Design%20System%20v1.0.md)

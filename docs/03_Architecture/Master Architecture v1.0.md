@@ -303,3 +303,13 @@ erDiagram
 - Completar migración a Design Token System en todos los módulos.
 - Agregar pruebas unitarias e integración.
 - Documentar esquema Firestore y Room en detalle.
+
+## Related Documents
+
+- [Project Overview](../00_Project/README.md)
+- [Glossary](../00_Project/Glossary.md)
+- [ADR-001 MVVM and Jetpack Compose](../04_Decisions/ADR-001%20MVVM%20and%20Jetpack%20Compose.md)
+- [ADR-002 Room and Firebase Offline-First](../04_Decisions/ADR-002%20Room%20and%20Firebase%20Offline-First.md)
+- [Module Dashboard](Module%20Dashboard.md)
+- [Module Loans](Module%20Loans.md)
+- [Module Backup](Module%20Backup.md)

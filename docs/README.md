@@ -7,6 +7,10 @@ Esta carpeta contiene la documentación oficial del proyecto Android Xpendz. Su 
 ### `00_Project/`
 Documentación general del proyecto, visión, objetivos y contexto general.
 - [README.md](00_Project/README.md) - Visión, stack técnico, audiencia y success criteria
+- [Documentation Standards.md](00_Project/Documentation%20Standards.md) - Estándar oficial de escritura
+- [Glossary.md](00_Project/Glossary.md) - Términos del proyecto
+- [How to Understand Xpendz.md](00_Project/How%20to%20Understand%20Xpendz.md) - Guía de onboarding
+- [Module Health Standard.md](00_Project/Module%20Health%20Standard.md) - Estándar de salud de módulos
 
 ### `01_Audits/`
 Registros de auditorías técnicas realizadas al proyecto:
@@ -41,6 +45,15 @@ Planes de trabajo, roadmaps y cronogramas de desarrollo.
 
 ### `06_Sprints/`
 Documentación específica de sprints, objetivos, entregables y retrospectivas.
+- [Documentation Sprint Report v1.0](06_Sprints/Documentation%20Sprint%20Report%20v1.0.md)
+
+### `08_Knowledge/`
+Conocimiento de producto y arquitectura, no técnico.
+- [README.md](08_Knowledge/README.md) - Propósito del Knowledge Base
+
+### `09_History/`
+Evolución arquitectónica del proyecto.
+- [README.md](09_History/README.md) - Propósito del Historical Archive
 
 ### `07_Quality/`
 Documentación de aseguramiento de calidad, mantenimiento técnico y estabilidad:
@@ -65,3 +78,8 @@ Esto incluye pero no se limita a:
 ## Mantenimiento
 
 La documentación debe mantenerse actualizada en sincronía con el desarrollo del proyecto. Cada auditoría, decisión o cambio relevante debe reflejarse en esta estructura.
+
+## Plantillas y calidad
+
+- [Templates/](Templates/) - Plantillas reutilizables para documentos
+- [Documentation Quality Checklist.md](Documentation%20Quality%20Checklist.md) - Checklist de calidad

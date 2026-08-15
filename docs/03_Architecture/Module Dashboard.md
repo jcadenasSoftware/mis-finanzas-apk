@@ -138,3 +138,25 @@ sequenceDiagram
 
 - Mover cálculos agregados a UseCases o al dominio.
 - Cachear resúmenes mensuales para mejorar rendimiento.
+
+## Module Health
+
+| Dimension | Score |
+|-----------|-------|
+| Architecture Quality | 4/5 |
+| Documentation Quality | 4/5 |
+| Complexity | 2/5 |
+| Test Coverage | 1/5 |
+| Technical Debt | 2/5 |
+| Risk Level | Low |
+| Refactor Recommended | No |
+| Last Reviewed | 2026-08-15 |
+| Next Review | 2026-11-15 |
+
+## Related Documents
+
+- [Master Architecture v1.0](Master%20Architecture%20v1.0.md)
+- [Glossary](../00_Project/Glossary.md)
+- [Module Backup](Module%20Backup.md)
+- [ADR-001 MVVM and Jetpack Compose](../04_Decisions/ADR-001%20MVVM%20and%20Jetpack%20Compose.md)
+- [Xpendz Design System v1.0](../02_DesignSystem/Xpendz%20Design%20System%20v1.0.md)
