@@ -6,6 +6,7 @@ Esta carpeta contiene la documentación oficial del proyecto Android Xpendz. Su 
 
 ### `00_Project/`
 Documentación general del proyecto, visión, objetivos y contexto general.
+- [README.md](00_Project/README.md) - Visión, stack técnico, audiencia y success criteria
 
 ### `01_Audits/`
 Registros de auditorías técnicas realizadas al proyecto:
@@ -20,9 +21,20 @@ Documentación del sistema de diseño, tokens, componentes y patrones de UI reut
 
 ### `03_Architecture/`
 Documentación de la arquitectura técnica, patrones de arquitectura, diagramas y decisiones estructurales.
+- [Master Architecture v1.0](03_Architecture/Master%20Architecture%20v1.0.md) - Arquitectura maestra del proyecto
+- [Module Dashboard.md](03_Architecture/Module%20Dashboard.md) - Documentación del módulo Dashboard
+- [Module Loans.md](03_Architecture/Module%20Loans.md) - Documentación del módulo Loans
+- [Module Backup.md](03_Architecture/Module%20Backup.md) - Documentación del módulo Backup
 
 ### `04_Decisions/`
 Registro de decisiones arquitectónicas y técnicas importantes (Architecture Decision Records).
+- [README.md](04_Decisions/README.md) - Índice de ADRs
+- [ADR-001 MVVM and Jetpack Compose](04_Decisions/ADR-001%20MVVM%20and%20Jetpack%20Compose.md)
+- [ADR-002 Room and Firebase Offline-First](04_Decisions/ADR-002%20Room%20and%20Firebase%20Offline-First.md)
+- [ADR-003 Hilt Dependency Injection](04_Decisions/ADR-003%20Hilt%20Dependency%20Injection.md)
+- [ADR-004 Design Token System](04_Decisions/ADR-004%20Design%20Token%20System.md)
+- [ADR-005 Manual Pull-Based Sync](04_Decisions/ADR-005%20Manual%20Pull-Based%20Sync.md)
+- [ADR-006 Backup Encryption](04_Decisions/ADR-006%20Backup%20Encryption.md)
 
 ### `05_Roadmaps/`
 Planes de trabajo, roadmaps y cronogramas de desarrollo.
