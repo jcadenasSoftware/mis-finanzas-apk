@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -17,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import com.jcadenas.xpendz.data.local.entity.AccountEntity
 import com.jcadenas.xpendz.ui.theme.Income
 import com.jcadenas.xpendz.ui.theme.Expense
+import com.jcadenas.xpendz.ui.theme.XpendzThemeTokens
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -43,6 +45,12 @@ fun AccountCard(
     onRename: (String) -> Unit,
     onDelete: () -> Unit
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
+
     var showMenu by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -72,29 +80,29 @@ fun AccountCard(
                 onClick = { }
             ),
         colors = CardDefaults.cardColors(
-            containerColor = if (isPressed) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.08f) else Color.White
+            containerColor = if (isPressed) colors.brand.copy(alpha = 0.08f) else Color.White
         ),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isPressed) 2.dp else 5.dp
+            defaultElevation = if (isPressed) elevation.level1 else elevation.level2
         ),
-        shape = MaterialTheme.shapes.large,
+        shape = RoundedCornerShape(shapes.large),
         border = CardDefaults.outlinedCardBorder().copy(
-            width = 1.dp,
-            brush = SolidColor(MaterialTheme.colorScheme.primary.copy(alpha = if (isPressed) 0.15f else 0.08f))
+            width = elevation.level1,
+            brush = SolidColor(colors.brand.copy(alpha = if (isPressed) 0.15f else 0.08f))
         )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = spacing.s + spacing.xxs / 2, vertical = spacing.s),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Account icon
             Surface(
-                shape = MaterialTheme.shapes.large,
+                shape = RoundedCornerShape(shapes.large),
                 color = accountIconBackground,
-                shadowElevation = 1.dp,
-                modifier = Modifier.size(50.dp)
+                shadowElevation = elevation.level1,
+                modifier = Modifier.size(spacing.xxl + spacing.xs)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -107,25 +115,25 @@ fun AccountCard(
                         },
                         contentDescription = null,
                         tint = accountIconColor,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(spacing.xl)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(spacing.m))
 
             // Account info
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     account.name,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1
                 )
                 Text(
                     "${accountTypeLabel(account.type)} • ${account.currency}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = typography.labelSmall,
+                    color = colors.onSurfaceVariant
                 )
             }
 
@@ -133,7 +141,7 @@ fun AccountCard(
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     currencyFormat.format(balanceCents / 100.0),
-                    style = MaterialTheme.typography.titleSmall,
+                    style = typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = if (balanceCents >= 0) Income else Expense
                 )
@@ -175,6 +183,7 @@ fun AccountCard(
         AlertDialog(
             onDismissRequest = { showRenameDialog = false },
             title = { Text("Renombrar cuenta") },
+            containerColor = colors.surface,
             text = {
                 OutlinedTextField(
                     value = newName,
@@ -208,6 +217,7 @@ fun AccountCard(
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Eliminar cuenta") },
+            containerColor = colors.surface,
             text = { Text("¿Estás seguro de que deseas eliminar la cuenta \"${account.name}\"? Esta acción no se puede deshacer.") },
             confirmButton = {
                 TextButton(
@@ -216,7 +226,7 @@ fun AccountCard(
                         showDeleteDialog = false
                     },
                     colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
+                        contentColor = colors.negative
                     )
                 ) {
                     Text("Eliminar")

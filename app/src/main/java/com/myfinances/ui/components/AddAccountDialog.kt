@@ -239,7 +239,7 @@ fun AddAccountDialog(
                                     .padding(spacing.s)
                             )
 
-                            Divider()
+                            HorizontalDivider()
 
                             val showList = if (currencyQuery.isBlank()) {
                                 filteredCurrencies.take(20)

@@ -1,0 +1,2 @@
+Genero el APK desde Build Generate APK, seleccionando reléase en Build Variants
+Desinstalo la app del dispositivo para generar una instalación nueva con ese apk

@@ -41,7 +41,7 @@ fun UserAccountHeader(
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(shapes.extraLarge + spacing.xxs / 2),
+        shape = RoundedCornerShape(shapes.extraLarge),
         colors = CardDefaults.cardColors(
             containerColor = colors.surface
         ),
@@ -50,7 +50,7 @@ fun UserAccountHeader(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(shapes.extraLarge),
+                .padding(spacing.m)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically

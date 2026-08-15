@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,6 +14,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,6 +33,7 @@ import com.jcadenas.xpendz.data.local.entity.AccountEntity
 import com.jcadenas.xpendz.ui.components.CompactHeader
 import com.jcadenas.xpendz.ui.components.SyncSwipeRefresh
 import com.jcadenas.xpendz.ui.theme.Transfer
+import com.jcadenas.xpendz.ui.theme.XpendzThemeTokens
 import com.jcadenas.xpendz.ui.viewmodel.SyncViewModel
 import com.jcadenas.xpendz.ui.viewmodel.TransfersViewModel
 import java.text.NumberFormat
@@ -102,37 +106,43 @@ private fun TransferSummaryCard(
     currencyFormat: NumberFormat,
     modifier: Modifier = Modifier
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
+
     val transferTotalText = currencyFormat.format(totalTransferredCents / 100.0)
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(shapes.extraLarge),
+        colors = CardDefaults.cardColors(containerColor = colors.surface),
+        border = BorderStroke(elevation.level1, colors.onSurfaceVariant.copy(alpha = 0.10f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = elevation.level2)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(horizontal = spacing.s + spacing.xxs / 2, vertical = spacing.s),
+            verticalArrangement = Arrangement.spacedBy(spacing.s)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(spacing.s)
             ) {
                 Surface(
-                    shape = MaterialTheme.shapes.medium,
+                    shape = RoundedCornerShape(shapes.medium),
                     color = Transfer.copy(alpha = 0.12f),
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(spacing.xl)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             Icons.Default.SwapHoriz,
                             contentDescription = null,
                             tint = Transfer,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(spacing.m)
                         )
                     }
                 }
@@ -140,19 +150,19 @@ private fun TransferSummaryCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Transferencias del período",
-                        style = MaterialTheme.typography.labelLarge,
+                        style = typography.labelLarge,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
                         text = "$transferCount movimientos",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = typography.bodyMedium,
+                        color = colors.onSurfaceVariant
                     )
                 }
 
                 Text(
                     text = transferTotalText,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = Transfer
                 )
@@ -160,8 +170,8 @@ private fun TransferSummaryCard(
 
             Text(
                 text = "$transferTotalText transferidos",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = typography.bodySmall,
+                color = colors.onSurfaceVariant
             )
         }
     }
@@ -174,6 +184,12 @@ private fun TransferAccountBadge(
     fallbackName: String,
     modifier: Modifier = Modifier
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
+
     val accent = remember(account?.colorHex, account?.type) { accountAccentColor(account) }
     val icon = remember(account?.iconKey, account?.type) {
         accountIconForKey(account?.iconKey, account?.type)
@@ -182,41 +198,41 @@ private fun TransferAccountBadge(
 
     Surface(
         modifier = modifier,
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = RoundedCornerShape(shapes.extraLarge),
         color = accent.copy(alpha = 0.10f),
-        border = BorderStroke(1.dp, accent.copy(alpha = 0.18f))
+        border = BorderStroke(elevation.level1, accent.copy(alpha = 0.18f))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = spacing.s, vertical = spacing.s - spacing.xxs / 2),
             verticalAlignment = Alignment.Top,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(spacing.s)
         ) {
             Surface(
                 shape = CircleShape,
                 color = accent.copy(alpha = 0.18f),
-                modifier = Modifier.size(34.dp)
+                modifier = Modifier.size(spacing.xl + spacing.xs / 2)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
                         tint = accent,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(spacing.s + spacing.xxs)
                     )
                 }
             }
 
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.xxs)) {
                 Text(
                     text = label,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = typography.labelSmall,
+                    color = colors.onSurfaceVariant
                 )
                 Text(
                     text = name,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -234,6 +250,11 @@ fun TransfersScreen(
     onEditTransfer: (String) -> Unit,
     viewModel: TransfersViewModel = hiltViewModel()
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val typography = XpendzThemeTokens.typography
+
     val state by viewModel.state.collectAsState()
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("es", "CO")) }
     val monthLabelFormat = remember { SimpleDateFormat("MMMM", Locale("es")) }
@@ -256,7 +277,7 @@ fun TransfersScreen(
                 title = {
                     Text(
                         text = "Transferencias",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                 },
@@ -292,7 +313,7 @@ fun TransfersScreen(
                         transferCount = state.transfers.size,
                         totalTransferredCents = state.totalTransferredCents,
                         currencyFormat = currencyFormat,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                        modifier = Modifier.padding(horizontal = spacing.m, vertical = spacing.s)
                     )
                 }
 
@@ -318,31 +339,31 @@ fun TransfersScreen(
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Surface(
-                                        shape = MaterialTheme.shapes.extraLarge,
+                                        shape = RoundedCornerShape(shapes.extraLarge),
                                         color = Transfer.copy(alpha = 0.10f),
-                                        modifier = Modifier.size(72.dp)
+                                        modifier = Modifier.size(spacing.xxxl * 2 + spacing.xxs)
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
                                             Icon(
                                                 Icons.Default.SwapHoriz,
                                                 contentDescription = null,
-                                                modifier = Modifier.size(36.dp),
+                                                modifier = Modifier.size(spacing.xxxl),
                                                 tint = Transfer
                                             )
                                         }
                                     }
-                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Spacer(modifier = Modifier.height(spacing.m))
                                     Text(
                                         "No hay transferencias",
-                                        style = MaterialTheme.typography.titleMedium,
+                                        style = typography.titleMedium,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        color = colors.onSurface
                                     )
-                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Spacer(modifier = Modifier.height(spacing.xxs))
                                     Text(
                                         "Ajusta filtros o crea una nueva transferencia.",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        style = typography.bodyMedium,
+                                        color = colors.onSurfaceVariant
                                     )
                                 }
                             }
@@ -351,8 +372,8 @@ fun TransfersScreen(
                         else -> {
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                                contentPadding = PaddingValues(horizontal = spacing.m, vertical = spacing.s),
+                                verticalArrangement = Arrangement.spacedBy(spacing.s)
                             ) {
                                 var lastHeader: String? = null
                                 itemsIndexed(state.transfers) { index, transfer ->
@@ -364,9 +385,9 @@ fun TransfersScreen(
 
                                     val alternate = index % 2 == 1
                                     val containerColor = if (alternate) {
-                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.30f)
+                                        colors.surfaceVariant.copy(alpha = 0.30f)
                                     } else {
-                                        MaterialTheme.colorScheme.surface
+                                        colors.surface
                                     }
 
                                     TransferItem(
@@ -396,6 +417,11 @@ private fun TransfersFiltersHeader(
     onMonthSelected: (Int, Int) -> Unit,
     onAccountSelected: (String?) -> Unit
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val typography = XpendzThemeTokens.typography
+
     var showMonthSheet by remember { mutableStateOf(false) }
     var showAccountSheet by remember { mutableStateOf(false) }
     val monthOptions = remember(state.availableMonthsYearMonth) { state.availableMonthsYearMonth }
@@ -453,20 +479,20 @@ private fun TransfersFiltersHeader(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 8.dp)
+            .padding(top = spacing.s)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                .padding(horizontal = spacing.m),
+            horizontalArrangement = Arrangement.spacedBy(spacing.s),
             verticalAlignment = Alignment.CenterVertically
         ) {
             AssistChip(
                 onClick = { showMonthSheet = true },
                 label = { Text(monthLabel) },
                 leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null) },
-                modifier = Modifier.heightIn(min = 34.dp)
+                modifier = Modifier.heightIn(min = spacing.xl + spacing.s - spacing.xxs / 2)
             )
 
             AssistChip(
@@ -480,12 +506,12 @@ private fun TransfersFiltersHeader(
                 },
                 leadingIcon = { Icon(Icons.Default.AccountBalanceWallet, contentDescription = null) },
                 modifier = Modifier
-                    .heightIn(min = 34.dp)
+                    .heightIn(min = spacing.xl + spacing.s - spacing.xxs / 2)
                     .weight(1f)
             )
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(spacing.s))
 
         OutlinedTextField(
             value = state.searchQuery,
@@ -495,10 +521,10 @@ private fun TransfersFiltersHeader(
             placeholder = { Text("Buscar transferencia...") },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = spacing.m)
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(spacing.xs))
     }
 }
 
@@ -511,26 +537,30 @@ private fun AccountPickerBottomSheet(
     onDismiss: () -> Unit,
     onSelected: (String?) -> Unit
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val typography = XpendzThemeTokens.typography
+
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scrollState = rememberScrollState()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = colors.surface
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = spacing.m)
         ) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Spacer(modifier = Modifier.height(12.dp))
+            Text(title, style = typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(spacing.s))
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 420.dp)
+                    .heightIn(max = spacing.xxxl * 4 + spacing.xxl * 4)
             ) {
                 Column(
                     modifier = Modifier
@@ -541,18 +571,18 @@ private fun AccountPickerBottomSheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onSelected(null) }
-                            .padding(vertical = 12.dp),
+                            .padding(vertical = spacing.s),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(spacing.s)
                     ) {
                         Icon(
                             if (selectedAccountId.isNullOrBlank()) Icons.Default.RadioButtonChecked else Icons.Default.RadioButtonUnchecked,
                             contentDescription = null,
-                            tint = if (selectedAccountId.isNullOrBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = if (selectedAccountId.isNullOrBlank()) colors.brand else colors.onSurfaceVariant
                         )
-                        Text("Todas las cuentas", style = MaterialTheme.typography.bodyLarge)
+                        Text("Todas las cuentas", style = typography.bodyLarge)
                     }
-                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
+                    HorizontalDivider(color = colors.onSurfaceVariant.copy(alpha = 0.08f))
 
                     accounts.forEach { account ->
                         val selected = selectedAccountId == account.id
@@ -560,39 +590,44 @@ private fun AccountPickerBottomSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onSelected(account.id) }
-                                .padding(vertical = 12.dp),
+                                .padding(vertical = spacing.s),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(spacing.s)
                         ) {
                             Icon(
                                 if (selected) Icons.Default.RadioButtonChecked else Icons.Default.RadioButtonUnchecked,
                                 contentDescription = null,
-                                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = if (selected) colors.brand else colors.onSurfaceVariant
                             )
-                            Text(account.name, style = MaterialTheme.typography.bodyLarge)
+                            Text(account.name, style = typography.bodyLarge)
                         }
-                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
+                        HorizontalDivider(color = colors.onSurfaceVariant.copy(alpha = 0.08f))
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(spacing.m))
         }
     }
 }
 
 @Composable
 private fun DateGroupHeader(text: String) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val typography = XpendzThemeTokens.typography
+
     Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        shape = MaterialTheme.shapes.large,
-        modifier = Modifier.padding(top = 10.dp, bottom = 4.dp)
+        color = colors.surfaceVariant.copy(alpha = 0.55f),
+        contentColor = colors.onSurfaceVariant,
+        shape = RoundedCornerShape(shapes.large),
+        modifier = Modifier.padding(top = spacing.s - spacing.xxs / 2, bottom = spacing.xxs)
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+            style = typography.labelLarge,
+            modifier = Modifier.padding(horizontal = spacing.s - spacing.xxs / 2, vertical = spacing.s - spacing.xxs - spacing.xxs / 2)
         )
     }
 }
@@ -607,29 +642,35 @@ private fun TransferItem(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
+
     var showMenu by remember { mutableStateOf(false) }
     val dateTimeFormat = remember { SimpleDateFormat("dd MMM yyyy · hh:mm a", Locale("es")) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = containerColor),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f))
+        border = BorderStroke(elevation.level1, colors.onSurfaceVariant.copy(alpha = 0.10f))
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = spacing.s + spacing.xxs / 2, vertical = spacing.s),
+            verticalArrangement = Arrangement.spacedBy(spacing.s)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(spacing.s)
             ) {
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.xxs)) {
                     Text(
                         text = currencyFormat.format(transfer.amountCents / 100.0),
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         color = Transfer,
                         maxLines = 1,
@@ -638,8 +679,8 @@ private fun TransferItem(
 
                     Text(
                         text = dateTimeFormat.format(Date(transfer.occurredAtEpochSec * 1000)),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = typography.bodySmall,
+                        color = colors.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -654,8 +695,8 @@ private fun TransferItem(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false },
                         modifier = Modifier
-                            .clip(MaterialTheme.shapes.large)
-                            .background(MaterialTheme.colorScheme.surface)
+                            .clip(RoundedCornerShape(shapes.large))
+                            .background(colors.surface)
                     ) {
                         DropdownMenuItem(
                             leadingIcon = {
@@ -672,7 +713,7 @@ private fun TransferItem(
                                 Icon(
                                     Icons.Default.Delete,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.error
+                                    tint = colors.negative
                                 )
                             },
                             text = { Text("Eliminar") },
@@ -687,7 +728,7 @@ private fun TransferItem(
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(spacing.xs)
             ) {
                 TransferAccountBadge(
                     label = "Desde",
@@ -702,15 +743,15 @@ private fun TransferItem(
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                        modifier = Modifier.size(30.dp)
+                        color = colors.brand.copy(alpha = 0.12f),
+                        modifier = Modifier.size(spacing.xl + spacing.xs)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                Icons.Default.ArrowForward,
+                                Icons.AutoMirrored.Filled.ArrowForward,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(16.dp)
+                                tint = colors.brand,
+                                modifier = Modifier.size(spacing.s + spacing.xxs)
                             )
                         }
                     }
@@ -727,18 +768,18 @@ private fun TransferItem(
             if (!transfer.note.isNullOrBlank()) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(spacing.xs)
                 ) {
                     Icon(
-                        Icons.Default.Notes,
+                        Icons.AutoMirrored.Filled.Notes,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp)
+                        tint = colors.onSurfaceVariant,
+                        modifier = Modifier.size(spacing.s + spacing.xxs)
                     )
                     Text(
                         text = transfer.note,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = typography.bodySmall,
+                        color = colors.onSurfaceVariant,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -756,26 +797,30 @@ private fun MonthPickerBottomSheet(
     onDismiss: () -> Unit,
     onSelected: (Int, Int) -> Unit
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val typography = XpendzThemeTokens.typography
+
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scrollState = rememberScrollState()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = colors.surface
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = spacing.m)
         ) {
-            Text("Seleccionar mes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Spacer(modifier = Modifier.height(12.dp))
+            Text("Seleccionar mes", style = typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(spacing.s))
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 420.dp)
+                    .heightIn(max = spacing.xxxl * 4 + spacing.xxl * 4)
             ) {
                 Column(
                     modifier = Modifier
@@ -796,19 +841,19 @@ private fun MonthPickerBottomSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onSelected(year, month) }
-                                .padding(vertical = 12.dp),
+                                .padding(vertical = spacing.s),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(spacing.s)
                         ) {
                             Icon(Icons.Default.DateRange, contentDescription = null)
-                            Text(selectedLabel, style = MaterialTheme.typography.bodyLarge)
+                            Text(selectedLabel, style = typography.bodyLarge)
                         }
-                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
+                        HorizontalDivider(color = colors.onSurfaceVariant.copy(alpha = 0.08f))
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(spacing.m))
         }
     }
 }
