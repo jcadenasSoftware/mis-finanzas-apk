@@ -1500,9 +1500,9 @@ private fun MonthlyMetricColumn(
     ) {
         Text(
             text = title,
-            style = typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = colors.onSurface
+            style = typography.labelMedium,
+            fontWeight = FontWeight.Normal,
+            color = colors.onSurfaceVariant
         )
         Text(
             text = value,

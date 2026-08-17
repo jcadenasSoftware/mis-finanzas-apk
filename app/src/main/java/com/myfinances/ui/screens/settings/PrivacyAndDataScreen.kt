@@ -32,6 +32,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -59,6 +60,7 @@ import com.jcadenas.xpendz.R
 import com.jcadenas.xpendz.diagnostics.AppIdentityLogger
 import com.jcadenas.xpendz.domain.usecase.AuthProvider
 import com.jcadenas.xpendz.ui.components.CompactHeader
+import com.jcadenas.xpendz.ui.theme.XpendzThemeTokens
 import com.jcadenas.xpendz.ui.viewmodel.DeleteAccountEvent
 import com.jcadenas.xpendz.ui.viewmodel.DeleteAccountState
 import com.jcadenas.xpendz.ui.viewmodel.PrivacyAndDataViewModel
@@ -75,6 +77,7 @@ fun PrivacyAndDataScreen(
     val deleteAccountState by viewModel.deleteAccountState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val colors = XpendzThemeTokens.colors
 
     LaunchedEffect(state.message) {
         state.message?.let { snackbarHostState.showSnackbar(it) }
@@ -198,7 +201,7 @@ fun PrivacyAndDataScreen(
             // Privacy Policy Section
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = colors.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
@@ -213,7 +216,7 @@ fun PrivacyAndDataScreen(
                         Icon(
                             imageVector = Icons.Default.Policy,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = colors.brand,
                             modifier = Modifier.padding(end = 8.dp)
                         )
                         Text(
@@ -237,6 +240,7 @@ fun PrivacyAndDataScreen(
                         Icon(
                             imageVector = Icons.Default.Description,
                             contentDescription = null,
+                            tint = colors.brand,
                             modifier = Modifier.padding(end = 8.dp)
                         )
                         Text("Ver política de privacidad")
@@ -249,7 +253,7 @@ fun PrivacyAndDataScreen(
             // Delete Data Section
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = colors.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
@@ -307,7 +311,7 @@ fun PrivacyAndDataScreen(
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { if (!isDeleting) showDeleteConfirm = false },
-            containerColor = Color.White,
+            containerColor = colors.surface,
             icon = {
                 Icon(
                     Icons.Default.Warning,
@@ -378,7 +382,7 @@ fun PrivacyAndDataScreen(
                     viewModel.onReauthCancelled()
                 }
             },
-            containerColor = Color.White,
+            containerColor = colors.surface,
             title = { Text("Confirma tu identidad") },
             text = {
                 Column {
@@ -399,22 +403,36 @@ fun PrivacyAndDataScreen(
                         value = reauthEmail,
                         onValueChange = { reauthEmail = it; reauthDialogError = null },
                         label = { Text("Correo electrónico") },
-                        leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
+                        leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = colors.brand) },
                         singleLine = true,
                         enabled = !isDeleting,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 8.dp)
+                            .padding(bottom = 8.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = colors.surface,
+                            unfocusedContainerColor = colors.surface,
+                            disabledContainerColor = colors.surface,
+                            focusedBorderColor = colors.brand,
+                            unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
+                        )
                     )
                     OutlinedTextField(
                         value = reauthPassword,
                         onValueChange = { reauthPassword = it; reauthDialogError = null },
                         label = { Text("Contraseña") },
-                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = colors.brand) },
                         visualTransformation = PasswordVisualTransformation(),
                         singleLine = true,
                         enabled = !isDeleting,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = colors.surface,
+                            unfocusedContainerColor = colors.surface,
+                            disabledContainerColor = colors.surface,
+                            focusedBorderColor = colors.brand,
+                            unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
+                        )
                     )
                 }
             },

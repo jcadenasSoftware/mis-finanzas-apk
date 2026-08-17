@@ -413,7 +413,7 @@ fun LoansScreen(
                         onSelect = { loanType = it }
                     )
 
-                    Spacer(modifier = Modifier.height(spacing.m))
+                    Spacer(modifier = Modifier.height(spacing.l))
 
                     Box(
                         modifier = Modifier
@@ -440,7 +440,8 @@ fun LoansScreen(
                                 IconButton(onClick = { loanAccountExpanded = true }) {
                                     Icon(
                                         Icons.Default.ArrowDropDown,
-                                        contentDescription = "Ver cuentas"
+                                        contentDescription = "Ver cuentas",
+                                        tint = colors.onSurfaceVariant
                                     )
                                 }
                             },
@@ -450,9 +451,9 @@ fun LoansScreen(
                             ,
                             shape = RoundedCornerShape(shapes.extraLarge),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.White,
-                                unfocusedContainerColor = Color.White,
-                                disabledContainerColor = Color.White,
+                                focusedContainerColor = colors.surface,
+                                unfocusedContainerColor = colors.surface,
+                                disabledContainerColor = colors.surface,
                                 focusedBorderColor = colors.brand,
                                 unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.30f)
                             )
@@ -464,7 +465,7 @@ fun LoansScreen(
                             modifier = Modifier
                                 .width(with(density) { anchorSize.width.toDp() })
                                 .clip(RoundedCornerShape(shapes.extraLarge))
-                                .background(Color.White),
+                                .background(colors.surface),
                             properties = PopupProperties(focusable = true)
                         ) {
                             Column(
@@ -512,7 +513,7 @@ fun LoansScreen(
                         label = { Text("Fecha") },
                         trailingIcon = {
                             IconButton(onClick = { showLoanDatePicker = true }) {
-                                Icon(Icons.Default.DateRange, contentDescription = "Elegir fecha")
+                                Icon(Icons.Default.DateRange, contentDescription = "Elegir fecha", tint = colors.brand)
                             }
                         },
                         modifier = Modifier
@@ -523,15 +524,15 @@ fun LoansScreen(
                         ,
                         shape = RoundedCornerShape(shapes.extraLarge),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            disabledContainerColor = Color.White,
+                            focusedContainerColor = colors.surface,
+                            unfocusedContainerColor = colors.surface,
+                            disabledContainerColor = colors.surface,
                             focusedBorderColor = colors.brand,
                             unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.30f)
                         )
                     )
 
-                    Spacer(modifier = Modifier.height(spacing.s))
+                    Spacer(modifier = Modifier.height(spacing.m))
 
                     LoanModernTextField(
                         value = counterparty,
@@ -541,7 +542,7 @@ fun LoansScreen(
                     )
                     val accountCurrency = state.accounts.firstOrNull { it.id == selectedAccountId }?.currency.orEmpty()
 
-                    Spacer(modifier = Modifier.height(spacing.s))
+                    Spacer(modifier = Modifier.height(spacing.m))
 
                     OutlinedTextField(
                         value = amountText,
@@ -552,17 +553,17 @@ fun LoansScreen(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(shapes.extraLarge),
-                        textStyle = typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        textStyle = typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = colors.surfaceVariant.copy(alpha = 0.30f),
-                            unfocusedContainerColor = colors.surfaceVariant.copy(alpha = 0.30f),
-                            disabledContainerColor = colors.surfaceVariant.copy(alpha = 0.30f),
+                            focusedContainerColor = colors.surface,
+                            unfocusedContainerColor = colors.surface,
+                            disabledContainerColor = colors.surface,
                             focusedBorderColor = colors.brand,
                             unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.30f)
                         )
                     )
 
-                    Spacer(modifier = Modifier.height(spacing.s))
+                    Spacer(modifier = Modifier.height(spacing.m))
 
                     LoanModernTextField(
                         value = notes,
@@ -571,7 +572,7 @@ fun LoansScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(modifier = Modifier.height(spacing.xs))
+                    Spacer(modifier = Modifier.height(spacing.m))
                 }
             }
         )
@@ -610,7 +611,7 @@ fun LoansScreen(
         AlertDialog(
             onDismissRequest = { showPayment = false },
             title = { Text(paymentTitle) },
-            containerColor = Color.White,
+            containerColor = colors.surface,
             confirmButton = {
                 Button(onClick = {
                     // Protección adicional contra doble clic
@@ -640,7 +641,7 @@ fun LoansScreen(
                 },
                     enabled = !state.isSavingPayment,
                     shape = MaterialTheme.shapes.extraLarge,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2463EB))
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.brand)
                 ) {
                     if (state.isSavingPayment) {
                         Row(
@@ -834,7 +835,7 @@ fun LoansScreen(
                         label = { Text("Fecha") },
                         trailingIcon = {
                             IconButton(onClick = { showPaymentDatePicker = true }) {
-                                Icon(Icons.Default.DateRange, contentDescription = "Elegir fecha")
+                                Icon(Icons.Default.DateRange, contentDescription = "Elegir fecha", tint = colors.brand)
                             }
                         },
                         modifier = Modifier
@@ -845,11 +846,11 @@ fun LoansScreen(
                         ,
                         shape = MaterialTheme.shapes.extraLarge,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            disabledContainerColor = Color.White,
-                            focusedBorderColor = Color(0xFF2463EB),
-                            unfocusedBorderColor = Color(0xFFD8DFEA)
+                            focusedContainerColor = colors.surface,
+                            unfocusedContainerColor = colors.surface,
+                            disabledContainerColor = colors.surface,
+                            focusedBorderColor = colors.brand,
+                            unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
                         )
                     )
 
@@ -880,7 +881,8 @@ fun LoansScreen(
                                 IconButton(onClick = { paymentAccountExpanded = true }) {
                                     Icon(
                                         Icons.Default.ArrowDropDown,
-                                        contentDescription = "Ver cuentas"
+                                        contentDescription = "Ver cuentas",
+                                        tint = colors.onSurfaceVariant
                                     )
                                 }
                             },
@@ -890,11 +892,11 @@ fun LoansScreen(
                             ,
                             shape = MaterialTheme.shapes.extraLarge,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.White,
-                                unfocusedContainerColor = Color.White,
-                                disabledContainerColor = Color.White,
-                                focusedBorderColor = Color(0xFF2463EB),
-                                unfocusedBorderColor = Color(0xFFD8DFEA)
+                                focusedContainerColor = colors.surface,
+                                unfocusedContainerColor = colors.surface,
+                                disabledContainerColor = colors.surface,
+                                focusedBorderColor = colors.brand,
+                                unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
                             )
                         )
                         DropdownMenu(
@@ -904,7 +906,7 @@ fun LoansScreen(
                             modifier = Modifier
                                 .width(with(density) { anchorSize.width.toDp() })
                                 .clip(MaterialTheme.shapes.extraLarge)
-                                .background(Color.White),
+                                .background(colors.surface),
                             properties = PopupProperties(focusable = true)
                         ) {
                             Column(
@@ -955,11 +957,11 @@ fun LoansScreen(
                         shape = MaterialTheme.shapes.extraLarge,
                         textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            disabledContainerColor = Color.White,
-                            focusedBorderColor = Color(0xFF2463EB),
-                            unfocusedBorderColor = Color(0xFFD8DFEA)
+                            focusedContainerColor = colors.surface,
+                            unfocusedContainerColor = colors.surface,
+                            disabledContainerColor = colors.surface,
+                            focusedBorderColor = colors.brand,
+                            unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
                         ),
                         supportingText = {
                             if (enteredCentsPreview != null && enteredCentsPreview > remainingDebtCents && loanCurrency.isNotBlank()) {
@@ -1067,7 +1069,7 @@ fun LoansScreen(
                     }
                 }
             },
-            containerColor = Color.White,
+            containerColor = colors.surface,
             confirmButton = {
                 FilledTonalButton(
                     onClick = { showHistory = false },
@@ -1184,7 +1186,7 @@ fun LoansScreen(
         AlertDialog(
             onDismissRequest = { showEditLoan = false },
             title = { Text("Editar préstamo") },
-            containerColor = Color.White,
+            containerColor = colors.surface,
             confirmButton = {
                 val currentCents = runCatching {
                     val withoutThousands = editAmountText.trim().replace("[.,]".toRegex(), "")
@@ -1268,7 +1270,7 @@ fun LoansScreen(
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(
-                                containerColor = Color(0xFFF0F9FF)
+                                containerColor = colors.surfaceVariant.copy(alpha = 0.45f)
                             ),
                             shape = MaterialTheme.shapes.extraLarge
                         ) {
@@ -1290,7 +1292,7 @@ fun LoansScreen(
                                     Text(
                                         text = "Información actual",
                                         style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.primary,
+                                        color = colors.brand,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     Text(
@@ -1473,11 +1475,11 @@ fun LoansScreen(
                         shape = MaterialTheme.shapes.extraLarge,
                         isError = editCounterpartyError != null,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color(0xFFF5F7FA),
-                            unfocusedContainerColor = Color(0xFFF5F7FA),
-                            disabledContainerColor = Color(0xFFF5F7FA),
-                            focusedBorderColor = if (editCounterpartyError != null) Color(0xFFD32F2F) else Color(0xFF2463EB),
-                            unfocusedBorderColor = if (editCounterpartyError != null) Color(0xFFD32F2F) else Color(0xFFD8DFEA)
+                            focusedContainerColor = colors.surface,
+                            unfocusedContainerColor = colors.surface,
+                            disabledContainerColor = colors.surfaceVariant.copy(alpha = 0.3f),
+                            focusedBorderColor = if (editCounterpartyError != null) Color(0xFFD32F2F) else colors.brand,
+                            unfocusedBorderColor = if (editCounterpartyError != null) Color(0xFFD32F2F) else colors.onSurfaceVariant.copy(alpha = 0.3f)
                         )
                     )
                     val counterpartyError = editCounterpartyError
@@ -1506,11 +1508,11 @@ fun LoansScreen(
                         shape = MaterialTheme.shapes.extraLarge,
                         isError = editAmountError != null,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color(0xFFF5F7FA),
-                            unfocusedContainerColor = Color(0xFFF5F7FA),
-                            disabledContainerColor = Color(0xFFF5F7FA),
-                            focusedBorderColor = if (editAmountError != null) Color(0xFFD32F2F) else Color(0xFF2463EB),
-                            unfocusedBorderColor = if (editAmountError != null) Color(0xFFD32F2F) else Color(0xFFD8DFEA)
+                            focusedContainerColor = colors.surface,
+                            unfocusedContainerColor = colors.surface,
+                            disabledContainerColor = colors.surfaceVariant.copy(alpha = 0.3f),
+                            focusedBorderColor = if (editAmountError != null) Color(0xFFD32F2F) else colors.brand,
+                            unfocusedBorderColor = if (editAmountError != null) Color(0xFFD32F2F) else colors.onSurfaceVariant.copy(alpha = 0.3f)
                         )
                     )
                     val amountError = editAmountError
@@ -1539,18 +1541,19 @@ fun LoansScreen(
                             shape = MaterialTheme.shapes.extraLarge,
                             isError = editAccountError != null,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color(0xFFF5F7FA),
-                                unfocusedContainerColor = Color(0xFFF5F7FA),
-                                disabledContainerColor = Color(0xFFF5F7FA),
-                                focusedBorderColor = if (editAccountError != null) Color(0xFFD32F2F) else Color(0xFF2463EB),
-                                unfocusedBorderColor = if (editAccountError != null) Color(0xFFD32F2F) else Color(0xFFD8DFEA),
-                                disabledBorderColor = if (editAccountError != null) Color(0xFFD32F2F) else if (editAccountId.isNotBlank()) Color(0xFF2463EB) else Color(0xFFD8DFEA)
+                                focusedContainerColor = colors.surface,
+                                unfocusedContainerColor = colors.surface,
+                                disabledContainerColor = colors.surfaceVariant.copy(alpha = 0.3f),
+                                focusedBorderColor = if (editAccountError != null) Color(0xFFD32F2F) else colors.brand,
+                                unfocusedBorderColor = if (editAccountError != null) Color(0xFFD32F2F) else colors.onSurfaceVariant.copy(alpha = 0.3f),
+                                disabledBorderColor = if (editAccountError != null) Color(0xFFD32F2F) else if (editAccountId.isNotBlank()) colors.brand.copy(alpha = 0.5f) else colors.onSurfaceVariant.copy(alpha = 0.3f)
                             )
                         )
                         DropdownMenu(
                             expanded = editAccountExpanded,
                             onDismissRequest = { editAccountExpanded = false },
                             modifier = Modifier.fillMaxWidth()
+                                .background(colors.surface)
                         ) {
                             state.accounts.forEach { account ->
                                 val bal = state.accountBalancesCents[account.id] ?: 0L
@@ -1590,11 +1593,11 @@ fun LoansScreen(
                         singleLine = true,
                         shape = MaterialTheme.shapes.extraLarge,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color(0xFFF5F7FA),
-                            unfocusedContainerColor = Color(0xFFF5F7FA),
-                            disabledContainerColor = Color(0xFFF5F7FA),
-                            focusedBorderColor = Color(0xFF2463EB),
-                            unfocusedBorderColor = Color(0xFFD8DFEA)
+                            focusedContainerColor = colors.surface,
+                            unfocusedContainerColor = colors.surface,
+                            disabledContainerColor = colors.surfaceVariant.copy(alpha = 0.3f),
+                            focusedBorderColor = colors.brand,
+                            unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
                         )
                     )
 
@@ -1632,22 +1635,22 @@ private fun LoansSummaryCard(
             .fillMaxWidth()
             .padding(horizontal = spacing.xxs, vertical = spacing.xxs),
         shape = RoundedCornerShape(shapes.extraLarge),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = colors.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = elevation.level2)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = spacing.m, vertical = spacing.s + spacing.xxs / 2)
+                .padding(horizontal = spacing.m, vertical = spacing.m)
         ) {
             Text(
                 text = "Balance de préstamos",
                 style = typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = colors.onSurface
+                fontWeight = FontWeight.Normal,
+                color = colors.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(spacing.s + spacing.xxs / 2))
+            Spacer(modifier = Modifier.height(spacing.m))
 
             Surface(
                 color = colors.surfaceVariant.copy(alpha = 0.45f),
@@ -1664,7 +1667,7 @@ private fun LoansSummaryCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = spacing.m, vertical = spacing.m),
-                        verticalArrangement = Arrangement.spacedBy(spacing.s)
+                        verticalArrangement = Arrangement.spacedBy(spacing.m)
                     ) {
                         SummaryRow(label = "Te deben", value = teDebenText, valueColor = Income, labelBold = true)
                         SummaryRow(label = "Debes", value = debesText, valueColor = Expense, labelBold = true)
@@ -1747,12 +1750,12 @@ private fun SummaryRow(
         Text(
             text = label,
             style = if (emphasize) typography.bodyMedium else typography.bodySmall,
-            color = colors.onSurfaceVariant,
-            fontWeight = if (labelBold) FontWeight.Bold else FontWeight.Normal
+            color = if (emphasize) colors.onSurfaceVariant else colors.onSurfaceVariant.copy(alpha = 0.75f),
+            fontWeight = if (labelBold) FontWeight.SemiBold else FontWeight.Normal
         )
         Text(
             text = value,
-            style = if (emphasize) typography.titleSmall else typography.bodyMedium,
+            style = if (emphasize) typography.titleMedium else typography.bodyMedium,
             fontWeight = if (emphasize) FontWeight.Bold else FontWeight.SemiBold,
             color = valueColor
         )
@@ -1769,8 +1772,8 @@ private fun LoansSegmentedTabs(
     val shapes = XpendzThemeTokens.shapes
 
     val lentSelected = selectedTab != "BORROWED"
-    val lentBg by animateColorAsState(if (lentSelected) colors.brand else Color(0xFFF1F3F7), label = "lentBg")
-    val borrowedBg by animateColorAsState(if (!lentSelected) colors.brand else Color(0xFFF1F3F7), label = "borrowedBg")
+    val lentBg by animateColorAsState(if (lentSelected) Income else Color(0xFFF1F3F7), label = "lentBg")
+    val borrowedBg by animateColorAsState(if (!lentSelected) Expense else Color(0xFFF1F3F7), label = "borrowedBg")
     val lentFg = if (lentSelected) Color.White else colors.onSurfaceVariant
     val borrowedFg = if (!lentSelected) Color.White else colors.onSurfaceVariant
 
@@ -1816,7 +1819,7 @@ private fun SegmentTab(
 
     Surface(
         modifier = modifier
-            .height(spacing.xl + spacing.xxs)
+            .height(spacing.xl + spacing.s)
             .clickable(onClick = onClick),
         color = background,
         shape = RoundedCornerShape(shapes.extraLarge)
@@ -1904,7 +1907,7 @@ private fun LoanModernTextField(
         modifier = modifier,
         singleLine = true,
         shape = RoundedCornerShape(shapes.extraLarge),
-        placeholder = { Text(label) },
+        placeholder = { Text(label, color = colors.onSurfaceVariant.copy(alpha = 0.6f)) },
         colors = OutlinedTextFieldDefaults.colors(
             focusedContainerColor = colors.surfaceVariant.copy(alpha = 0.30f),
             unfocusedContainerColor = colors.surfaceVariant.copy(alpha = 0.30f),
@@ -1966,7 +1969,7 @@ private fun LoanCard(
             .padding(vertical = spacing.s),
         elevation = CardDefaults.cardElevation(defaultElevation = elevation.level2),
         shape = RoundedCornerShape(shapes.extraLarge),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = colors.surface)
     ) {
         Column(modifier = Modifier.padding(horizontal = spacing.m, vertical = spacing.s + spacing.xxs / 2)) {
             Row(
@@ -1984,7 +1987,7 @@ private fun LoanCard(
                     Text(
                         text = if (isLent) "Te deben" else "Tú debes",
                         style = typography.bodySmall,
-                        color = colors.onSurfaceVariant
+                        color = colors.onSurfaceVariant.copy(alpha = 0.8f)
                     )
                 }
 
@@ -2006,7 +2009,7 @@ private fun LoanCard(
                 Text(
                     text = "Pendiente: ${formatMoney(remainingCents, loan.currency)}",
                     style = typography.bodySmall,
-                    color = colors.onSurfaceVariant
+                    color = colors.onSurfaceVariant.copy(alpha = 0.85f)
                 )
                 Surface(
                     shape = RoundedCornerShape(shapes.extraLarge),
@@ -2028,7 +2031,7 @@ private fun LoanCard(
                 progress = { progress },
                 modifier = Modifier.fillMaxWidth(),
                 color = statusColor,
-                trackColor = statusColor.copy(alpha = 0.18f)
+                trackColor = colors.onSurfaceVariant.copy(alpha = 0.12f)
             )
 
             Spacer(modifier = Modifier.height(spacing.xs))
@@ -2036,7 +2039,7 @@ private fun LoanCard(
             Text(
                 text = "$percent% pagado",
                 style = typography.labelSmall,
-                color = colors.onSurfaceVariant
+                color = colors.onSurfaceVariant.copy(alpha = 0.8f)
             )
 
             Spacer(modifier = Modifier.height(spacing.s))

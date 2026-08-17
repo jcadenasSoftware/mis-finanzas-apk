@@ -47,6 +47,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.jcadenas.xpendz.R
 import com.jcadenas.xpendz.diagnostics.AppIdentityLogger
+import com.jcadenas.xpendz.ui.theme.XpendzThemeTokens
 import com.jcadenas.xpendz.ui.viewmodel.AuthViewModel
 import kotlinx.coroutines.launch
 
@@ -56,6 +57,7 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
+    val colors = XpendzThemeTokens.colors
     val authState by viewModel.authState.collectAsState()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -192,7 +194,7 @@ fun LoginScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        containerColor = Color(0xFFF8FAFD)
+        containerColor = colors.background
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -219,7 +221,7 @@ fun LoginScreen(
                     text = "Xpendz",
                     style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF2463EB)
+                    color = colors.brand
                 )
 
                 Spacer(modifier = Modifier.height(6.dp))
@@ -236,7 +238,8 @@ fun LoginScreen(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.extraLarge,
-                    color = Color(0xFFEFF4FF)
+                    color = colors.surfaceVariant.copy(alpha = 0.5f),
+                    tonalElevation = 2.dp
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -247,7 +250,7 @@ fun LoginScreen(
                             modifier = Modifier
                                 .size(28.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF2463EB)),
+                                .background(colors.brand),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -261,7 +264,7 @@ fun LoginScreen(
                         Text(
                             text = "Accede para gestionar tus finanzas de forma inteligente",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = colors.onSurfaceVariant.copy(alpha = 0.85f)
                         )
                     }
                 }
@@ -359,7 +362,7 @@ fun LoginScreen(
                         .height(52.dp),
                     enabled = !authState.isLoading,
                     shape = MaterialTheme.shapes.extraLarge,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2463EB)),
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.brand),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp, pressedElevation = 3.dp)
                 ) {
                     if (authState.isLoading) {
@@ -395,13 +398,13 @@ fun LoginScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    HorizontalDivider(modifier = Modifier.weight(1f), color = Color(0xFFD8DFEA))
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = colors.onSurfaceVariant.copy(alpha = 0.2f))
                     Text(
                         text = "o continuar con",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = colors.onSurfaceVariant.copy(alpha = 0.7f)
                     )
-                    HorizontalDivider(modifier = Modifier.weight(1f), color = Color(0xFFD8DFEA))
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = colors.onSurfaceVariant.copy(alpha = 0.2f))
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -440,8 +443,8 @@ fun LoginScreen(
                         .height(50.dp),
                     enabled = !authState.isLoading,
                     shape = MaterialTheme.shapes.extraLarge,
-                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFD8DFEA))
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = colors.surface),
+                    border = BorderStroke(1.dp, colors.onSurfaceVariant.copy(alpha = 0.3f))
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -471,13 +474,13 @@ fun LoginScreen(
                     Text(
                         text = if (isSignUp) "¿Ya tienes cuenta?" else "¿No tienes cuenta?",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = colors.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                     Text(
                         text = if (isSignUp) "Inicia sesión" else "Regístrate",
                         modifier = Modifier.clickable { isSignUp = !isSignUp },
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFF2463EB),
+                        color = colors.brand,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -499,13 +502,13 @@ fun LoginScreen(
                         Icon(
                             imageVector = Icons.Default.Public,
                             contentDescription = null,
-                            tint = Color(0xFF9E9E9E),
+                            tint = colors.onSurfaceVariant.copy(alpha = 0.6f),
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
                             text = "jcadenas.com",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color(0xFF7E8695),
+                            color = colors.onSurfaceVariant.copy(alpha = 0.7f),
                             textDecoration = TextDecoration.None
                         )
                     }
@@ -513,7 +516,7 @@ fun LoginScreen(
                     Text(
                         text = "Ingeniero en Informática · Desarrollo de software",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF9E9E9E),
+                        color = colors.onSurfaceVariant.copy(alpha = 0.6f),
                         textAlign = TextAlign.Center
                     )
                 }
@@ -533,6 +536,7 @@ private fun ModernAuthTextField(
     visualTransformation: VisualTransformation = VisualTransformation.None,
     trailingContent: @Composable (() -> Unit)? = null
 ) {
+    val colors = XpendzThemeTokens.colors
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
@@ -543,27 +547,27 @@ private fun ModernAuthTextField(
         placeholder = {
             Text(
                 text = label,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = colors.onSurfaceVariant.copy(alpha = 0.6f)
             )
         },
         leadingIcon = {
             Icon(
                 imageVector = leadingIcon,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint = colors.onSurfaceVariant
             )
         },
         trailingIcon = trailingContent,
         keyboardOptions = keyboardOptions,
         visualTransformation = visualTransformation,
         colors = OutlinedTextFieldDefaults.colors(
-            focusedContainerColor = Color(0xFFF5F7FA),
-            unfocusedContainerColor = Color(0xFFF5F7FA),
-            disabledContainerColor = Color(0xFFF5F7FA),
-            focusedBorderColor = Color(0xFF2463EB),
-            unfocusedBorderColor = Color(0xFFD8DFEA),
-            focusedLeadingIconColor = Color(0xFF2463EB),
-            unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+            focusedContainerColor = colors.surface,
+            unfocusedContainerColor = colors.surface,
+            disabledContainerColor = colors.surface,
+            focusedBorderColor = colors.brand,
+            unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f),
+            focusedLeadingIconColor = colors.brand,
+            unfocusedLeadingIconColor = colors.onSurfaceVariant
         )
     )
 }

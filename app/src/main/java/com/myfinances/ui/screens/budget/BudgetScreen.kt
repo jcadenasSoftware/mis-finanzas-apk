@@ -138,6 +138,10 @@ fun BudgetScreen(
     val context = LocalContext.current
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("es", "CO")) }
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale("es")) }
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val typography = XpendzThemeTokens.typography
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
@@ -166,7 +170,7 @@ fun BudgetScreen(
         AlertDialog(
             onDismissRequest = { showQuickMove = false },
             title = { Text("Registrar movimiento") },
-            containerColor = Color.White,
+            containerColor = colors.surface,
             text = {
                 Column(
                     modifier = Modifier
@@ -196,11 +200,11 @@ fun BudgetScreen(
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.extraLarge,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.White,
-                                unfocusedContainerColor = Color.White,
-                                disabledContainerColor = Color.White,
-                                focusedBorderColor = Color(0xFF2463EB),
-                                unfocusedBorderColor = Color(0xFFD8DFEA)
+                                focusedContainerColor = colors.surface,
+                                unfocusedContainerColor = colors.surface,
+                                disabledContainerColor = colors.surface,
+                                focusedBorderColor = colors.brand,
+                                unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
                             )
                         )
                         DropdownMenu(
@@ -246,7 +250,7 @@ fun BudgetScreen(
                     },
                     enabled = quickMoveGoalId.isNotBlank(),
                     shape = MaterialTheme.shapes.extraLarge,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2463EB))
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.brand)
                 ) {
                     Text("Continuar")
                 }
@@ -268,8 +272,9 @@ fun BudgetScreen(
                 title = {
                     Text(
                         text = "Presupuesto",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        style = typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.onSurface
                     )
                 },
                 navigationIcon = {
@@ -387,14 +392,14 @@ fun BudgetScreen(
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(16.dp),
-                        contentPadding = PaddingValues(bottom = 16.dp),
+                            .padding(spacing.m),
+                        contentPadding = PaddingValues(bottom = spacing.m),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         item {
                             state.error?.let { err ->
                                 Text(err, color = MaterialTheme.colorScheme.error)
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(spacing.xs))
                             }
                         }
 
@@ -452,8 +457,9 @@ fun BudgetScreen(
                                 ) {
                                     Text(
                                         "Tus categorías",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
+                                        style = typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.onSurface
                                     )
 
                                     Box {
@@ -461,18 +467,18 @@ fun BudgetScreen(
                                             onClick = { filterExpanded = true },
                                             label = { Text(selectedFilter.label) },
                                             leadingIcon = {
-                                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = null)
+                                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = colors.onSurfaceVariant)
                                             },
                                             colors = AssistChipDefaults.assistChipColors(
-                                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                                labelColor = MaterialTheme.colorScheme.onSurface
+                                                containerColor = colors.surfaceVariant,
+                                                labelColor = colors.onSurface
                                             )
                                         )
 
                                         DropdownMenu(
                                             expanded = filterExpanded,
                                             onDismissRequest = { filterExpanded = false },
-                                            modifier = Modifier.background(Color.White)
+                                            modifier = Modifier.background(colors.surface)
                                         ) {
                                             CategoryFilter.entries.forEach { filter ->
                                                 DropdownMenuItem(
@@ -606,30 +612,38 @@ fun BudgetScreen(
 
         AlertDialog(
             onDismissRequest = { showEditMonthlyLimit = false },
-            title = { Text("Límite mensual") },
-            containerColor = Color.White,
+            title = { Text("Límite mensual", color = colors.onSurface, style = typography.titleLarge) },
+            containerColor = colors.surface,
             text = {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .verticalScroll(rememberScrollState())
                         .imePadding(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(spacing.m)
                 ) {
-                    Text(catName ?: "")
+                    Text(catName ?: "", color = colors.onSurface, style = typography.bodyMedium)
                     OutlinedTextField(
                         value = limitText,
                         onValueChange = { limitText = it },
                         label = { Text("Límite") },
-                        leadingIcon = { Icon(Icons.Default.AttachMoney, contentDescription = null) },
+                        leadingIcon = { Icon(Icons.Default.AttachMoney, contentDescription = null, tint = colors.brand) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(shapes.extraLarge),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = colors.surface,
+                            unfocusedContainerColor = colors.surface,
+                            disabledContainerColor = colors.surface,
+                            focusedBorderColor = colors.brand,
+                            unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
+                        )
                     )
                     Text(
                         "Deja vacío para no establecer límite.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall
+                        color = colors.onSurfaceVariant.copy(alpha = 0.85f),
+                        style = typography.bodySmall
                     )
                 }
             },
@@ -644,7 +658,9 @@ fun BudgetScreen(
                         viewModel.upsertMonthlyLimit(editMonthlyCategoryId, cents)
                         showEditMonthlyLimit = false
                     },
-                    enabled = editMonthlyCategoryId.isNotBlank() && !state.isLoading
+                    enabled = editMonthlyCategoryId.isNotBlank() && !state.isLoading,
+                    shape = RoundedCornerShape(shapes.extraLarge),
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.brand)
                 ) {
                     Text("Guardar")
                 }
@@ -730,14 +746,14 @@ fun BudgetScreen(
 
         AlertDialog(
             onDismissRequest = { showCreateGoal = false },
-            containerColor = Color.White,
+            containerColor = colors.surface,
             text = {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .verticalScroll(rememberScrollState())
                         .imePadding(),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(spacing.m)
                 ) {
                     GoalDialogHeader(
                         title = "Nueva meta",
@@ -751,7 +767,7 @@ fun BudgetScreen(
                             Icon(
                                 Icons.Default.AttachMoney,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = colors.brand
                             )
                         },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -762,11 +778,11 @@ fun BudgetScreen(
                         shape = MaterialTheme.shapes.extraLarge,
                         textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color(0xFFF5F7FA),
-                            unfocusedContainerColor = Color(0xFFF5F7FA),
-                            disabledContainerColor = Color(0xFFF5F7FA),
-                            focusedBorderColor = Color(0xFF2463EB),
-                            unfocusedBorderColor = Color(0xFFD8DFEA)
+                            focusedContainerColor = colors.surfaceVariant.copy(alpha = 0.3f),
+                            unfocusedContainerColor = colors.surfaceVariant.copy(alpha = 0.3f),
+                            disabledContainerColor = colors.surfaceVariant.copy(alpha = 0.3f),
+                            focusedBorderColor = colors.brand,
+                            unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
                         )
                     )
                     OutlinedTextField(
@@ -777,11 +793,11 @@ fun BudgetScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.extraLarge,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            disabledContainerColor = Color.White,
-                            focusedBorderColor = Color(0xFF2463EB),
-                            unfocusedBorderColor = Color(0xFFD8DFEA)
+                            focusedContainerColor = colors.surface,
+                            unfocusedContainerColor = colors.surface,
+                            disabledContainerColor = colors.surface,
+                            focusedBorderColor = colors.brand,
+                            unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
                         )
                     )
 
@@ -790,7 +806,7 @@ fun BudgetScreen(
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Moneda") },
-                        placeholder = { Text("Selecciona moneda") },
+                        placeholder = { Text("Selecciona moneda", color = colors.onSurfaceVariant.copy(alpha = 0.6f)) },
                         trailingIcon = {
                             IconButton(
                                 onClick = {
@@ -798,17 +814,17 @@ fun BudgetScreen(
                                     if (!currencyExpanded) currencyQuery = ""
                                 }
                             ) {
-                                Icon(Icons.Default.Savings, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Icon(Icons.Default.Savings, contentDescription = null, tint = colors.brand)
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.extraLarge,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            disabledContainerColor = Color.White,
-                            focusedBorderColor = Color(0xFF2463EB),
-                            unfocusedBorderColor = Color(0xFFD8DFEA)
+                            focusedContainerColor = colors.surface,
+                            unfocusedContainerColor = colors.surface,
+                            disabledContainerColor = colors.surface,
+                            focusedBorderColor = colors.brand,
+                            unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
                         )
                     )
 
@@ -820,7 +836,7 @@ fun BudgetScreen(
 
                         ElevatedCard(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.elevatedCardColors(containerColor = Color.White)
+                            colors = CardDefaults.elevatedCardColors(containerColor = colors.surface)
                         ) {
                             Column(
                                 modifier = Modifier
@@ -879,17 +895,17 @@ fun BudgetScreen(
                         label = { Text("Fecha objetivo") },
                         trailingIcon = {
                             IconButton(onClick = { showDatePicker = true }) {
-                                Icon(Icons.Default.CalendarToday, contentDescription = null)
+                                Icon(Icons.Default.CalendarToday, contentDescription = null, tint = colors.brand)
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.extraLarge,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            disabledContainerColor = Color.White,
-                            focusedBorderColor = Color(0xFF2463EB),
-                            unfocusedBorderColor = Color(0xFFD8DFEA)
+                            focusedContainerColor = colors.surface,
+                            unfocusedContainerColor = colors.surface,
+                            disabledContainerColor = colors.surface,
+                            focusedBorderColor = colors.brand,
+                            unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
                         )
                     )
                 }
@@ -910,7 +926,7 @@ fun BudgetScreen(
                     },
                     enabled = goalName.isNotBlank() && goalAmountText.isNotBlank() && !state.isLoading,
                     shape = MaterialTheme.shapes.extraLarge,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2463EB))
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.brand)
                 ) {
                     Text("Crear")
                 }
@@ -971,7 +987,7 @@ fun BudgetScreen(
 
         AlertDialog(
             onDismissRequest = { showDeposit = false },
-            containerColor = Color.White,
+            containerColor = colors.surface,
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -986,7 +1002,7 @@ fun BudgetScreen(
                         text = goal?.name ?: "",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = colors.brand
                     )
 
                     OutlinedTextField(
@@ -997,7 +1013,7 @@ fun BudgetScreen(
                             Icon(
                                 Icons.Default.AttachMoney,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = colors.brand
                             )
                         },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -1008,11 +1024,11 @@ fun BudgetScreen(
                         shape = MaterialTheme.shapes.extraLarge,
                         textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color(0xFFF5F7FA),
-                            unfocusedContainerColor = Color(0xFFF5F7FA),
-                            disabledContainerColor = Color(0xFFF5F7FA),
-                            focusedBorderColor = Color(0xFF2463EB),
-                            unfocusedBorderColor = Color(0xFFD8DFEA)
+                            focusedContainerColor = colors.surface,
+                            unfocusedContainerColor = colors.surface,
+                            disabledContainerColor = colors.surfaceVariant.copy(alpha = 0.3f),
+                            focusedBorderColor = colors.brand,
+                            unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
                         )
                     )
 
@@ -1033,17 +1049,17 @@ fun BudgetScreen(
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.extraLarge,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.White,
-                                unfocusedContainerColor = Color.White,
-                                disabledContainerColor = Color.White,
-                                focusedBorderColor = Color(0xFF2463EB),
-                                unfocusedBorderColor = Color(0xFFD8DFEA)
+                                focusedContainerColor = colors.surface,
+                                unfocusedContainerColor = colors.surface,
+                                disabledContainerColor = colors.surface,
+                                focusedBorderColor = colors.brand,
+                                unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
                             )
                         )
                         DropdownMenu(
                             expanded = fromExpanded,
                             onDismissRequest = { fromExpanded = false },
-                            modifier = Modifier.background(Color.White)
+                            modifier = Modifier.background(colors.surface)
                         ) {
                             fromAccounts.forEach { account ->
                                 val bal = state.accountBalancesCents[account.id] ?: 0L
@@ -1065,7 +1081,7 @@ fun BudgetScreen(
                         label = { Text("Fecha") },
                         trailingIcon = {
                             IconButton(onClick = { showDatePicker = true }) {
-                                Icon(Icons.Default.CalendarToday, contentDescription = null)
+                                Icon(Icons.Default.CalendarToday, contentDescription = null, tint = colors.brand)
                             }
                         },
                         modifier = Modifier
@@ -1073,11 +1089,11 @@ fun BudgetScreen(
                             .clickable { showDatePicker = true },
                         shape = MaterialTheme.shapes.extraLarge,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            disabledContainerColor = Color.White,
-                            focusedBorderColor = Color(0xFF2463EB),
-                            unfocusedBorderColor = Color(0xFFD8DFEA)
+                            focusedContainerColor = colors.surface,
+                            unfocusedContainerColor = colors.surface,
+                            disabledContainerColor = colors.surface,
+                            focusedBorderColor = colors.brand,
+                            unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
                         )
                     )
 
@@ -1164,7 +1180,7 @@ fun BudgetScreen(
 
         AlertDialog(
             onDismissRequest = { showWithdraw = false },
-            containerColor = Color.White,
+            containerColor = colors.surface,
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -1179,7 +1195,7 @@ fun BudgetScreen(
                         text = goal?.name ?: "",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = colors.brand
                     )
 
                     OutlinedTextField(
@@ -1190,7 +1206,7 @@ fun BudgetScreen(
                             Icon(
                                 Icons.Default.AttachMoney,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = colors.brand
                             )
                         },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -1201,11 +1217,11 @@ fun BudgetScreen(
                         shape = MaterialTheme.shapes.extraLarge,
                         textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color(0xFFF5F7FA),
-                            unfocusedContainerColor = Color(0xFFF5F7FA),
-                            disabledContainerColor = Color(0xFFF5F7FA),
-                            focusedBorderColor = Color(0xFF2463EB),
-                            unfocusedBorderColor = Color(0xFFD8DFEA)
+                            focusedContainerColor = colors.surface,
+                            unfocusedContainerColor = colors.surface,
+                            disabledContainerColor = colors.surfaceVariant.copy(alpha = 0.3f),
+                            focusedBorderColor = colors.brand,
+                            unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
                         )
                     )
 
@@ -1220,23 +1236,23 @@ fun BudgetScreen(
                             placeholder = { Text("Selecciona cuenta") },
                             trailingIcon = {
                                 IconButton(onClick = { toExpanded = true }) {
-                                    Icon(Icons.Default.Savings, contentDescription = null)
+                                    Icon(Icons.Default.Savings, contentDescription = null, tint = colors.brand)
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.extraLarge,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.White,
-                                unfocusedContainerColor = Color.White,
-                                disabledContainerColor = Color.White,
-                                focusedBorderColor = Color(0xFF2463EB),
-                                unfocusedBorderColor = Color(0xFFD8DFEA)
+                                focusedContainerColor = colors.surface,
+                                unfocusedContainerColor = colors.surface,
+                                disabledContainerColor = colors.surface,
+                                focusedBorderColor = colors.brand,
+                                unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
                             )
                         )
                         DropdownMenu(
                             expanded = toExpanded,
                             onDismissRequest = { toExpanded = false },
-                            modifier = Modifier.background(Color.White)
+                            modifier = Modifier.background(colors.surface)
                         ) {
                             toAccounts.forEach { account ->
                                 val bal = state.accountBalancesCents[account.id] ?: 0L
@@ -1258,7 +1274,7 @@ fun BudgetScreen(
                         label = { Text("Fecha") },
                         trailingIcon = {
                             IconButton(onClick = { showDatePicker = true }) {
-                                Icon(Icons.Default.CalendarToday, contentDescription = null)
+                                Icon(Icons.Default.CalendarToday, contentDescription = null, tint = colors.brand)
                             }
                         },
                         modifier = Modifier
@@ -1266,11 +1282,11 @@ fun BudgetScreen(
                             .clickable { showDatePicker = true },
                         shape = MaterialTheme.shapes.extraLarge,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            disabledContainerColor = Color.White,
-                            focusedBorderColor = Color(0xFF2463EB),
-                            unfocusedBorderColor = Color(0xFFD8DFEA)
+                            focusedContainerColor = colors.surface,
+                            unfocusedContainerColor = colors.surface,
+                            disabledContainerColor = colors.surface,
+                            focusedBorderColor = colors.brand,
+                            unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
                         )
                     )
 
@@ -1342,24 +1358,28 @@ private fun BudgetSegmentedTabs(
     tabs: List<String>,
     onSelectTab: (Int) -> Unit
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+
     val leftSelected = selectedTab == 0
-    val leftBg by animateColorAsState(if (leftSelected) Color(0xFF2463EB) else Color(0xFFF1F3F7), label = "budgetTabLeftBg")
-    val rightBg by animateColorAsState(if (!leftSelected) Color(0xFF2463EB) else Color(0xFFF1F3F7), label = "budgetTabRightBg")
-    val leftFg = if (leftSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-    val rightFg = if (!leftSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+    val leftBg by animateColorAsState(if (leftSelected) colors.brand.copy(alpha = 0.12f) else colors.surfaceVariant.copy(alpha = 0.5f), label = "budgetTabLeftBg")
+    val rightBg by animateColorAsState(if (!leftSelected) colors.brand.copy(alpha = 0.12f) else colors.surfaceVariant.copy(alpha = 0.5f), label = "budgetTabRightBg")
+    val leftFg = if (leftSelected) colors.brand else colors.onSurfaceVariant
+    val rightFg = if (!leftSelected) colors.brand else colors.onSurfaceVariant
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        color = Color(0xFFF1F3F7),
-        shape = MaterialTheme.shapes.extraLarge
+            .padding(horizontal = spacing.m, vertical = 10.dp),
+        color = colors.surfaceVariant.copy(alpha = 0.3f),
+        shape = RoundedCornerShape(shapes.extraLarge)
     ) {
         Row(modifier = Modifier.fillMaxWidth()) {
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .clip(MaterialTheme.shapes.extraLarge)
+                    .clip(RoundedCornerShape(shapes.extraLarge))
                     .background(leftBg)
                     .clickable { onSelectTab(0) }
                     .padding(vertical = 10.dp),
@@ -1370,7 +1390,7 @@ private fun BudgetSegmentedTabs(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .clip(MaterialTheme.shapes.extraLarge)
+                    .clip(RoundedCornerShape(shapes.extraLarge))
                     .background(rightBg)
                     .clickable { onSelectTab(1) }
                     .padding(vertical = 10.dp),
@@ -1403,7 +1423,7 @@ private fun GoalsGlobalSummaryCard(
             .fillMaxWidth()
             .padding(vertical = spacing.xxs),
         shape = RoundedCornerShape(shapes.extraLarge),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = colors.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = elevation.level2)
     ) {
         Column(
@@ -1414,8 +1434,8 @@ private fun GoalsGlobalSummaryCard(
             Text(
                 text = "Tus metas",
                 style = typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = colors.onSurface
+                fontWeight = FontWeight.Normal,
+                color = colors.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(spacing.s + spacing.xxs / 2))
@@ -1542,7 +1562,7 @@ private fun SummaryLine(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, color = colors.onSurfaceVariant, style = typography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
+        Text(label, color = colors.onSurfaceVariant, style = typography.bodySmall)
         Text(value, color = valueColor, fontWeight = FontWeight.Bold)
     }
 }
@@ -1657,7 +1677,7 @@ private fun GoalModernCard(
                     Text(
                         text = dateText,
                         style = typography.bodySmall,
-                        color = colors.onSurfaceVariant.copy(alpha = 0.7f)
+                        color = colors.onSurfaceVariant
                     )
                 }
             }
@@ -1775,7 +1795,7 @@ private fun GoalDialogHeader(
         Text(
             text = subtitle,
             style = typography.bodyMedium,
-            color = colors.onSurfaceVariant
+            color = colors.onSurfaceVariant.copy(alpha = 0.85f)
         )
     }
 }
@@ -1901,28 +1921,32 @@ private fun generateBudgetInsights(
 private fun InsightsSection(insights: List<BudgetInsight>, currencyFormat: NumberFormat) {
     if (insights.isEmpty()) return
 
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val typography = XpendzThemeTokens.typography
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(containerColor = colors.surface),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f)
+            colors.onSurfaceVariant.copy(alpha = 0.10f)
         )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = 14.dp, vertical = spacing.s),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
                 text = "🧠 Resumen inteligente",
-                style = MaterialTheme.typography.titleSmall,
+                style = typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = colors.onSurface
             )
 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
                 insights.forEach { insight ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -1937,8 +1961,8 @@ private fun InsightsSection(insights: List<BudgetInsight>, currencyFormat: Numbe
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                .padding(horizontal = spacing.s, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(spacing.s),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Surface(
@@ -1949,7 +1973,7 @@ private fun InsightsSection(insights: List<BudgetInsight>, currencyFormat: Numbe
                                     imageVector = insight.icon,
                                     contentDescription = null,
                                     tint = insight.type.color,
-                                    modifier = Modifier.padding(8.dp).size(20.dp)
+                                    modifier = Modifier.padding(spacing.xs).size(20.dp)
                                 )
                             }
 
@@ -1959,14 +1983,14 @@ private fun InsightsSection(insights: List<BudgetInsight>, currencyFormat: Numbe
                             ) {
                                 Text(
                                     text = insight.title,
-                                    style = MaterialTheme.typography.bodyMedium,
+                                    style = typography.bodyMedium,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = colors.onSurface
                                 )
                                 Text(
                                     text = insight.description,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    style = typography.bodySmall,
+                                    color = colors.onSurfaceVariant
                                 )
                             }
 
@@ -1977,7 +2001,7 @@ private fun InsightsSection(insights: List<BudgetInsight>, currencyFormat: Numbe
                                 insight.percentage?.let { pct ->
                                     Text(
                                         text = "$pct%",
-                                        style = MaterialTheme.typography.labelMedium,
+                                        style = typography.labelMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = insight.type.color
                                     )
@@ -1987,8 +2011,8 @@ private fun InsightsSection(insights: List<BudgetInsight>, currencyFormat: Numbe
                                     val diffValue = currencyFormat.format(diffCents / 100.0)
                                     Text(
                                         text = "$sign$diffValue",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = if (diffCents >= 0) MaterialTheme.colorScheme.onSurfaceVariant else insight.type.color,
+                                        style = typography.labelSmall,
+                                        color = if (diffCents >= 0) colors.onSurfaceVariant else insight.type.color,
                                         fontWeight = if (diffCents < 0) FontWeight.SemiBold else FontWeight.Normal
                                     )
                                 }
@@ -2063,18 +2087,22 @@ private fun monthlyStatusColor(status: MonthlyStatus): Color {
 private fun AttentionNeededSection(
     items: List<MonthlyAttentionItem>
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val typography = XpendzThemeTokens.typography
+
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(spacing.xs)
     ) {
         Text(
             text = "⚠ Requieren atención",
-            style = MaterialTheme.typography.titleSmall,
+            style = typography.titleSmall,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+            color = colors.onSurface
         )
 
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
             items.forEach { item ->
                 AttentionNeededItemRow(item = item)
             }
@@ -2086,12 +2114,17 @@ private fun AttentionNeededSection(
 private fun AttentionNeededItemRow(
     item: MonthlyAttentionItem
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val typography = XpendzThemeTokens.typography
+
     val pct = (item.progress * 100).toInt().coerceAtLeast(0)
     val color = item.severity.color
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(containerColor = colors.surface),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
             color.copy(alpha = 0.18f)
@@ -2100,7 +2133,7 @@ private fun AttentionNeededItemRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = spacing.s, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -2109,7 +2142,7 @@ private fun AttentionNeededItemRow(
                 color = color.copy(alpha = 0.12f)
             ) {
                 Box(
-                    modifier = Modifier.size(12.dp),
+                    modifier = Modifier.size(spacing.s),
                     contentAlignment = Alignment.Center
                 ) {
                     Box(
@@ -2123,20 +2156,21 @@ private fun AttentionNeededItemRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = item.categoryName,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
+                    color = colors.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = item.severity.label,
-                    style = MaterialTheme.typography.labelSmall,
+                    style = typography.labelSmall,
                     color = color
                 )
             }
 
             Surface(
-                shape = MaterialTheme.shapes.extraLarge,
+                shape = RoundedCornerShape(shapes.extraLarge),
                 color = color.copy(alpha = 0.12f)
             ) {
                 Text(
@@ -2144,7 +2178,7 @@ private fun AttentionNeededItemRow(
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                     color = color,
                     fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.labelLarge
+                    style = typography.labelLarge
                 )
             }
         }
@@ -2172,6 +2206,11 @@ private fun MonthlyGlobalSummaryCard(
     currencyFormat: NumberFormat,
     onSelectMonthKey: (String) -> Unit
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val typography = XpendzThemeTokens.typography
+
     var monthExpanded by remember { mutableStateOf(false) }
     val monthOptions = remember(monthKey, monthsWithMovements) {
         val list = (listOf(monthKey) + monthsWithMovements)
@@ -2195,11 +2234,11 @@ private fun MonthlyGlobalSummaryCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 2.dp),
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(shapes.extraLarge),
+        colors = CardDefaults.cardColors(containerColor = colors.surface),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f)
+            colors.onSurfaceVariant.copy(alpha = 0.10f)
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -2207,7 +2246,7 @@ private fun MonthlyGlobalSummaryCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(spacing.xs)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -2217,14 +2256,14 @@ private fun MonthlyGlobalSummaryCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Resumen mensual",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = typography.labelSmall,
+                        color = colors.onSurfaceVariant
                     )
                     Text(
                         text = formatMonthKey(monthKey),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = typography.titleMedium,
+                        fontWeight = FontWeight.Normal,
+                        color = colors.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -2236,22 +2275,22 @@ private fun MonthlyGlobalSummaryCard(
                         label = {
                             Text("Cambiar mes", maxLines = 1, overflow = TextOverflow.Ellipsis)
                         },
-                        leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
-                        trailingIcon = { Icon(Icons.Default.KeyboardArrowDown, contentDescription = null) },
+                        leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null, tint = colors.brand) },
+                        trailingIcon = { Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = colors.onSurfaceVariant) },
                         colors = AssistChipDefaults.assistChipColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            labelColor = MaterialTheme.colorScheme.onSurface
+                            containerColor = colors.surfaceVariant,
+                            labelColor = colors.onSurface
                         )
                     )
                     DropdownMenu(
                         expanded = monthExpanded,
                         onDismissRequest = { monthExpanded = false },
-                        modifier = Modifier.background(Color.White)
+                        modifier = Modifier.background(colors.surface)
                     ) {
-                        Surface(color = Color.White, shape = MaterialTheme.shapes.large) {
+                        Surface(color = colors.surface, shape = RoundedCornerShape(shapes.large)) {
                             Column(
                                 modifier = Modifier
-                                    .background(Color.White)
+                                    .background(colors.surface)
                                     .heightIn(max = 340.dp)
                                     .verticalScroll(rememberScrollState())
                             ) {
@@ -2271,43 +2310,43 @@ private fun MonthlyGlobalSummaryCard(
             }
 
             Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                shape = MaterialTheme.shapes.extraLarge,
+                color = colors.surfaceVariant.copy(alpha = 0.35f),
+                shape = RoundedCornerShape(shapes.extraLarge),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .padding(horizontal = spacing.s, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(spacing.xs)
                 ) {
                     Surface(
                         color = statusColor.copy(alpha = 0.10f),
-                        shape = MaterialTheme.shapes.extraLarge
+                        shape = RoundedCornerShape(shapes.extraLarge)
                     ) {
                         Text(
                             text = status.label,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            modifier = Modifier.padding(horizontal = spacing.s, vertical = 6.dp),
                             color = statusColor,
                             fontWeight = FontWeight.SemiBold,
-                            style = MaterialTheme.typography.labelMedium
+                            style = typography.labelMedium
                         )
                     }
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(spacing.s),
                         verticalAlignment = Alignment.Top
                     ) {
                         Column(modifier = Modifier.weight(1.35f)) {
                             Text(
                                 text = "Gastado",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                style = typography.bodySmall,
+                                color = colors.onSurfaceVariant
                             )
                             Text(
                                 text = noDecimals.format(totalSpentCents / 100.0),
-                                style = MaterialTheme.typography.titleMedium,
+                                style = typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = statusColor,
                                 maxLines = 1,
@@ -2316,8 +2355,8 @@ private fun MonthlyGlobalSummaryCard(
                             )
                             Text(
                                 text = "de Presupuesto Total",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = typography.labelSmall,
+                                color = colors.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Clip,
                                 softWrap = false
@@ -2330,12 +2369,12 @@ private fun MonthlyGlobalSummaryCard(
                         ) {
                             Text(
                                 text = "Disponible",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                style = typography.bodySmall,
+                                color = colors.onSurfaceVariant
                             )
                             Text(
                                 text = noDecimals.format(availableCents / 100.0),
-                                style = MaterialTheme.typography.bodyLarge,
+                                style = typography.bodyLarge,
                                 fontWeight = FontWeight.SemiBold,
                                 color = availableColor,
                                 maxLines = 1,
@@ -2354,16 +2393,16 @@ private fun MonthlyGlobalSummaryCard(
                             progress = { progress.coerceAtLeast(0f).coerceAtMost(1f) },
                             modifier = Modifier
                                 .weight(1f)
-                                .height(8.dp)
-                                .clip(MaterialTheme.shapes.extraLarge),
+                                .height(spacing.xs)
+                                .clip(RoundedCornerShape(shapes.extraLarge)),
                             color = statusColor,
                             trackColor = Color(0xFFE9EEF6)
                         )
                         Text(
                             text = "$pct%",
-                            style = MaterialTheme.typography.labelLarge,
+                            style = typography.labelLarge,
                             fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = colors.onSurfaceVariant
                         )
                     }
                 }
@@ -2382,6 +2421,11 @@ private fun MonthlyCategoryBudgetCard(
     onEditRoot: () -> Unit,
     onEditChild: (String) -> Unit
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val typography = XpendzThemeTokens.typography
+
     val statusColor = monthlyStatusColor(model.status)
     val pct = (model.progress * 100).toInt().coerceAtLeast(0)
     val availableCents = model.limitCents - model.spentCents
@@ -2404,16 +2448,16 @@ private fun MonthlyCategoryBudgetCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onToggleExpand),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(containerColor = colors.surface),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f)
+            colors.onSurfaceVariant.copy(alpha = 0.10f)
         )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = spacing.s, vertical = spacing.xs),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Row(
@@ -2423,31 +2467,32 @@ private fun MonthlyCategoryBudgetCard(
             ) {
                 Text(
                     model.categoryName,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
+                    color = colors.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
 
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
                     Surface(
                         color = statusColor.copy(alpha = 0.12f),
-                        shape = MaterialTheme.shapes.extraLarge
+                        shape = RoundedCornerShape(shapes.extraLarge)
                     ) {
                         Text(
                             "$pct%",
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            modifier = Modifier.padding(horizontal = spacing.xs, vertical = spacing.xxs),
                             color = statusColor,
                             fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.labelMedium
+                            style = typography.labelMedium
                         )
                     }
 
                     if (children.isEmpty()) {
                         IconButton(
                             onClick = onEditRoot,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(spacing.xxl)
                         ) {
                             Icon(
                                 Icons.Default.Edit,
@@ -2464,7 +2509,7 @@ private fun MonthlyCategoryBudgetCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(6.dp)
-                    .clip(MaterialTheme.shapes.extraLarge),
+                    .clip(RoundedCornerShape(shapes.extraLarge)),
                 color = statusColor,
                 trackColor = Color(0xFFE9EEF6)
             )
@@ -2476,14 +2521,14 @@ private fun MonthlyCategoryBudgetCard(
             ) {
                 Text(
                     spentBudgetLabel,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = typography.labelSmall,
+                    color = colors.onSurfaceVariant
                 )
 
                 Text(
                     availableLabel,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (model.status == MonthlyStatus.EXCEEDED) Color(0xFFEF4444) else MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = typography.labelSmall,
+                    color = if (model.status == MonthlyStatus.EXCEEDED) Color(0xFFEF4444) else colors.onSurfaceVariant,
                     fontWeight = if (model.status == MonthlyStatus.EXCEEDED) FontWeight.SemiBold else FontWeight.Normal
                 )
             }
@@ -2494,7 +2539,7 @@ private fun MonthlyCategoryBudgetCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(start = 6.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(spacing.xs)
                 ) {
                     children.forEach { child ->
                         val childProgress = if (child.limitCents <= 0L) 0f else (child.spentCents.toFloat() / child.limitCents.toFloat()).coerceAtLeast(0f)
@@ -2506,16 +2551,16 @@ private fun MonthlyCategoryBudgetCard(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onEditChild(child.categoryId) },
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+                            colors = CardDefaults.cardColors(containerColor = colors.surfaceVariant.copy(alpha = 0.35f)),
                             border = androidx.compose.foundation.BorderStroke(
                                 1.dp,
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f)
+                                colors.onSurfaceVariant.copy(alpha = 0.08f)
                             )
                         ) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    .padding(horizontal = spacing.s, vertical = 10.dp),
                                 verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Row(
@@ -2526,8 +2571,9 @@ private fun MonthlyCategoryBudgetCard(
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             child.categoryName,
-                                            style = MaterialTheme.typography.bodyMedium,
+                                            style = typography.bodyMedium,
                                             fontWeight = FontWeight.SemiBold,
+                                            color = colors.onSurface,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )
@@ -2538,21 +2584,21 @@ private fun MonthlyCategoryBudgetCard(
                                         }
                                         Text(
                                             childTopLine,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            style = typography.bodySmall,
+                                            color = colors.onSurfaceVariant
                                         )
                                     }
 
                                     Surface(
                                         color = childColor.copy(alpha = 0.12f),
-                                        shape = MaterialTheme.shapes.extraLarge
+                                        shape = RoundedCornerShape(shapes.extraLarge)
                                     ) {
                                         Text(
                                             "$childPct%",
                                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                                             color = childColor,
                                             fontWeight = FontWeight.Bold,
-                                            style = MaterialTheme.typography.labelLarge
+                                            style = typography.labelLarge
                                         )
                                     }
                                 }
@@ -2561,8 +2607,8 @@ private fun MonthlyCategoryBudgetCard(
                                     progress = { childProgress.coerceAtLeast(0f).coerceAtMost(1f) },
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(8.dp)
-                                        .clip(MaterialTheme.shapes.extraLarge),
+                                        .height(spacing.xs)
+                                        .clip(RoundedCornerShape(shapes.extraLarge)),
                                     color = childColor,
                                     trackColor = Color(0xFFE9EEF6)
                                 )
@@ -2579,32 +2625,38 @@ private fun MonthlyCategoryBudgetCard(
 private fun MonthlyEmptyState(
     onCreateFirst: () -> Unit
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val typography = XpendzThemeTokens.typography
+
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = RoundedCornerShape(shapes.extraLarge),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.elevatedCardColors(containerColor = colors.surface)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = spacing.m, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
                 "Aún no has definido presupuestos",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
+                style = typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = colors.onSurface
             )
             Text(
                 "Crea tu primer límite para controlar tus gastos por categoría.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = typography.bodySmall,
+                color = colors.onSurfaceVariant
             )
             Button(
                 onClick = onCreateFirst,
-                shape = MaterialTheme.shapes.extraLarge,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2463EB))
+                shape = RoundedCornerShape(shapes.extraLarge),
+                colors = ButtonDefaults.buttonColors(containerColor = colors.brand)
             ) {
                 Text("Crear primer presupuesto")
             }
@@ -2618,11 +2670,14 @@ private fun BudgetFabAction(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit
 ) {
+    val colors = XpendzThemeTokens.colors
+    val elevation = XpendzThemeTokens.elevation
+
     Surface(
         shape = CircleShape,
         color = Color.White,
-        shadowElevation = 3.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f)),
+        shadowElevation = elevation.level2,
+        border = androidx.compose.foundation.BorderStroke(1.dp, colors.onSurfaceVariant.copy(alpha = 0.15f)),
         modifier = Modifier.clickable(onClick = onClick)
     ) {
         Row(
@@ -2631,7 +2686,7 @@ private fun BudgetFabAction(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Icon(icon, contentDescription = null, tint = Color(0xFF2463EB), modifier = Modifier.size(18.dp))
-            Text(label, fontWeight = FontWeight.SemiBold)
+            Text(label, fontWeight = FontWeight.SemiBold, color = colors.onSurface)
         }
     }
 }

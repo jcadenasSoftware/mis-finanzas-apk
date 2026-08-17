@@ -204,7 +204,7 @@ fun CategoriesScreen(
                                     shape = RoundedCornerShape(shapes.extraLarge),
                                     placeholder = { Text("Buscar categorías o subcategorías") },
                                     leadingIcon = {
-                                        Icon(Icons.Default.Search, contentDescription = null)
+                                        Icon(Icons.Default.Search, contentDescription = null, tint = colors.onSurfaceVariant)
                                     },
                                     trailingIcon = {
                                         if (searchQuery.isNotBlank()) {
@@ -343,7 +343,7 @@ private fun MonthlyInsightCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                color = Color.White.copy(alpha = 0.92f),
+                color = colors.surfaceVariant.copy(alpha = 0.55f),
                 shape = RoundedCornerShape(shapes.large),
                 modifier = Modifier.size(spacing.xl + spacing.xxs)
             ) {
@@ -360,9 +360,9 @@ private fun MonthlyInsightCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Insight del mes",
-                    style = typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Expense
+                    style = typography.labelSmall,
+                    fontWeight = FontWeight.Normal,
+                    color = colors.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(spacing.xxs))
                 Text(
@@ -415,7 +415,7 @@ private fun CategorySectionHeader(
             horizontalArrangement = Arrangement.spacedBy(spacing.s)
         ) {
             Surface(
-                color = Color.White.copy(alpha = 0.9f),
+                color = colors.surfaceVariant.copy(alpha = 0.45f),
                 shape = RoundedCornerShape(shapes.large),
                 modifier = Modifier.size(spacing.xl + spacing.xxs)
             ) {
@@ -491,7 +491,7 @@ private fun CategoryFabAction(
         onClick = onClick,
         shape = RoundedCornerShape(shapes.extraLarge),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = elevation.level2),
-        colors = CardDefaults.elevatedCardColors(containerColor = Color.White)
+        colors = CardDefaults.elevatedCardColors(containerColor = colors.surface)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = spacing.s + spacing.xxs / 2, vertical = spacing.s),
@@ -518,7 +518,7 @@ private fun EmptySearchState(searchQuery: String) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = colors.surface),
         shape = RoundedCornerShape(shapes.extraLarge),
         elevation = CardDefaults.cardElevation(defaultElevation = elevation.level1)
     ) {
@@ -644,7 +644,7 @@ private fun CategoryItem(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = colors.surface
         ),
         border = BorderStroke(
             elevation.level1,
@@ -782,7 +782,7 @@ private fun CategoryItem(
                                 DropdownMenu(
                                     expanded = showMenu,
                                     onDismissRequest = { showMenu = false },
-                                    containerColor = Color.White,
+                                    containerColor = colors.surface,
                                     tonalElevation = elevation.level0
                                 ) {
                                     DropdownMenuItem(
@@ -791,7 +791,7 @@ private fun CategoryItem(
                                             showMenu = false
                                             onAddSubcategory()
                                         },
-                                        leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) }
+                                        leadingIcon = { Icon(Icons.Default.Add, contentDescription = null, tint = colors.onSurfaceVariant) }
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Renombrar") },
@@ -799,7 +799,7 @@ private fun CategoryItem(
                                             showMenu = false
                                             showRenameDialog = true
                                         },
-                                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = colors.onSurfaceVariant) }
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Eliminar") },
@@ -807,7 +807,7 @@ private fun CategoryItem(
                                             showMenu = false
                                             onDelete()
                                         },
-                                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) }
+                                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = colors.onSurfaceVariant) }
                                     )
                                 }
                             }
@@ -888,7 +888,7 @@ private fun SubcategoryItem(
         ) {
             Surface(
                 shape = RoundedCornerShape(shapes.medium),
-                color = Color.White.copy(alpha = 0.8f),
+                color = colors.surfaceVariant.copy(alpha = 0.45f),
                 modifier = Modifier.size(spacing.xl + spacing.xxs)
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -926,7 +926,7 @@ private fun SubcategoryItem(
                 DropdownMenu(
                     expanded = showMenu,
                     onDismissRequest = { showMenu = false },
-                    containerColor = Color.White,
+                    containerColor = colors.surface,
                     tonalElevation = elevation.level0
                 ) {
                     DropdownMenuItem(
@@ -935,7 +935,7 @@ private fun SubcategoryItem(
                             showMenu = false
                             showRenameDialog = true
                         },
-                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = colors.onSurfaceVariant) }
                     )
                     DropdownMenuItem(
                         text = { Text("Eliminar") },
@@ -943,7 +943,7 @@ private fun SubcategoryItem(
                             showMenu = false
                             onDelete()
                         },
-                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) }
+                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = colors.onSurfaceVariant) }
                     )
                 }
             }

@@ -89,21 +89,13 @@ fun AddTransactionScreen(
         topBar = {
             CompactHeader(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Image(
-                            painter = painterResource(id = com.jcadenas.xpendz.R.drawable.ic_launcher),
-                            contentDescription = null,
-                            modifier = Modifier.size(spacing.xl + spacing.xs)
-                        )
-                        Spacer(modifier = Modifier.width(spacing.s))
-                        Text(
-                            if (transactionId != null) "Editar transacción" else "Nueva transacción",
+                    Text(
+                        if (transactionId != null) "Editar transacción" else "Nueva transacción",
                             style = typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
@@ -671,7 +663,7 @@ fun AddTransactionFormContent(
                 expanded = accountExpanded,
                 onDismissRequest = { accountExpanded = false },
                 modifier = Modifier
-                    .background(Color.White)
+                    .background(colors.surface)
                     .heightIn(max = spacing.xxxl * 4 + spacing.xxl * 4)
                     .verticalScroll(rememberScrollState())
             ) {
@@ -720,10 +712,10 @@ fun AddTransactionFormContent(
             onValueChange = {},
             readOnly = true,
             label = { Text("Fecha") },
-            leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
+            leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null, tint = colors.brand) },
             trailingIcon = {
                 IconButton(onClick = { showDatePicker = true }) {
-                    Icon(Icons.Default.CalendarToday, contentDescription = null)
+                    Icon(Icons.Default.CalendarToday, contentDescription = null, tint = colors.brand)
                 }
             },
             modifier = Modifier
@@ -731,9 +723,9 @@ fun AddTransactionFormContent(
                 .clickable { showDatePicker = true },
             shape = RoundedCornerShape(shapes.extraLarge),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White,
-                disabledContainerColor = Color.White,
+                focusedContainerColor = colors.surface,
+                unfocusedContainerColor = colors.surface,
+                disabledContainerColor = colors.surface,
                 focusedBorderColor = colors.brand,
                 unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.25f)
             )

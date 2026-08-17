@@ -791,6 +791,7 @@ private fun TransactionsFiltersHeader(
 ) {
     val spacing = XpendzThemeTokens.spacing
     val typography = XpendzThemeTokens.typography
+    val colors = XpendzThemeTokens.colors
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -956,7 +957,7 @@ private fun TransactionsFiltersHeader(
                     maxLines = 1
                 )
             },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = colors.onSurfaceVariant) },
             singleLine = true,
             textStyle = typography.bodyMedium,
             modifier = Modifier
@@ -1539,7 +1540,7 @@ private fun TransactionItem(
                             showMenu = false
                             onEdit()
                         },
-                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = colors.onSurfaceVariant) }
                     )
                     DropdownMenuItem(
                         text = { Text("Eliminar") },
@@ -1547,7 +1548,7 @@ private fun TransactionItem(
                             showMenu = false
                             onDelete()
                         },
-                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) }
+                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = colors.onSurfaceVariant) }
                     )
                 }
             }

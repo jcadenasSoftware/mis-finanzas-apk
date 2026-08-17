@@ -607,7 +607,7 @@ fun AddTransferScreen(
                             disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            disabledBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+                            disabledBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )

@@ -85,7 +85,7 @@ fun HamburgerMenu(
                 text = "Herramientas",
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Normal
             )
@@ -223,7 +223,7 @@ fun HamburgerMenu(
                 text = "Sistema",
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Normal
             )
@@ -279,7 +279,7 @@ fun HamburgerMenu(
                 text = "Cuenta",
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Normal
             )

@@ -28,7 +28,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Scaffold
 import com.jcadenas.xpendz.ui.components.HamburgerMenu
 import com.jcadenas.xpendz.ui.components.HamburgerMenuButton
@@ -55,6 +55,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.jcadenas.xpendz.ui.theme.XpendzThemeTokens
 import com.jcadenas.xpendz.ui.viewmodel.PrivacyAndDataViewModel
 import androidx.compose.foundation.Canvas
 
@@ -68,6 +69,10 @@ fun ReportsScreen(
     onLogout: () -> Unit,
     viewModel: PrivacyAndDataViewModel = hiltViewModel()
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val typography = XpendzThemeTokens.typography
+
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showHamburgerMenu by remember { mutableStateOf(false) }
@@ -84,8 +89,9 @@ fun ReportsScreen(
                 title = {
                     Text(
                         text = "Reportes PDF",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        style = typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.onSurface
                     )
                 },
                 navigationIcon = {
@@ -109,7 +115,7 @@ fun ReportsScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = colors.surface
                 )
             )
         },
@@ -120,13 +126,13 @@ fun ReportsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = spacing.m, vertical = spacing.s),
+            verticalArrangement = Arrangement.spacedBy(spacing.m)
         ) {
             Text(
                 text = "Genera y comparte reportes de tus finanzas en formato PDF.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = typography.bodyMedium,
+                color = colors.onSurfaceVariant
             )
 
             ReportsCard(
@@ -146,14 +152,20 @@ private fun ReportsCard(
     onExportAccounts: () -> Unit,
     onExportMonthly: () -> Unit
 ) {
-    val primary = MaterialTheme.colorScheme.primary
-    val secondary = MaterialTheme.colorScheme.secondary
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val elevation = XpendzThemeTokens.elevation
+    val typography = XpendzThemeTokens.typography
+
+    val primary = colors.brand
+    val secondary = colors.secondary
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+        shape = RoundedCornerShape(shapes.extraLarge),
+        colors = CardDefaults.cardColors(containerColor = colors.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = elevation.level3)
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
             // Decorative background — curved line + bubbles
@@ -171,7 +183,7 @@ private fun ReportsCard(
                     cubicTo(w * 0.20f, h * 0.10f, w * 0.50f, h * 0.55f, w * 0.75f, h * 0.35f)
                     cubicTo(w * 0.88f, h * 0.25f, w * 0.94f, h * 0.20f, w, h * 0.18f)
                 }
-                drawPath(path1, primary.copy(alpha = 0.10f), style = Stroke(width = 3f, cap = StrokeCap.Round))
+                drawPath(path1, primary.copy(alpha = 0.06f), style = Stroke(width = 3f, cap = StrokeCap.Round))
 
                 // Curved line 2 (lower)
                 val path2 = Path().apply {
@@ -179,37 +191,38 @@ private fun ReportsCard(
                     cubicTo(w * 0.30f, h * 0.55f, w * 0.60f, h * 0.85f, w * 0.90f, h * 0.65f)
                     cubicTo(w * 0.95f, h * 0.62f, w * 0.98f, h * 0.60f, w, h * 0.58f)
                 }
-                drawPath(path2, secondary.copy(alpha = 0.07f), style = Stroke(width = 2f, cap = StrokeCap.Round))
+                drawPath(path2, secondary.copy(alpha = 0.04f), style = Stroke(width = 2f, cap = StrokeCap.Round))
 
                 // Bubbles
-                drawCircle(primary.copy(alpha = 0.07f),   radius = h * 0.50f, center = Offset(w * 0.90f, h * 0.08f))
-                drawCircle(secondary.copy(alpha = 0.05f), radius = h * 0.35f, center = Offset(w * 0.80f, h * 0.92f))
-                drawCircle(primary.copy(alpha = 0.04f),   radius = h * 0.22f, center = Offset(w * 0.10f, h * 0.85f))
-                drawCircle(secondary.copy(alpha = 0.06f), radius = h * 0.18f, center = Offset(w * 0.05f, h * 0.20f))
+                drawCircle(primary.copy(alpha = 0.04f),   radius = h * 0.50f, center = Offset(w * 0.90f, h * 0.08f))
+                drawCircle(secondary.copy(alpha = 0.03f), radius = h * 0.35f, center = Offset(w * 0.80f, h * 0.92f))
+                drawCircle(primary.copy(alpha = 0.03f),   radius = h * 0.22f, center = Offset(w * 0.10f, h * 0.85f))
+                drawCircle(secondary.copy(alpha = 0.04f), radius = h * 0.18f, center = Offset(w * 0.05f, h * 0.20f))
             }
 
             // Content on top of background
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(spacing.xl),
+                verticalArrangement = Arrangement.spacedBy(spacing.m)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(bottom = 4.dp)
+                    modifier = Modifier.padding(bottom = spacing.xxs)
                 ) {
                     Icon(
                         imageVector = Icons.Default.PictureAsPdf,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
+                        tint = colors.brand,
+                        modifier = Modifier.size(spacing.xl)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(spacing.xs))
                     Text(
                         text = "Exportar reportes",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        style = typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.onSurface
                     )
                 }
 
@@ -217,16 +230,16 @@ private fun ReportsCard(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 24.dp),
+                            .padding(vertical = spacing.xl),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             CircularProgressIndicator(modifier = Modifier.size(40.dp))
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(spacing.s))
                             Text(
                                 text = "Generando PDF…",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                style = typography.bodyMedium,
+                                color = colors.onSurfaceVariant
                             )
                         }
                     }
@@ -262,13 +275,18 @@ private fun ReportButton(
     description: String,
     onClick: () -> Unit
 ) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val typography = XpendzThemeTokens.typography
+
     Button(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
+        shape = RoundedCornerShape(shapes.large),
         colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
-            contentColor = MaterialTheme.colorScheme.primary
+            containerColor = colors.brand.copy(alpha = 0.08f),
+            contentColor = colors.brand
         ),
         elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
     ) {
@@ -283,24 +301,24 @@ private fun ReportButton(
                 contentDescription = null,
                 modifier = Modifier.size(22.dp)
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(spacing.s))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     text = description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f)
+                    style = typography.bodySmall,
+                    color = colors.onSurfaceVariant.copy(alpha = 0.85f)
                 )
             }
             Icon(
                 imageVector = Icons.Default.PictureAsPdf,
                 contentDescription = null,
                 modifier = Modifier.size(18.dp),
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                tint = colors.brand.copy(alpha = 0.6f)
             )
         }
     }
