@@ -27,13 +27,13 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
@@ -43,6 +43,9 @@ import com.jcadenas.xpendz.ui.components.AddAccountDialog
 import com.jcadenas.xpendz.ui.components.CompactHeader
 import com.jcadenas.xpendz.ui.components.HamburgerMenu
 import com.jcadenas.xpendz.ui.components.HamburgerMenuButton
+import com.jcadenas.xpendz.ui.components.MoneyInputField
+import com.jcadenas.xpendz.ui.components.MoneyInputFieldVariant
+import com.jcadenas.xpendz.ui.components.MoneyInputFormatter
 import com.jcadenas.xpendz.ui.components.SyncSwipeRefresh
 import com.jcadenas.xpendz.ui.theme.Income
 import com.jcadenas.xpendz.ui.theme.Expense
@@ -67,8 +70,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateDpAsState
-import java.math.BigDecimal
-import java.math.RoundingMode
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -644,92 +645,92 @@ fun DashboardScreen(
                 }
             }
         }
+    }
 
-        // Add Account Dialog
-        if (state.showAddAccountDialog) {
-            AddAccountDialog(
-                onDismiss = { viewModel.hideAddAccountDialog() },
-                onConfirm = { name, type, currency, iconKey, colorHex ->
-                    viewModel.createAccount(name, type, currency, iconKey, colorHex)
-                }
-            )
-        }
-
-        state.error?.let { error ->
-            LaunchedEffect(error) {
-                snackbarHostState.showSnackbar(message = error)
-                viewModel.clearError()
+    // Add Account Dialog
+    if (state.showAddAccountDialog) {
+        AddAccountDialog(
+            onDismiss = { viewModel.hideAddAccountDialog() },
+            onConfirm = { name, type, currency, iconKey, colorHex ->
+                viewModel.createAccount(name, type, currency, iconKey, colorHex)
             }
-        }
+        )
+    }
 
-        if (showTransactionSavedSnack) {
-            LaunchedEffect(Unit) {
-                snackbarHostState.showSnackbar(message = "Gasto/ingreso registrado")
-                showTransactionSavedSnack = false
-            }
+    state.error?.let { error ->
+        LaunchedEffect(error) {
+            snackbarHostState.showSnackbar(message = error)
+            viewModel.clearError()
         }
+    }
 
-        syncError?.let { error ->
-            LaunchedEffect(error) {
-                snackbarHostState.showSnackbar(message = error)
-                syncViewModel.clearError()
-            }
+    if (showTransactionSavedSnack) {
+        LaunchedEffect(Unit) {
+            snackbarHostState.showSnackbar(message = "Gasto/ingreso registrado")
+            showTransactionSavedSnack = false
         }
+    }
 
-        if (showAddTransactionSheet) {
-            ModalBottomSheet(
-                onDismissRequest = { showAddTransactionSheet = false },
-                sheetState = addTransactionSheetState,
-                containerColor = colors.surface,
-                contentColor = colors.onSurface,
-                shape = RoundedCornerShape(shapes.extraLarge),
-                tonalElevation = elevation.level0,
-                dragHandle = { BottomSheetDefaults.DragHandle() }
+    syncError?.let { error ->
+        LaunchedEffect(error) {
+            snackbarHostState.showSnackbar(message = error)
+            syncViewModel.clearError()
+        }
+    }
+
+    if (showAddTransactionSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showAddTransactionSheet = false },
+            sheetState = addTransactionSheetState,
+            containerColor = colors.surface,
+            contentColor = colors.onSurface,
+            shape = RoundedCornerShape(shapes.extraLarge),
+            tonalElevation = elevation.level0,
+            dragHandle = { BottomSheetDefaults.DragHandle() }
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = screenHeightDp * 0.90f)
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = screenHeightDp * 0.90f)
-                ) {
-                    AddTransactionSheet(
-                        sessionId = addTransactionSessionId,
-                        initialKind = addTransactionKind,
-                        initialAccountId = addTransactionInitialAccountId,
-                        initialAmountText = addTransactionInitialAmountText,
-                        restoreLastCategory = addTransactionRestoreLastCategory,
-                        onDismiss = { showAddTransactionSheet = false },
-                        onTransactionSaved = {
-                            showAddTransactionSheet = false
-                            showTransactionSavedSnack = true
-                            viewModel.refreshBalances()
-                        }
-                    )
-                }
+                AddTransactionSheet(
+                    sessionId = addTransactionSessionId,
+                    initialKind = addTransactionKind,
+                    initialAccountId = addTransactionInitialAccountId,
+                    initialAmountText = addTransactionInitialAmountText,
+                    restoreLastCategory = addTransactionRestoreLastCategory,
+                    onDismiss = { showAddTransactionSheet = false },
+                    onTransactionSaved = {
+                        showAddTransactionSheet = false
+                        showTransactionSavedSnack = true
+                        viewModel.refreshBalances()
+                    }
+                )
             }
         }
+    }
 
-        if (showReconcileDialog && reconcileTargetAccount != null) {
-            AccountReconciliationDialog(
-                account = reconcileTargetAccount!!,
-                onDismiss = {
-                    showReconcileDialog = false
-                    reconcileTargetAccount = null
-                },
-                onRegisterAdjustment = { kind, amountText ->
-                    val selectedAccount = reconcileTargetAccount
-                    if (selectedAccount != null) {
-                        addTransactionKind = kind
-                        addTransactionInitialAccountId = selectedAccount.account.id
-                        addTransactionInitialAmountText = amountText
-                        addTransactionRestoreLastCategory = false
-                        addTransactionSessionId += 1
-                        showAddTransactionSheet = true
-                    }
-                    showReconcileDialog = false
-                    reconcileTargetAccount = null
+    if (showReconcileDialog && reconcileTargetAccount != null) {
+        AccountReconciliationDialog(
+            account = reconcileTargetAccount!!,
+            onDismiss = {
+                showReconcileDialog = false
+                reconcileTargetAccount = null
+            },
+            onRegisterAdjustment = { kind, amountText ->
+                val selectedAccount = reconcileTargetAccount
+                if (selectedAccount != null) {
+                    addTransactionKind = kind
+                    addTransactionInitialAccountId = selectedAccount.account.id
+                    addTransactionInitialAmountText = amountText
+                    addTransactionRestoreLastCategory = false
+                    addTransactionSessionId += 1
+                    showAddTransactionSheet = true
                 }
-            )
-        }
+                showReconcileDialog = false
+                reconcileTargetAccount = null
+            }
+        )
     }
 }
 
@@ -874,7 +875,7 @@ private fun AccountReconciliationDialog(
     }
 
     var realBalanceText by remember(account.account.id) { mutableStateOf("") }
-    val realBalanceCents = remember(realBalanceText) { parseMoneyInputToCents(realBalanceText) }
+    val realBalanceCents = remember(realBalanceText) { MoneyInputFormatter.parseToCents(realBalanceText) }
     val differenceCents = remember(realBalanceCents, account.balanceCents) {
         realBalanceCents?.minus(account.balanceCents)
     }
@@ -887,7 +888,7 @@ private fun AccountReconciliationDialog(
         }
     }
     val differenceAmountText = remember(differenceCents) {
-        differenceCents?.takeIf { it != 0L }?.let { formatMoneyInputFromCents(kotlin.math.abs(it)) } ?: ""
+        differenceCents?.takeIf { it != 0L }?.let { MoneyInputFormatter.formatFromCents(kotlin.math.abs(it)) } ?: ""
     }
     val adjustmentKind = remember(differenceCents) {
         when {
@@ -915,13 +916,14 @@ private fun AccountReconciliationDialog(
 
                 Column(verticalArrangement = Arrangement.spacedBy(spacing.xxs)) {
                     Text("Saldo real", style = typography.labelMedium, color = colors.onSurfaceVariant)
-                    OutlinedTextField(
+                    MoneyInputField(
                         value = realBalanceText,
-                        onValueChange = { realBalanceText = sanitizeMoneyInput(it) },
+                        onValueChange = { realBalanceText = it },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         placeholder = { Text("Escribe el saldo de tu banco") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        variant = MoneyInputFieldVariant.OUTLINED
                     )
                 }
 
@@ -974,40 +976,6 @@ private fun AccountReconciliationDialog(
             }
         }
     )
-}
-
-private fun sanitizeMoneyInput(input: String): String {
-    val out = StringBuilder()
-    var hasSeparator = false
-    input.forEach { ch ->
-        when {
-            ch.isDigit() -> out.append(ch)
-            (ch == '.' || ch == ',') && !hasSeparator -> {
-                out.append(ch)
-                hasSeparator = true
-            }
-        }
-    }
-    return out.toString()
-}
-
-private fun parseMoneyInputToCents(input: String): Long? {
-    val normalized = input.trim().replace(',', '.')
-    if (normalized.isBlank()) return null
-    return try {
-        val value = normalized.toBigDecimal()
-        if (value < BigDecimal.ZERO) {
-            null
-        } else {
-            value.movePointRight(2).setScale(0, RoundingMode.HALF_UP).longValueExact()
-        }
-    } catch (_: Exception) {
-        null
-    }
-}
-
-private fun formatMoneyInputFromCents(cents: Long): String {
-    return BigDecimal(cents).movePointLeft(2).stripTrailingZeros().toPlainString()
 }
 
 private fun accountIconForKey(

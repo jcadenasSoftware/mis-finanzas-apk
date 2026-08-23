@@ -495,6 +495,7 @@ class TransactionsViewModel @Inject constructor(
             val subCategories = categoryRepository
                 .getChildren(uid, categoryId)
                 .filter { it.isCompatibleWith(_formState.value.kind) }
+                .filter { !it.id.startsWith("system-") }
             _formState.value = _formState.value.copy(
                 selectedRootCategoryId = categoryId,
                 subCategories = subCategories,
@@ -536,6 +537,7 @@ class TransactionsViewModel @Inject constructor(
                 val filteredSubs = categoryRepository
                     .getChildren(uid, selectedRootId)
                     .filter { it.isCompatibleWith(kind) }
+                    .filter { !it.id.startsWith("system-") }
 
                 val effectiveCategoryId = if (filteredSubs.isNotEmpty()) {
                     selectedCategoryId.takeIf { id -> filteredSubs.any { it.id == id } }.orEmpty()

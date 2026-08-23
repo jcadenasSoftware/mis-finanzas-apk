@@ -24,7 +24,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -99,6 +98,8 @@ import com.jcadenas.xpendz.data.local.entity.BudgetEntity
 import com.jcadenas.xpendz.ui.components.CompactHeader
 import com.jcadenas.xpendz.ui.components.HamburgerMenu
 import com.jcadenas.xpendz.ui.components.HamburgerMenuButton
+import com.jcadenas.xpendz.ui.components.MoneyInputField
+import com.jcadenas.xpendz.ui.components.MoneyInputFormatter
 import com.jcadenas.xpendz.ui.components.SyncSwipeRefresh
 import com.jcadenas.xpendz.ui.theme.Income
 import com.jcadenas.xpendz.ui.theme.Expense
@@ -623,15 +624,15 @@ fun BudgetScreen(
                     verticalArrangement = Arrangement.spacedBy(spacing.m)
                 ) {
                     Text(catName ?: "", color = colors.onSurface, style = typography.bodyMedium)
-                    OutlinedTextField(
+                    MoneyInputField(
                         value = limitText,
                         onValueChange = { limitText = it },
                         label = { Text("Límite") },
                         leadingIcon = { Icon(Icons.Default.AttachMoney, contentDescription = null, tint = colors.brand) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(shapes.extraLarge),
+                        variant = com.jcadenas.xpendz.ui.components.MoneyInputFieldVariant.OUTLINED,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = colors.surface,
                             unfocusedContainerColor = colors.surface,
@@ -653,7 +654,7 @@ fun BudgetScreen(
                         val cents = if (limitText.isBlank()) {
                             0L
                         } else {
-                            runCatching { (limitText.toDouble() * 100).toLong() }.getOrNull() ?: 0L
+                            MoneyInputFormatter.parseToCents(limitText) ?: 0L
                         }
                         viewModel.upsertMonthlyLimit(editMonthlyCategoryId, cents)
                         showEditMonthlyLimit = false
@@ -759,7 +760,7 @@ fun BudgetScreen(
                         title = "Nueva meta",
                         subtitle = "Define un objetivo de ahorro."
                     )
-                    OutlinedTextField(
+                    MoneyInputField(
                         value = goalAmountText,
                         onValueChange = { goalAmountText = it },
                         label = { Text("Monto objetivo") },
@@ -770,12 +771,12 @@ fun BudgetScreen(
                                 tint = colors.brand
                             )
                         },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(64.dp),
                         shape = MaterialTheme.shapes.extraLarge,
+                        variant = com.jcadenas.xpendz.ui.components.MoneyInputFieldVariant.OUTLINED,
                         textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = colors.surfaceVariant.copy(alpha = 0.3f),
@@ -913,7 +914,7 @@ fun BudgetScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        val targetCents = runCatching { (goalAmountText.toDouble() * 100).toLong() }.getOrNull() ?: 0L
+                        val targetCents = MoneyInputFormatter.parseToCents(goalAmountText) ?: 0L
                         if (goalName.isNotBlank() && targetCents > 0) {
                             viewModel.createGoal(
                                 name = goalName.trim(),
@@ -1005,7 +1006,7 @@ fun BudgetScreen(
                         color = colors.brand
                     )
 
-                    OutlinedTextField(
+                    MoneyInputField(
                         value = amountText,
                         onValueChange = { amountText = it },
                         label = { Text("Monto") },
@@ -1016,12 +1017,12 @@ fun BudgetScreen(
                                 tint = colors.brand
                             )
                         },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(64.dp),
                         shape = MaterialTheme.shapes.extraLarge,
+                        variant = com.jcadenas.xpendz.ui.components.MoneyInputFieldVariant.OUTLINED,
                         textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = colors.surface,
@@ -1108,7 +1109,7 @@ fun BudgetScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        val cents = runCatching { (amountText.toDouble() * 100).toLong() }.getOrNull() ?: 0L
+                        val cents = MoneyInputFormatter.parseToCents(amountText) ?: 0L
                         if (goal != null && fromAccountId.isNotBlank() && cents > 0) {
                             viewModel.depositToGoal(
                                 goalId = goal.id,
@@ -1198,7 +1199,7 @@ fun BudgetScreen(
                         color = colors.brand
                     )
 
-                    OutlinedTextField(
+                    MoneyInputField(
                         value = amountText,
                         onValueChange = { amountText = it },
                         label = { Text("Monto") },
@@ -1209,12 +1210,12 @@ fun BudgetScreen(
                                 tint = colors.brand
                             )
                         },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(64.dp),
                         shape = MaterialTheme.shapes.extraLarge,
+                        variant = com.jcadenas.xpendz.ui.components.MoneyInputFieldVariant.OUTLINED,
                         textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = colors.surface,
@@ -1301,7 +1302,7 @@ fun BudgetScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        val cents = runCatching { (amountText.toDouble() * 100).toLong() }.getOrNull() ?: 0L
+                        val cents = MoneyInputFormatter.parseToCents(amountText) ?: 0L
                         if (goal != null && toAccountId.isNotBlank() && cents > 0) {
                             viewModel.withdrawFromGoal(
                                 goalId = goal.id,

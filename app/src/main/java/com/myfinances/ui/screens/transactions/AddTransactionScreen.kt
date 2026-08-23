@@ -9,7 +9,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -36,6 +35,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.jcadenas.xpendz.data.local.entity.AccountEntity
 import com.jcadenas.xpendz.data.local.entity.CategoryEntity
 import com.jcadenas.xpendz.ui.components.CompactHeader
+import com.jcadenas.xpendz.ui.components.MoneyInputField
+import com.jcadenas.xpendz.ui.components.MoneyInputFieldVariant
 import com.jcadenas.xpendz.ui.theme.Income
 import com.jcadenas.xpendz.ui.theme.Expense
 import com.jcadenas.xpendz.ui.theme.XpendzThemeTokens
@@ -403,12 +404,14 @@ fun AddTransactionFormContent(
         return k == "BOTH" || k == t
     }
 
-    fun sanitizeAmountInput(input: String): String {
-        return input.filter { it.isDigit() || it == '.' || it == ',' }
+    fun isSystemCategory(categoryId: String): Boolean {
+        return categoryId.startsWith("system-")
     }
 
     val compatibleRootCategories = remember(formState.rootCategories, formState.kind) {
-        formState.rootCategories.filter { isCompatibleCategoryKind(it.kind, formState.kind) }
+        formState.rootCategories.filter { category ->
+            isCompatibleCategoryKind(category.kind, formState.kind) && !isSystemCategory(category.id)
+        }
     }
     val quickCategories = remember(compatibleRootCategories) { compatibleRootCategories.take(6) }
 
@@ -544,9 +547,10 @@ fun AddTransactionFormContent(
                     )
                 )
                 Spacer(modifier = Modifier.width(spacing.s))
-                BasicTextField(
+                MoneyInputField(
                     value = formState.amountText,
-                    onValueChange = { onAmount(sanitizeAmountInput(it)) },
+                    onValueChange = onAmount,
+                    variant = MoneyInputFieldVariant.BASIC,
                     singleLine = true,
                     textStyle = TextStyle(
                         fontSize = 36.sp,
@@ -554,7 +558,7 @@ fun AddTransactionFormContent(
                         textAlign = TextAlign.Center,
                         color = colors.onSurface
                     ),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier
                         .weight(1f)
                         .then(if (amountFocusRequester != null) Modifier.focusRequester(amountFocusRequester) else Modifier)

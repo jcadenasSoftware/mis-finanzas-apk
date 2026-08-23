@@ -9,7 +9,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -33,13 +32,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.jcadenas.xpendz.data.local.entity.AccountEntity
 import com.jcadenas.xpendz.ui.components.CompactHeader
+import com.jcadenas.xpendz.ui.components.MoneyInputField
+import com.jcadenas.xpendz.ui.components.MoneyInputFieldVariant
 import com.jcadenas.xpendz.ui.theme.Expense
 import com.jcadenas.xpendz.ui.theme.Income
 import com.jcadenas.xpendz.ui.theme.Transfer
@@ -524,7 +524,7 @@ fun AddTransferScreen(
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
-                OutlinedTextField(
+                MoneyInputField(
                     value = formState.amountText,
                     onValueChange = { viewModel.updateFormAmount(it) },
                     isError = !formState.error.isNullOrBlank(),
@@ -543,8 +543,8 @@ fun AddTransferScreen(
                     },
                     placeholder = { Text("") },
                     textStyle = MaterialTheme.typography.headlineLarge.copy(textAlign = TextAlign.Center),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
+                    variant = MoneyInputFieldVariant.OUTLINED,
                     supportingText = {
                         Text(
                             text = formState.error ?: "Escribe el monto exacto a transferir",

@@ -23,7 +23,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -99,11 +98,13 @@ import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.jcadenas.xpendz.ui.components.CompactHeader
 import com.jcadenas.xpendz.ui.components.HamburgerMenu
 import com.jcadenas.xpendz.ui.components.HamburgerMenuButton
+import com.jcadenas.xpendz.ui.components.MoneyInputField
+import com.jcadenas.xpendz.ui.components.MoneyInputFieldVariant
+import com.jcadenas.xpendz.ui.components.MoneyInputFormatter
 import com.jcadenas.xpendz.ui.components.SyncSwipeRefresh
 import com.jcadenas.xpendz.ui.theme.Expense
 import com.jcadenas.xpendz.ui.theme.Income
@@ -325,12 +326,7 @@ fun LoansScreen(
                     if (state.isSavingLoan) return@Button
 
                     createLoanError = null
-                    val cents = runCatching {
-                        // Eliminar separadores de miles antes de parsear
-                        val withoutThousands = amountText.trim().replace("[.,]".toRegex(), "")
-                        val normalized = withoutThousands.replace(',', '.')
-                        BigDecimal(normalized).multiply(BigDecimal(100)).setScale(0, RoundingMode.HALF_UP).longValueExact()
-                    }.getOrNull()
+                    val cents = MoneyInputFormatter.parseToCents(amountText)
 
                     if (selectedAccountId.isNotBlank() && !counterparty.isBlank() && cents != null) {
                         scope.launch {
@@ -544,15 +540,15 @@ fun LoansScreen(
 
                     Spacer(modifier = Modifier.height(spacing.m))
 
-                    OutlinedTextField(
+                    MoneyInputField(
                         value = amountText,
                         onValueChange = { amountText = it },
                         label = {
                             Text(if (accountCurrency.isBlank()) "Monto" else "Monto ($accountCurrency)")
                         },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(shapes.extraLarge),
+                        variant = MoneyInputFieldVariant.OUTLINED,
                         textStyle = typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = colors.surface,
@@ -587,14 +583,7 @@ fun LoansScreen(
         val alreadyPaidCents = state.loanPaidCents[paymentLoanId] ?: 0L
         val remainingDebtCents = (totalDebtCents - alreadyPaidCents).coerceAtLeast(0L)
 
-        val enteredCentsPreview = runCatching {
-            val normalized = paymentAmountText.trim().replace(',', '.')
-            if (normalized.isBlank()) return@runCatching null
-            BigDecimal(normalized)
-                .multiply(BigDecimal(100))
-                .setScale(0, RoundingMode.HALF_UP)
-                .longValueExact()
-        }.getOrNull()
+        val enteredCentsPreview = MoneyInputFormatter.parseToCents(paymentAmountText)
 
         val remainingAfterPreview = if (enteredCentsPreview != null) {
             (remainingDebtCents - enteredCentsPreview).coerceAtLeast(0L)
@@ -617,10 +606,7 @@ fun LoansScreen(
                     // Protección adicional contra doble clic
                     if (state.isSavingPayment) return@Button
                     
-                    val cents = runCatching {
-                        val normalized = paymentAmountText.trim().replace(',', '.')
-                        BigDecimal(normalized).multiply(BigDecimal(100)).setScale(0, RoundingMode.HALF_UP).longValueExact()
-                    }.getOrNull()
+                    val cents = MoneyInputFormatter.parseToCents(paymentAmountText)
                     if (
                         paymentLoanId.isNotBlank() &&
                         paymentAccountId.isNotBlank() &&
@@ -944,7 +930,7 @@ fun LoansScreen(
                     }
 
                     val accountCurrency = state.accounts.firstOrNull { it.id == paymentAccountId }?.currency.orEmpty()
-                    OutlinedTextField(
+                    MoneyInputField(
                         value = paymentAmountText,
                         onValueChange = { paymentAmountText = it },
                         label = {
@@ -952,9 +938,9 @@ fun LoansScreen(
                                 if (accountCurrency.isBlank()) "Monto" else "Monto ($accountCurrency)"
                             )
                         },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.extraLarge,
+                        variant = MoneyInputFieldVariant.OUTLINED,
                         textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = colors.surface,
@@ -1177,10 +1163,7 @@ fun LoansScreen(
 
         val isFormValid = editCounterparty.trim().isNotBlank() &&
                 editAmountText.isNotBlank() &&
-                runCatching {
-                    val normalized = editAmountText.trim().replace(',', '.')
-                    BigDecimal(normalized).multiply(BigDecimal(100)).setScale(0, RoundingMode.HALF_UP).longValueExact() > 0
-                }.getOrDefault(false) &&
+                (MoneyInputFormatter.parseToCents(editAmountText)?.let { it > 0 } ?: false) &&
                 editAccountId.isNotBlank()
 
         AlertDialog(
@@ -1188,11 +1171,7 @@ fun LoansScreen(
             title = { Text("Editar préstamo") },
             containerColor = colors.surface,
             confirmButton = {
-                val currentCents = runCatching {
-                    val withoutThousands = editAmountText.trim().replace("[.,]".toRegex(), "")
-                    val normalized = withoutThousands.replace(',', '.')
-                    BigDecimal(normalized).multiply(BigDecimal(100)).setScale(0, RoundingMode.HALF_UP).longValueExact()
-                }.getOrNull()
+                val currentCents = MoneyInputFormatter.parseToCents(editAmountText)
                 val editData = editLoanData
                 val newPendingCents = editData?.let { data ->
                     currentCents?.let { viewModel.calculateNewPending(it, data.paidCents) }
@@ -1205,12 +1184,7 @@ fun LoansScreen(
                         if (state.isSavingEdit) return@Button
                         
                         val counterpartyName = editCounterparty.trim()
-                        val cents = runCatching {
-                            // Eliminar separadores de miles antes de parsear
-                            val withoutThousands = editAmountText.trim().replace("[.,]".toRegex(), "")
-                            val normalized = withoutThousands.replace(',', '.')
-                            BigDecimal(normalized).multiply(BigDecimal(100)).setScale(0, RoundingMode.HALF_UP).longValueExact()
-                        }.getOrNull()
+                        val cents = MoneyInputFormatter.parseToCents(editAmountText)
 
                         viewModel.updateLoan(
                             loanId = editLoanId,
@@ -1248,11 +1222,7 @@ fun LoansScreen(
                 ) { Text("Cancelar") }
             },
             text = {
-                val currentCents = runCatching {
-                    val withoutThousands = editAmountText.trim().replace("[.,]".toRegex(), "")
-                    val normalized = withoutThousands.replace(',', '.')
-                    BigDecimal(normalized).multiply(BigDecimal(100)).setScale(0, RoundingMode.HALF_UP).longValueExact()
-                }.getOrNull()
+                val currentCents = MoneyInputFormatter.parseToCents(editAmountText)
                 val editData = editLoanData
                 val newPendingCents = editData?.let { data ->
                     currentCents?.let { viewModel.calculateNewPending(it, data.paidCents) }
@@ -1491,21 +1461,19 @@ fun LoansScreen(
                         )
                     }
 
-                    OutlinedTextField(
+                    MoneyInputField(
                         value = editAmountText,
                         onValueChange = {
                             editAmountText = it
-                            editAmountError = runCatching {
-                                val normalized = it.trim().replace(',', '.')
-                                val cents = BigDecimal(normalized).multiply(BigDecimal(100)).setScale(0, RoundingMode.HALF_UP).longValueExact()
+                            editAmountError = MoneyInputFormatter.parseToCents(it)?.let { cents ->
                                 if (cents <= 0) "El monto debe ser mayor a cero" else null
-                            }.getOrNull() ?: if (it.trim().isBlank()) "El monto es obligatorio" else null
+                            } ?: if (it.trim().isBlank()) "El monto es obligatorio" else null
                         },
                         label = { Text("Monto principal *") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         shape = MaterialTheme.shapes.extraLarge,
+                        variant = MoneyInputFieldVariant.OUTLINED,
                         isError = editAmountError != null,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = colors.surface,
@@ -2131,12 +2099,7 @@ private fun formatMoney(amountCents: Long, currency: String): String {
 }
 
 private fun formatAmount(amountCents: Long): String {
-    val amount = BigDecimal(amountCents).divide(BigDecimal(100), 2, RoundingMode.HALF_UP)
-    val nf = NumberFormat.getNumberInstance(Locale.getDefault()).apply {
-        minimumFractionDigits = 0
-        maximumFractionDigits = 2
-    }
-    return nf.format(amount)
+    return MoneyInputFormatter.formatFromCents(amountCents)
 }
 
 @Composable
