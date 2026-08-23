@@ -351,7 +351,7 @@ fun PrivacyAndDataScreen(
                     if (isDeleting) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
-                            color = Color.White,
+                            color = colors.onBrand,
                             strokeWidth = 2.dp
                         )
                     } else {
@@ -449,7 +449,7 @@ fun PrivacyAndDataScreen(
                     if (isDeleting) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
-                            color = Color.White,
+                            color = colors.onBrand,
                             strokeWidth = 2.dp
                         )
                     } else {

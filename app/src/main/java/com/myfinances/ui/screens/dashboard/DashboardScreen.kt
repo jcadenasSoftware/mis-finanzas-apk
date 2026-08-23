@@ -1502,7 +1502,7 @@ private fun MonthlyMetricColumn(
             text = title,
             style = typography.labelMedium,
             fontWeight = FontWeight.Normal,
-            color = colors.onSurfaceVariant
+            color = colors.onSurface
         )
         Text(
             text = value,

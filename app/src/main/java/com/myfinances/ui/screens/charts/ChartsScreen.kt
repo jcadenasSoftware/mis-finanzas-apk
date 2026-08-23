@@ -582,7 +582,7 @@ private fun ChartsQuickSummaryCard(
                         Text(
                             "Ingresos",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             incomeText,
@@ -605,7 +605,7 @@ private fun ChartsQuickSummaryCard(
                         Text(
                             "Gastos",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             expenseText,
@@ -1191,7 +1191,7 @@ private fun ChartsTrendCard(
                     Text(
                         "Ingresos",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
                 Row(
@@ -1209,7 +1209,7 @@ private fun ChartsTrendCard(
                     Text(
                         "Gastos",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }

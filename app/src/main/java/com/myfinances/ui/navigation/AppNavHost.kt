@@ -146,8 +146,8 @@ fun AppNavHost(
                             indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f),
                             selectedIconColor = MaterialTheme.colorScheme.primary,
                             selectedTextColor = MaterialTheme.colorScheme.primary,
-                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurface,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurface
                         )
                         NavigationBarItem(
                             selected = isTopRouteDashboard,

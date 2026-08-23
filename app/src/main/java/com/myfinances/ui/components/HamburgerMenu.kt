@@ -69,7 +69,7 @@ fun HamburgerMenu(
             Text(
                 text = "Controla tu dinero",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.70f),
                 fontSize = 11.sp
             )
         }
@@ -85,7 +85,7 @@ fun HamburgerMenu(
                 text = "Herramientas",
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.60f),
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Normal
             )
@@ -117,7 +117,7 @@ fun HamburgerMenu(
                     Icon(
                         Icons.Default.BarChart,
                         contentDescription = null,
-                        tint = if (isChartsActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = if (isChartsActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                     )
                 }
             },
@@ -158,7 +158,7 @@ fun HamburgerMenu(
                     Icon(
                         Icons.Default.AccountBalance,
                         contentDescription = null,
-                        tint = if (isBudgetActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = if (isBudgetActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                     )
                 }
             },
@@ -199,7 +199,7 @@ fun HamburgerMenu(
                     Icon(
                         Icons.Default.PictureAsPdf,
                         contentDescription = null,
-                        tint = if (isReportsActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = if (isReportsActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                     )
                 }
             },
@@ -223,7 +223,7 @@ fun HamburgerMenu(
                 text = "Sistema",
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.60f),
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Normal
             )
@@ -255,7 +255,7 @@ fun HamburgerMenu(
                     Icon(
                         Icons.Default.Settings,
                         contentDescription = null,
-                        tint = if (isSettingsActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = if (isSettingsActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                     )
                 }
             },
@@ -279,7 +279,7 @@ fun HamburgerMenu(
                 text = "Cuenta",
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.60f),
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Normal
             )

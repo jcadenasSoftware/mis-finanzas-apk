@@ -1136,7 +1136,7 @@ private fun TransactionsSummaryMetricColumnWithIcon(
                 text = title,
                 style = typography.labelSmall,
                 fontWeight = FontWeight.Medium,
-                color = colors.onSurfaceVariant
+                color = colors.onSurface
             )
             Text(
                 text = value,

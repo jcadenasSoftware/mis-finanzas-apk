@@ -470,7 +470,7 @@ fun AddTransferScreen(
                 Text(
                     text = "Desde (cuenta origen)",
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 AccountSelectorRow(
@@ -506,7 +506,7 @@ fun AddTransferScreen(
                 Text(
                     text = "Hacia (cuenta destino)",
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 AccountSelectorRow(
@@ -521,7 +521,7 @@ fun AddTransferScreen(
                 Text(
                     text = "Monto",
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 OutlinedTextField(

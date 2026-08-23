@@ -366,7 +366,7 @@ fun LoansScreen(
                             CircularProgressIndicator(
                                 modifier = Modifier.size(spacing.xl),
                                 strokeWidth = elevation.level1,
-                                color = Color.White
+                                color = colors.onBrand
                             )
                             Text("Guardando...")
                         }
@@ -651,7 +651,7 @@ fun LoansScreen(
                             CircularProgressIndicator(
                                 modifier = Modifier.size(16.dp),
                                 strokeWidth = 2.dp,
-                                color = Color.White
+                                color = colors.onBrand
                             )
                             Text("Guardando...")
                         }
@@ -1232,7 +1232,7 @@ fun LoansScreen(
                             CircularProgressIndicator(
                                 modifier = Modifier.size(16.dp),
                                 strokeWidth = 2.dp,
-                                color = Color.White
+                                color = colors.onBrand
                             )
                             Text("Guardando...")
                         }
@@ -1647,7 +1647,7 @@ private fun LoansSummaryCard(
                 text = "Balance de préstamos",
                 style = typography.titleMedium,
                 fontWeight = FontWeight.Normal,
-                color = colors.onSurfaceVariant
+                color = colors.onSurface
             )
 
             Spacer(modifier = Modifier.height(spacing.m))
@@ -1750,7 +1750,7 @@ private fun SummaryRow(
         Text(
             text = label,
             style = if (emphasize) typography.bodyMedium else typography.bodySmall,
-            color = if (emphasize) colors.onSurfaceVariant else colors.onSurfaceVariant.copy(alpha = 0.75f),
+            color = if (emphasize) colors.onSurfaceVariant else colors.onSurfaceVariant.copy(alpha = 0.85f),
             fontWeight = if (labelBold) FontWeight.SemiBold else FontWeight.Normal
         )
         Text(

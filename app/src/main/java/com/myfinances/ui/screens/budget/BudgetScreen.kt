@@ -2675,7 +2675,7 @@ private fun BudgetFabAction(
 
     Surface(
         shape = CircleShape,
-        color = Color.White,
+        color = colors.surface,
         shadowElevation = elevation.level2,
         border = androidx.compose.foundation.BorderStroke(1.dp, colors.onSurfaceVariant.copy(alpha = 0.15f)),
         modifier = Modifier.clickable(onClick = onClick)

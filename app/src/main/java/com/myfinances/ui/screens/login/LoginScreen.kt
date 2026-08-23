@@ -229,7 +229,7 @@ fun LoginScreen(
                 Text(
                     text = if (isSignUp) "Crea tu cuenta y empieza hoy" else "Bienvenido de nuevo 👋",
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center
                 )
 
@@ -369,7 +369,7 @@ fun LoginScreen(
                         CircularProgressIndicator(
                             modifier = Modifier.size(22.dp),
                             strokeWidth = 2.5.dp,
-                            color = Color.White
+                            color = colors.onBrand
                         )
                     } else {
                         Row(
@@ -380,12 +380,12 @@ fun LoginScreen(
                                 text = if (isSignUp) "Crear cuenta" else "Iniciar sesión",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = colors.onBrand
                             )
                             Icon(
                                 imageVector = Icons.Default.ArrowForward,
                                 contentDescription = null,
-                                tint = Color.White
+                                tint = colors.onBrand
                             )
                         }
                     }
@@ -493,8 +493,12 @@ fun LoginScreen(
                 ) {
                     Row(
                         modifier = Modifier.clickable {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://jcadenas.com"))
-                            context.startActivity(intent)
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://jcadenas.com/xpendz"))
+                                context.startActivity(intent)
+                            } catch (e: android.content.ActivityNotFoundException) {
+                                Log.w("LoginScreen", "No se encontró navegador para abrir el enlace", e)
+                            }
                         },
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
