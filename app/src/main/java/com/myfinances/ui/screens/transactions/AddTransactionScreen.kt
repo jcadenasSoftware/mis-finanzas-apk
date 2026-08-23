@@ -141,6 +141,9 @@ fun AddTransactionScreen(
 fun AddTransactionSheet(
     sessionId: Int,
     initialKind: String? = null,
+    initialAccountId: String? = null,
+    initialAmountText: String? = null,
+    restoreLastCategory: Boolean = true,
     onDismiss: () -> Unit,
     onTransactionSaved: () -> Unit,
     viewModel: TransactionsViewModel = hiltViewModel()
@@ -167,10 +170,14 @@ fun AddTransactionSheet(
     }
     var restoreApplied by remember(sessionId) { mutableStateOf(false) }
     var restorePendingCategoryId by remember(sessionId) { mutableStateOf<String?>(null) }
+    var initialAccountApplied by remember(sessionId) { mutableStateOf(false) }
+    var initialAmountApplied by remember(sessionId) { mutableStateOf(false) }
 
-    LaunchedEffect(sessionId, initialKind) {
+    LaunchedEffect(sessionId, initialKind, initialAccountId, initialAmountText, restoreLastCategory) {
         initialKindApplied = false
         sawLoading = false
+        initialAccountApplied = false
+        initialAmountApplied = false
         viewModel.prepareNewForm()
         viewModel.initForm(null)
     }
@@ -211,9 +218,25 @@ fun AddTransactionSheet(
         }
     }
 
+    LaunchedEffect(formState.isLoading, initialAccountId, initialAmountText, restoreLastCategory) {
+        if (!sawLoading || formState.isLoading) return@LaunchedEffect
+
+        if (!initialAccountApplied && !initialAccountId.isNullOrBlank()) {
+            initialAccountApplied = true
+            if (formState.accounts.any { it.id == initialAccountId }) {
+                viewModel.updateFormAccount(initialAccountId)
+            }
+        }
+
+        if (!initialAmountApplied && !initialAmountText.isNullOrBlank()) {
+            initialAmountApplied = true
+            viewModel.updateFormAmount(initialAmountText)
+        }
+    }
+
     // Restore last used category after form is initialized and kind is applied
-    LaunchedEffect(formState.isLoading, formState.kind, formState.rootCategories, initialKindApplied, sawLoading) {
-        if (restoreApplied) return@LaunchedEffect
+    LaunchedEffect(formState.isLoading, formState.kind, formState.rootCategories, initialKindApplied, sawLoading, restoreLastCategory) {
+        if (!restoreLastCategory || restoreApplied) return@LaunchedEffect
         if (!sawLoading || formState.isLoading) return@LaunchedEffect
         if (formState.rootCategories.isEmpty()) return@LaunchedEffect
         if (!initialKindApplied && !initialKind.isNullOrBlank()) return@LaunchedEffect

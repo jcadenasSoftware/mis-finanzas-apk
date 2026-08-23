@@ -27,6 +27,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -65,6 +67,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateDpAsState
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -97,6 +101,11 @@ fun DashboardScreen(
     var showMonthlyHistory by rememberSaveable { mutableStateOf(false) }
     var showLogoutConfirmation by rememberSaveable { mutableStateOf(false) }
     var showHamburgerMenu by remember { mutableStateOf(false) }
+    var showReconcileDialog by rememberSaveable { mutableStateOf(false) }
+    var reconcileTargetAccount by remember { mutableStateOf<com.jcadenas.xpendz.ui.viewmodel.AccountWithBalance?>(null) }
+    var addTransactionInitialAccountId by rememberSaveable { mutableStateOf<String?>(null) }
+    var addTransactionInitialAmountText by rememberSaveable { mutableStateOf<String?>(null) }
+    var addTransactionRestoreLastCategory by rememberSaveable { mutableStateOf(true) }
     val balancePeriodLabel = remember {
         val month = SimpleDateFormat("MMMM", Locale("es", "CO")).format(Date())
         month.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale("es", "CO")) else it.toString() }
@@ -461,6 +470,9 @@ fun DashboardScreen(
                                     }
                                 } else {
                                     addTransactionKind = "EXPENSE"
+                                    addTransactionInitialAccountId = null
+                                    addTransactionInitialAmountText = null
+                                    addTransactionRestoreLastCategory = true
                                     addTransactionSessionId += 1
                                     showAddTransactionSheet = true
                                 }
@@ -500,6 +512,9 @@ fun DashboardScreen(
                                     }
                                 } else {
                                     addTransactionKind = "INCOME"
+                                    addTransactionInitialAccountId = null
+                                    addTransactionInitialAmountText = null
+                                    addTransactionRestoreLastCategory = true
                                     addTransactionSessionId += 1
                                     showAddTransactionSheet = true
                                 }
@@ -613,6 +628,10 @@ fun DashboardScreen(
                             accounts = state.accounts,
                             onOpenAccount = { accountId -> onNavigateToTransactions(accountId) },
                             onAddAccount = { viewModel.showAddAccountDialog() },
+                            onReconcile = { accountWithBalance ->
+                                reconcileTargetAccount = accountWithBalance
+                                showReconcileDialog = true
+                            },
                             onRename = { accountId, name, type, iconKey, colorHex ->
                                 viewModel.updateAccountDetails(accountId, name, type, iconKey, colorHex)
                             },
@@ -675,6 +694,9 @@ fun DashboardScreen(
                     AddTransactionSheet(
                         sessionId = addTransactionSessionId,
                         initialKind = addTransactionKind,
+                        initialAccountId = addTransactionInitialAccountId,
+                        initialAmountText = addTransactionInitialAmountText,
+                        restoreLastCategory = addTransactionRestoreLastCategory,
                         onDismiss = { showAddTransactionSheet = false },
                         onTransactionSaved = {
                             showAddTransactionSheet = false
@@ -685,6 +707,29 @@ fun DashboardScreen(
                 }
             }
         }
+
+        if (showReconcileDialog && reconcileTargetAccount != null) {
+            AccountReconciliationDialog(
+                account = reconcileTargetAccount!!,
+                onDismiss = {
+                    showReconcileDialog = false
+                    reconcileTargetAccount = null
+                },
+                onRegisterAdjustment = { kind, amountText ->
+                    val selectedAccount = reconcileTargetAccount
+                    if (selectedAccount != null) {
+                        addTransactionKind = kind
+                        addTransactionInitialAccountId = selectedAccount.account.id
+                        addTransactionInitialAmountText = amountText
+                        addTransactionRestoreLastCategory = false
+                        addTransactionSessionId += 1
+                        showAddTransactionSheet = true
+                    }
+                    showReconcileDialog = false
+                    reconcileTargetAccount = null
+                }
+            )
+        }
     }
 }
 
@@ -693,6 +738,7 @@ private fun AccountsScrollPanel(
     accounts: List<com.jcadenas.xpendz.ui.viewmodel.AccountWithBalance>,
     onOpenAccount: (String) -> Unit,
     onAddAccount: () -> Unit,
+    onReconcile: (com.jcadenas.xpendz.ui.viewmodel.AccountWithBalance) -> Unit,
     onRename: (String, String, String, String?, String?) -> Unit,
     onDelete: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -754,7 +800,7 @@ private fun AccountsScrollPanel(
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    imageVector = Icons.Default.Lightbulb,
+                                    Icons.Default.Lightbulb,
                                     contentDescription = null,
                                     tint = Color(0xFF2463EB),
                                     modifier = Modifier.size(spacing.m)
@@ -784,6 +830,7 @@ private fun AccountsScrollPanel(
                         totalBalanceCents = totalBalanceCents,
                         isTop = isTop,
                         onOpen = { onOpenAccount(accountWithBalance.account.id) },
+                        onReconcile = { onReconcile(accountWithBalance) },
                         onRename = { name, type, iconKey, colorHex ->
                             onRename(accountWithBalance.account.id, name, type, iconKey, colorHex)
                         },
@@ -808,6 +855,159 @@ private fun AccountsScrollPanel(
             }
         }
     }
+}
+
+@Composable
+private fun AccountReconciliationDialog(
+    account: com.jcadenas.xpendz.ui.viewmodel.AccountWithBalance,
+    onDismiss: () -> Unit,
+    onRegisterAdjustment: (String, String) -> Unit
+) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val typography = XpendzThemeTokens.typography
+    val currencyFormat = remember(account.account.currency) {
+        NumberFormat.getCurrencyInstance(Locale("es", "CO")).apply {
+            runCatching { currency = java.util.Currency.getInstance(account.account.currency) }
+        }
+    }
+
+    var realBalanceText by remember(account.account.id) { mutableStateOf("") }
+    val realBalanceCents = remember(realBalanceText) { parseMoneyInputToCents(realBalanceText) }
+    val differenceCents = remember(realBalanceCents, account.balanceCents) {
+        realBalanceCents?.minus(account.balanceCents)
+    }
+    val differenceText = remember(differenceCents) {
+        when {
+            differenceCents == null -> "Escribe el saldo real para ver la diferencia."
+            differenceCents == 0L -> "No existe diferencia entre ambos saldos."
+            differenceCents > 0L -> "Se detectó dinero adicional respecto al saldo registrado."
+            else -> "Falta dinero respecto al saldo registrado."
+        }
+    }
+    val differenceAmountText = remember(differenceCents) {
+        differenceCents?.takeIf { it != 0L }?.let { formatMoneyInputFromCents(kotlin.math.abs(it)) } ?: ""
+    }
+    val adjustmentKind = remember(differenceCents) {
+        when {
+            differenceCents == null || differenceCents == 0L -> null
+            differenceCents > 0L -> "INCOME"
+            else -> "EXPENSE"
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = colors.surface,
+        title = { Text("Conciliar saldo", style = typography.titleMedium, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.m)) {
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.xxs)) {
+                    Text("Cuenta", style = typography.labelMedium, color = colors.onSurfaceVariant)
+                    Text(account.account.name, style = typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.xxs)) {
+                    Text("Saldo registrado", style = typography.labelMedium, color = colors.onSurfaceVariant)
+                    Text(currencyFormat.format(account.balanceCents / 100.0), style = typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.xxs)) {
+                    Text("Saldo real", style = typography.labelMedium, color = colors.onSurfaceVariant)
+                    OutlinedTextField(
+                        value = realBalanceText,
+                        onValueChange = { realBalanceText = sanitizeMoneyInput(it) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        placeholder = { Text("Escribe el saldo de tu banco") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                    )
+                }
+
+                HorizontalDivider(color = colors.onSurfaceVariant.copy(alpha = 0.12f))
+
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.xxs)) {
+                    Text("Diferencia", style = typography.labelMedium, color = colors.onSurfaceVariant)
+                    val differenceColor = when {
+                        differenceCents == null || differenceCents == 0L -> colors.onSurface
+                        differenceCents > 0L -> Income
+                        else -> Expense
+                    }
+                    Text(
+                        text = when {
+                            differenceCents == null -> "—"
+                            differenceCents > 0L -> "+${currencyFormat.format(differenceCents / 100.0)}"
+                            differenceCents < 0L -> "-${currencyFormat.format(kotlin.math.abs(differenceCents) / 100.0)}"
+                            else -> currencyFormat.format(0)
+                        },
+                        style = typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = differenceColor
+                    )
+                    Text(
+                        text = differenceText,
+                        style = typography.bodyMedium,
+                        color = colors.onSurfaceVariant
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val kind = adjustmentKind ?: return@Button
+                    val amountText = differenceAmountText
+                    if (amountText.isNotBlank()) {
+                        onRegisterAdjustment(kind, amountText)
+                    }
+                },
+                enabled = adjustmentKind != null && differenceAmountText.isNotBlank(),
+                shape = RoundedCornerShape(shapes.extraLarge)
+            ) {
+                Text("Registrar ajuste")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+private fun sanitizeMoneyInput(input: String): String {
+    val out = StringBuilder()
+    var hasSeparator = false
+    input.forEach { ch ->
+        when {
+            ch.isDigit() -> out.append(ch)
+            (ch == '.' || ch == ',') && !hasSeparator -> {
+                out.append(ch)
+                hasSeparator = true
+            }
+        }
+    }
+    return out.toString()
+}
+
+private fun parseMoneyInputToCents(input: String): Long? {
+    val normalized = input.trim().replace(',', '.')
+    if (normalized.isBlank()) return null
+    return try {
+        val value = normalized.toBigDecimal()
+        if (value < BigDecimal.ZERO) {
+            null
+        } else {
+            value.movePointRight(2).setScale(0, RoundingMode.HALF_UP).longValueExact()
+        }
+    } catch (_: Exception) {
+        null
+    }
+}
+
+private fun formatMoneyInputFromCents(cents: Long): String {
+    return BigDecimal(cents).movePointLeft(2).stripTrailingZeros().toPlainString()
 }
 
 private fun accountIconForKey(
@@ -870,6 +1070,7 @@ private fun RankedAccountCard(
     totalBalanceCents: Long,
     isTop: Boolean,
     onOpen: () -> Unit,
+    onReconcile: () -> Unit,
     onRename: (String, String, String?, String?) -> Unit,
     onDelete: () -> Unit
 ) {
@@ -973,6 +1174,14 @@ private fun RankedAccountCard(
                         containerColor = colors.surface,
                         tonalElevation = elevation.level0
                     ) {
+                        DropdownMenuItem(
+                            text = { Text("Conciliar saldo") },
+                            onClick = {
+                                showMenu = false
+                                onReconcile()
+                            },
+                            leadingIcon = { Icon(Icons.Default.Calculate, contentDescription = null) }
+                        )
                         DropdownMenuItem(
                             text = { Text("Editar") },
                             onClick = {
