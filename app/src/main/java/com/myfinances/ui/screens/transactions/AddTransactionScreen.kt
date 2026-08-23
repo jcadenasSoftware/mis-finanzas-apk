@@ -37,6 +37,7 @@ import com.jcadenas.xpendz.data.local.entity.CategoryEntity
 import com.jcadenas.xpendz.ui.components.CompactHeader
 import com.jcadenas.xpendz.ui.components.MoneyInputField
 import com.jcadenas.xpendz.ui.components.MoneyInputFieldVariant
+import com.jcadenas.xpendz.ui.components.MoneyInputFormatter
 import com.jcadenas.xpendz.ui.theme.Income
 import com.jcadenas.xpendz.ui.theme.Expense
 import com.jcadenas.xpendz.ui.theme.XpendzThemeTokens
@@ -231,7 +232,7 @@ fun AddTransactionSheet(
 
         if (!initialAmountApplied && !initialAmountText.isNullOrBlank()) {
             initialAmountApplied = true
-            viewModel.updateFormAmount(initialAmountText)
+            viewModel.updateFormAmount(MoneyInputFormatter.normalizeInput(initialAmountText))
         }
     }
 
