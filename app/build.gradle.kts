@@ -17,7 +17,7 @@ android {
         applicationId = "com.jcadenas.xpendz"
         minSdk = 26
         targetSdk = 36
-        versionCode = 11
+        versionCode = 12
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -115,6 +115,8 @@ dependencies {
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.androidx.room.testing)
+    testImplementation("androidx.test:core:1.6.1")
+    testImplementation("org.robolectric:robolectric:4.16.1")
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.hilt.android.testing)
     kaptTest(libs.hilt.android.compiler)

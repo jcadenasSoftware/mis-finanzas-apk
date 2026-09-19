@@ -6,6 +6,8 @@ import com.google.firebase.firestore.SetOptions
 import com.jcadenas.xpendz.data.local.dao.LoanDao
 import com.jcadenas.xpendz.data.local.entity.LoanEntity
 import com.jcadenas.xpendz.data.local.entity.LoanMovementType
+import com.jcadenas.xpendz.infrastructure.loan.admin.LoanAdminStateEntity
+import com.jcadenas.xpendz.infrastructure.loan.sync.LoanMergePolicy
 import com.jcadenas.xpendz.data.local.entity.TransactionEntity
 import com.jcadenas.xpendz.sync.DeviceIdProvider
 import kotlinx.coroutines.flow.Flow
@@ -17,6 +19,7 @@ import javax.inject.Singleton
 @Singleton
 class LoanRepository @Inject constructor(
     private val loanDao: LoanDao,
+    private val loanAdminStateRepository: LoanAdminStateRepository,
     private val firestore: FirebaseFirestore,
     private val deviceIdProvider: DeviceIdProvider,
     private val categoryRepository: CategoryRepository,
@@ -37,6 +40,7 @@ class LoanRepository @Inject constructor(
         return loanDao.getById(id)
     }
 
+    @Deprecated("Legacy direct-write path; canonical flows use LoanApplicationService")
     suspend fun create(
         userUid: String,
         type: String,
@@ -189,6 +193,7 @@ class LoanRepository @Inject constructor(
         }
     }
 
+    @Deprecated("Legacy direct-write path; canonical flows use LoanApplicationService")
     suspend fun close(userUid: String, loanId: String): LoanEntity? {
         val existing = loanDao.getById(loanId) ?: return null
         val now = System.currentTimeMillis() / 1000
@@ -202,6 +207,7 @@ class LoanRepository @Inject constructor(
         return updated
     }
 
+    @Deprecated("Legacy direct-write path; canonical flows use LoanApplicationService")
     suspend fun recalculateLoanStatus(userUid: String, loanId: String): LoanEntity? {
         val existing = loanDao.getById(loanId) ?: return null
         
@@ -225,6 +231,7 @@ class LoanRepository @Inject constructor(
         return existing
     }
 
+    @Deprecated("Legacy direct-write path; canonical flows use LoanApplicationService")
     suspend fun updateLoan(
         userUid: String,
         loanId: String,
@@ -435,14 +442,15 @@ class LoanRepository @Inject constructor(
 
         // Crear movimiento ADJUSTMENT solo si no hubo cambio de cuenta
         // (cuando hay cambio de cuenta, ya se crearon transacciones completas)
-        if (!accountChanged && txId != null) {
+        if (!accountChanged) {
+            val adjustmentTx = txId ?: return updated
             loanMovementRepository.create(
                 userUid = userUid,
                 loanId = loanId,
                 movementType = LoanMovementType.ADJUSTMENT.name,
                 amountCents = diffCents, // Puede ser positivo o negativo
                 accountId = newAccountId ?: throw IllegalStateException("AccountId requerido"),
-                linkedTransactionId = txId.id,
+                linkedTransactionId = adjustmentTx.id,
                 note = notes,
                 occurredAtEpochSec = now
             )
@@ -509,6 +517,16 @@ class LoanRepository @Inject constructor(
                         return null
                     }
 
+                    fun anyBoolean(vararg keys: String): Boolean? {
+                        for (k in keys) {
+                            when (val v = data[k]) {
+                                is Boolean -> return v
+                                is String -> return v.toBooleanStrictOrNull()
+                            }
+                        }
+                        return null
+                    }
+
                     val type = anyString("type") ?: return@mapNotNull null
                     val counterparty = anyString("counterpartyName", "counterparty_name") ?: return@mapNotNull null
                     val accountId = anyString("accountId", "account_id")
@@ -519,8 +537,15 @@ class LoanRepository @Inject constructor(
                     val createdAt = anyLong("createdAtEpochSec", "created_at_epoch_sec") ?: (System.currentTimeMillis() / 1000)
                     val updatedAt = anyLong("updatedAtEpochSec", "updated_at_epoch_sec") ?: createdAt
                     val updatedBy = anyString("updatedBy", "updated_by")
+                    val archived = anyBoolean("archived") ?: false
+                    val archivedAt = anyLong("archivedAtEpochSec", "archived_at_epoch_sec") ?: if (archived) updatedAt else null
 
-                    LoanEntity(
+                    Log.d(
+                        "LoanRepository",
+                        "Parsed loan doc=${doc.id} type=$type status=$status archived=$archived archivedAt=$archivedAt updatedAt=$updatedAt"
+                    )
+
+                    val loanEntity = LoanEntity(
                         id = doc.id,
                         userUid = userUid,
                         type = type,
@@ -534,19 +559,32 @@ class LoanRepository @Inject constructor(
                         updatedAtEpochSec = updatedAt,
                         updatedBy = updatedBy
                     )
+                    val adminState = LoanAdminStateEntity(
+                        loanId = doc.id,
+                        ownerId = userUid,
+                        archived = archived,
+                        archivedAtEpochSec = archivedAt,
+                        updatedAtEpochSec = updatedAt,
+                        updatedBy = updatedBy
+                    )
+
+                    loanEntity to adminState
                 } catch (e: Exception) {
                     Log.e("LoanRepository", "Error parsing loan doc=${doc.id}", e)
                     null
                 }
             }
 
-            for (loan in loans) {
+            for ((loan, adminState) in loans) {
                 val existing = loanDao.getById(loan.id)
-                if (existing == null) {
-                    loanDao.insert(loan)
-                } else if (loan.updatedAtEpochSec > existing.updatedAtEpochSec) {
-                    loanDao.update(loan)
+                if (LoanMergePolicy.shouldAcceptRemote(existing, loan)) {
+                    if (existing == null) {
+                        loanDao.insert(loan)
+                    } else {
+                        loanDao.update(loan)
+                    }
                 }
+                loanAdminStateRepository.upsertFromRemote(adminState)
             }
         } catch (e: Exception) {
             Log.e("LoanRepository", "Error syncing loans", e)
@@ -564,4 +602,67 @@ class LoanRepository @Inject constructor(
         } catch (_: Exception) {
         }
     }
+
+    /**
+     * Publica el estado del préstamo canónico en la colección de transporte
+     * users/{uid}/loans para que Desktop lo ingiera en su journal vía migración.
+     * occurredAtEpochSec/createdAtEpochSec solo se envían en creación; en
+     * actualizaciones se omiten para que merge() preserve los valores originales.
+     */
+    suspend fun publishLoanToFirestore(
+        userUid: String,
+        loanId: String,
+        type: String,
+        counterpartyName: String,
+        accountId: String?,
+        principalCents: Long,
+        currency: String,
+        status: String,
+        notes: String?,
+        occurredAtEpochSec: Long?,
+        createdAtEpochSec: Long?,
+        paymentId: String? = null,
+        transactionId: String? = null,
+        operationId: String? = null,
+        eventId: String? = null
+    ): Boolean {
+        return try {
+            val updatedAt = System.currentTimeMillis() / 1000
+            val updatedBy = deviceIdProvider.get()
+            val data = hashMapOf<String, Any>(
+                "id" to loanId,
+                "userUid" to userUid,
+                "type" to type,
+                "counterpartyName" to counterpartyName,
+                "principalCents" to principalCents,
+                "currency" to currency,
+                "status" to status,
+                "updatedAtEpochSec" to updatedAt,
+                "updatedBy" to updatedBy
+            )
+            accountId?.let { data["accountId"] = it }
+            notes?.let { data["notes"] = it }
+            occurredAtEpochSec?.let { data["occurredAtEpochSec"] = it }
+            createdAtEpochSec?.let { data["createdAtEpochSec"] = it }
+            firestore.collection("users")
+                .document(userUid)
+                .collection("loans")
+                .document(loanId)
+                .set(data, SetOptions.merge())
+                .await()
+            Log.d(
+                "LoanPaymentTrace",
+                "LOAN_DOC_PUBLISHED loanId=$loanId paymentId=${paymentId ?: "-"} transactionId=${transactionId ?: "-"} operationId=${operationId ?: "-"} eventId=${eventId ?: "-"} updatedAt=$updatedAt updatedBy=${updatedBy ?: "-"} status=$status principalCents=$principalCents accountId=${accountId ?: "-"}"
+            )
+            true
+        } catch (e: Exception) {
+            Log.e(
+                "LoanPaymentTrace",
+                "PUBLISH_FAILED stage=loanDoc loanId=$loanId paymentId=${paymentId ?: "-"} transactionId=${transactionId ?: "-"} operationId=${operationId ?: "-"} eventId=${eventId ?: "-"} updatedAt=- updatedBy=- status=$status principalCents=$principalCents accountId=${accountId ?: "-"}",
+                e
+            )
+            false
+        }
+    }
+
 }

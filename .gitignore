@@ -26,3 +26,10 @@ keystore.properties
 keystore/
 app/release/
 *.apk
+
+# Databases, logs & local artifacts
+*.db
+*.sqlite
+*.sqlite3
+*.log
+*.dump

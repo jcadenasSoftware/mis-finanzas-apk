@@ -87,4 +87,24 @@ interface LoanMovementDao {
 
     @Query("DELETE FROM loan_movements WHERE linked_transaction_id = :transactionId")
     suspend fun deleteByLinkedTransactionId(transactionId: String)
+
+    @Query(
+        """
+        SELECT * FROM loan_movements
+        WHERE user_uid = :userUid
+          AND loan_id = :loanId
+          AND amount_cents = :amountCents
+          AND occurred_at_epoch_sec = :occurredAtEpochSec
+          AND account_id IS :accountId
+          AND movement_type IN ('PAYMENT', 'PAYMENT_IN', 'PAYMENT_OUT')
+        LIMIT 1
+        """
+    )
+    suspend fun getPaymentBySignature(
+        userUid: String,
+        loanId: String,
+        accountId: String?,
+        amountCents: Long,
+        occurredAtEpochSec: Long
+    ): LoanMovementEntity?
 }

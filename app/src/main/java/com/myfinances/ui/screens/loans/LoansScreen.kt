@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
@@ -109,8 +110,8 @@ import com.jcadenas.xpendz.ui.components.SyncSwipeRefresh
 import com.jcadenas.xpendz.ui.theme.Expense
 import com.jcadenas.xpendz.ui.theme.Income
 import com.jcadenas.xpendz.ui.theme.XpendzThemeTokens
+import com.jcadenas.xpendz.domain.loan.journal.LoanType
 import com.jcadenas.xpendz.ui.viewmodel.LoansViewModel
-import com.jcadenas.xpendz.ui.viewmodel.SyncViewModel
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.text.NumberFormat
@@ -141,16 +142,11 @@ fun LoansScreen(
     val scope = rememberCoroutineScope()
     var showHamburgerMenu by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        viewModel.refresh()
-    }
-
     LaunchedEffect(state.error) {
         state.error?.let { snackbarHostState.showSnackbar(it) }
     }
 
     var showCreateLoan by remember { mutableStateOf(false) }
-    var createLoanError by remember { mutableStateOf<String?>(null) }
     var loanAccountExpanded by remember { mutableStateOf(false) }
     var selectedAccountId by remember { mutableStateOf("") }
     var counterparty by remember { mutableStateOf("") }
@@ -168,10 +164,20 @@ fun LoansScreen(
     var paymentDateEpochSec by remember { mutableStateOf(System.currentTimeMillis() / 1000) }
     var showPaymentDatePicker by remember { mutableStateOf(false) }
 
+    var showTopUp by remember { mutableStateOf(false) }
+    var topUpLoanId by remember { mutableStateOf("") }
+    var topUpAccountExpanded by remember { mutableStateOf(false) }
+    var topUpAccountId by remember { mutableStateOf("") }
+    var topUpAmountText by remember { mutableStateOf("") }
+    var topUpNote by remember { mutableStateOf("") }
+
     var showHistory by remember { mutableStateOf(false) }
     var historyLoanId by remember { mutableStateOf("") }
     var historyLoanName by remember { mutableStateOf("") }
     var historyLoanCurrency by remember { mutableStateOf("") }
+    var paymentToReverse by remember {
+        mutableStateOf<com.jcadenas.xpendz.domain.loan.projection.LoanPaymentProjection?>(null)
+    }
 
     var showEditLoan by remember { mutableStateOf(false) }
     var editLoanId by remember { mutableStateOf("") }
@@ -232,7 +238,6 @@ fun LoansScreen(
                     amountText = ""
                     notes = ""
                     loanDateEpochSec = System.currentTimeMillis() / 1000
-                    createLoanError = null
                     showCreateLoan = true
                 }
             ) {
@@ -254,6 +259,60 @@ fun LoansScreen(
                 borrowedRemainingCents = state.totalBorrowedRemainingCents
             )
 
+            state.createdLoanSnapshot?.let { snapshot ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = colors.positive.copy(alpha = 0.12f)),
+                    shape = RoundedCornerShape(shapes.medium)
+                ) {
+                    Column(modifier = Modifier.padding(spacing.m)) {
+                        Text(
+                            text = "Préstamo creado",
+                            style = typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.positive
+                        )
+                        Spacer(modifier = Modifier.height(spacing.xs))
+                        Text(
+                            text = "${snapshot.counterpartyName} · ${formatMoney(snapshot.principalCents, snapshot.currency)}",
+                            style = typography.bodyMedium
+                        )
+                        Text(
+                            text = "Pendiente: ${formatMoney(snapshot.pendingCents, snapshot.currency)} · Estado: ${snapshot.status}",
+                            style = typography.bodySmall
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(spacing.m))
+            }
+
+            state.paidLoanSnapshot?.let { snapshot ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = colors.positive.copy(alpha = 0.12f)),
+                    shape = RoundedCornerShape(shapes.medium)
+                ) {
+                    Column(modifier = Modifier.padding(spacing.m)) {
+                        Text(
+                            text = "Pago registrado",
+                            style = typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.positive
+                        )
+                        Spacer(modifier = Modifier.height(spacing.xs))
+                        Text(
+                            text = "${snapshot.counterpartyName} · ${formatMoney(snapshot.totalPaidCents, snapshot.currency)}",
+                            style = typography.bodyMedium
+                        )
+                        Text(
+                            text = "Pendiente: ${formatMoney(snapshot.pendingCents, snapshot.currency)} · Estado: ${snapshot.status}",
+                            style = typography.bodySmall
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(spacing.m))
+            }
+
             Spacer(modifier = Modifier.height(spacing.s + spacing.xs / 2))
 
             LoansSegmentedTabs(
@@ -267,36 +326,46 @@ fun LoansScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = spacing.xxxl * 3 + spacing.xl)
             ) {
-                items(state.loans, key = { it.id }) { loan ->
-                    val paidCents = state.loanPaidCents[loan.id] ?: 0L
+                items(state.loans, key = { it.loanId }) { loan ->
                     LoanCard(
                         loan = loan,
-                        paidCents = paidCents,
-                        isLent = state.selectedTab == "LENT",
+                        isLent = loan.loanType == LoanType.LENT,
                         onRegisterPayment = {
-                            paymentLoanId = loan.id
-                            paymentAccountId = loan.accountId ?: ""
+                            paymentLoanId = loan.loanId
+                            paymentAccountId = loan.defaultAccountId ?: ""
                             paymentAmountText = ""
                             paymentDateEpochSec = System.currentTimeMillis() / 1000
+                            viewModel.preparePayment(loan.loanId)
                             showPayment = true
                         },
                         onViewHistory = {
-                            historyLoanId = loan.id
-                            historyLoanName = loan.counterpartyName
+                            historyLoanId = loan.loanId
+                            historyLoanName = loan.counterparty
                             historyLoanCurrency = loan.currency
-                            viewModel.loadLoanMovements(loan.id)
+                            viewModel.loadPaymentProjections(loan.loanId)
                             showHistory = true
                         },
                         onEditLoan = {
-                            editLoanId = loan.id
-                            editCounterparty = loan.counterpartyName
+                            editLoanId = loan.loanId
+                            editCounterparty = loan.counterparty
                             editAmountText = formatAmount(loan.principalCents)
                             editNotes = loan.notes ?: ""
-                            editAccountId = loan.accountId ?: ""
+                            editAccountId = loan.defaultAccountId ?: ""
                             editCounterpartyError = null
                             editAmountError = null
                             editAccountError = null
                             showEditLoan = true
+                        },
+                        onArchiveLoan = {
+                            viewModel.archiveLoan(loan.loanId)
+                        },
+                        onTopUp = {
+                            topUpLoanId = loan.loanId
+                            topUpAccountId = loan.defaultAccountId ?: ""
+                            topUpAmountText = ""
+                            topUpNote = ""
+                            viewModel.prepareTopUp(loan.loanId)
+                            showTopUp = true
                         }
                     )
                 }
@@ -316,16 +385,14 @@ fun LoansScreen(
         AlertDialog(
             onDismissRequest = {
                 showCreateLoan = false
-                createLoanError = null
             },
             title = { Text(dialogTitle) },
             containerColor = colors.surface,
             confirmButton = {
                 Button(onClick = {
                     // Protección adicional contra doble clic
-                    if (state.isSavingLoan) return@Button
+                    if (state.isCreatingLoan) return@Button
 
-                    createLoanError = null
                     val cents = MoneyInputFormatter.parseToCents(amountText)
 
                     if (selectedAccountId.isNotBlank() && !counterparty.isBlank() && cents != null) {
@@ -340,21 +407,18 @@ fun LoansScreen(
                             )
                             if (error == null) {
                                 showCreateLoan = false
-                                createLoanError = null
                                 counterparty = ""
                                 amountText = ""
                                 notes = ""
-                            } else {
-                                createLoanError = error
                             }
                         }
                     }
                 },
-                    enabled = !state.isSavingLoan,
+                    enabled = !state.isCreatingLoan,
                     shape = RoundedCornerShape(shapes.extraLarge),
                     colors = ButtonDefaults.buttonColors(containerColor = colors.brand)
                 ) {
-                    if (state.isSavingLoan) {
+                    if (state.isCreatingLoan) {
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(spacing.s),
                             verticalAlignment = Alignment.CenterVertically
@@ -375,7 +439,6 @@ fun LoansScreen(
                 FilledTonalButton(
                     onClick = {
                         showCreateLoan = false
-                        createLoanError = null
                     },
                     shape = RoundedCornerShape(shapes.extraLarge)
                 ) { Text("Cancelar") }
@@ -387,8 +450,8 @@ fun LoansScreen(
                         .verticalScroll(rememberScrollState())
                         .imePadding()
                 ) {
-                    // Mostrar error de saldo insuficiente si existe
-                    createLoanError?.let { error ->
+                    // Mostrar error si existe
+                    state.createLoanError?.let { error ->
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = colors.negative.copy(alpha = 0.12f)),
@@ -577,11 +640,11 @@ fun LoansScreen(
     if (showPayment) {
         val paymentTitle = if (state.selectedTab == "LENT") "Registrar abono recibido" else "Registrar pago realizado"
 
-        val selectedLoan = state.loans.firstOrNull { it.id == paymentLoanId }
-        val loanCurrency = selectedLoan?.currency.orEmpty()
-        val totalDebtCents = selectedLoan?.principalCents ?: 0L
-        val alreadyPaidCents = state.loanPaidCents[paymentLoanId] ?: 0L
-        val remainingDebtCents = (totalDebtCents - alreadyPaidCents).coerceAtLeast(0L)
+        val summary = state.selectedPaymentSummary
+        val loanCurrency = summary?.currency.orEmpty()
+        val totalDebtCents = summary?.principalCents ?: 0L
+        val alreadyPaidCents = summary?.totalPaidCents ?: 0L
+        val remainingDebtCents = summary?.pendingCents?.coerceAtLeast(0L) ?: 0L
 
         val enteredCentsPreview = MoneyInputFormatter.parseToCents(paymentAmountText)
 
@@ -617,12 +680,9 @@ fun LoansScreen(
                         viewModel.registerPayment(
                             loanId = paymentLoanId,
                             accountId = paymentAccountId,
-                            principalCents = cents,
-                            occurredAtEpochSec = paymentDateEpochSec,
+                            amountCents = cents,
                             note = null
                         )
-                        showPayment = false
-                        paymentAmountText = ""
                     }
                 },
                     enabled = !state.isSavingPayment,
@@ -659,7 +719,30 @@ fun LoansScreen(
                         .verticalScroll(rememberScrollState())
                         .imePadding()
                 ) {
-                    if (selectedLoan != null && loanCurrency.isNotBlank()) {
+                    LaunchedEffect(state.paidLoanSnapshot) {
+                        state.paidLoanSnapshot?.let {
+                            showPayment = false
+                            paymentAmountText = ""
+                        }
+                    }
+
+                    state.paymentError?.let { error ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = colors.negative.copy(alpha = 0.12f)),
+                            shape = RoundedCornerShape(shapes.medium)
+                        ) {
+                            Text(
+                                text = error,
+                                color = colors.negative,
+                                modifier = Modifier.padding(spacing.m),
+                                style = typography.bodySmall
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(spacing.m))
+                    }
+
+                    if (summary != null && loanCurrency.isNotBlank()) {
                         val baseColor = if (state.selectedTab == "LENT") Income else Expense
                         val progressPercent = if (totalDebtCents > 0) {
                             (alreadyPaidCents * 100 / totalDebtCents).toInt()
@@ -965,6 +1048,301 @@ fun LoansScreen(
         )
     }
 
+    if (showTopUp) {
+        val topUpSummary = state.selectedTopUpSummary
+        val topUpCurrency = topUpSummary?.currency.orEmpty()
+        val isLentTopUp = topUpSummary?.loanType == com.jcadenas.xpendz.domain.loan.journal.LoanType.LENT
+        val baseColor = if (isLentTopUp) Income else Expense
+        val enteredCents = MoneyInputFormatter.parseToCents(topUpAmountText)
+
+        LaunchedEffect(showTopUp, state.accounts) {
+            if (showTopUp && topUpAccountId.isBlank() && state.accounts.size == 1) {
+                topUpAccountId = state.accounts.first().id
+            }
+        }
+
+        LaunchedEffect(state.toppedUpLoanSnapshot) {
+            state.toppedUpLoanSnapshot?.let {
+                showTopUp = false
+                topUpAmountText = ""
+                topUpNote = ""
+            }
+        }
+
+        AlertDialog(
+            onDismissRequest = { showTopUp = false },
+            title = { Text("Agregar capital") },
+            containerColor = colors.surface,
+            confirmButton = {
+                Button(onClick = {
+                    // Protección adicional contra doble clic
+                    if (state.isSavingTopUp) return@Button
+
+                    val cents = MoneyInputFormatter.parseToCents(topUpAmountText)
+                    if (
+                        topUpLoanId.isNotBlank() &&
+                        topUpAccountId.isNotBlank() &&
+                        cents != null &&
+                        cents > 0
+                    ) {
+                        viewModel.topUpLoan(
+                            loanId = topUpLoanId,
+                            accountId = topUpAccountId,
+                            amountCents = cents,
+                            note = topUpNote.takeIf { it.isNotBlank() }
+                        )
+                    }
+                },
+                    enabled = !state.isSavingTopUp,
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.brand)
+                ) {
+                    if (state.isSavingTopUp) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = colors.onBrand
+                            )
+                            Text("Guardando...")
+                        }
+                    } else {
+                        Text("Confirmar agregado")
+                    }
+                }
+            },
+            dismissButton = {
+                FilledTonalButton(
+                    onClick = { showTopUp = false },
+                    shape = MaterialTheme.shapes.extraLarge
+                ) { Text("Cancelar") }
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .imePadding()
+                ) {
+                    state.topUpError?.let { error ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = colors.negative.copy(alpha = 0.12f)),
+                            shape = RoundedCornerShape(shapes.medium)
+                        ) {
+                            Text(
+                                text = error,
+                                color = colors.negative,
+                                modifier = Modifier.padding(spacing.m),
+                                style = typography.bodySmall
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(spacing.m))
+                    }
+
+                    if (topUpSummary != null && topUpCurrency.isNotBlank()) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = baseColor.copy(alpha = 0.08f),
+                            shape = MaterialTheme.shapes.extraLarge
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        "Préstamo",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        topUpSummary.counterparty,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        "Saldo actual",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        formatMoney(topUpSummary.principalCents, topUpCurrency),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = baseColor
+                                    )
+                                }
+                                if (enteredCents != null && enteredCents > 0) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            "Nuevo total",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            formatMoney(topUpSummary.principalCents + enteredCents, topUpCurrency),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            color = baseColor
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .wrapContentSize(Alignment.TopStart)
+                            .clickable { topUpAccountExpanded = true }
+                    ) {
+                        var anchorSize by remember { mutableStateOf(IntSize.Zero) }
+                        val density = LocalDensity.current
+                        val accountName = state.accounts.firstOrNull { it.id == topUpAccountId }?.name ?: "Selecciona cuenta"
+                        val selectedBalance = state.accountBalancesCents[topUpAccountId]
+                        OutlinedTextField(
+                            value = accountName,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Cuenta") },
+                            supportingText = {
+                                if (topUpAccountId.isNotBlank() && selectedBalance != null) {
+                                    Text("Disponible: ${formatAmount(selectedBalance)}")
+                                }
+                            },
+                            trailingIcon = {
+                                IconButton(onClick = { topUpAccountExpanded = true }) {
+                                    Icon(
+                                        Icons.Default.ArrowDropDown,
+                                        contentDescription = "Ver cuentas",
+                                        tint = colors.onSurfaceVariant
+                                    )
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .onGloballyPositioned { anchorSize = it.size },
+                            shape = MaterialTheme.shapes.extraLarge,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = colors.surface,
+                                unfocusedContainerColor = colors.surface,
+                                disabledContainerColor = colors.surface,
+                                focusedBorderColor = colors.brand,
+                                unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
+                            )
+                        )
+                        DropdownMenu(
+                            expanded = topUpAccountExpanded,
+                            onDismissRequest = { topUpAccountExpanded = false },
+                            modifier = Modifier
+                                .width(with(density) { anchorSize.width.toDp() })
+                                .clip(MaterialTheme.shapes.extraLarge)
+                                .background(colors.surface),
+                            properties = PopupProperties(focusable = true)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .heightIn(max = 320.dp)
+                                    .verticalScroll(rememberScrollState())
+                            ) {
+                                if (state.accounts.isEmpty()) {
+                                    DropdownMenuItem(
+                                        text = { Text("No hay cuentas registradas") },
+                                        onClick = { topUpAccountExpanded = false }
+                                    )
+                                } else {
+                                    state.accounts.forEach { a ->
+                                        val bal = state.accountBalancesCents[a.id] ?: 0L
+                                        DropdownMenuItem(
+                                            text = {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween
+                                                ) {
+                                                    Text(a.name, modifier = Modifier.weight(1f))
+                                                    Text("Disponible: ${formatMoney(bal, a.currency)}")
+                                                }
+                                            },
+                                            onClick = {
+                                                topUpAccountId = a.id
+                                                topUpAccountExpanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    val topUpAccountCurrency = state.accounts.firstOrNull { it.id == topUpAccountId }?.currency.orEmpty()
+                    MoneyInputField(
+                        value = topUpAmountText,
+                        onValueChange = { topUpAmountText = it },
+                        label = {
+                            Text(
+                                if (topUpAccountCurrency.isBlank()) "Monto" else "Monto ($topUpAccountCurrency)"
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        variant = MoneyInputFieldVariant.OUTLINED,
+                        textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = colors.surface,
+                            unfocusedContainerColor = colors.surface,
+                            disabledContainerColor = colors.surface,
+                            focusedBorderColor = colors.brand,
+                            unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
+                        ),
+                        supportingText = {
+                            if (enteredCents != null && enteredCents <= 0) {
+                                Text("El monto debe ser mayor a $0", color = Expense)
+                            }
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = topUpNote,
+                        onValueChange = { topUpNote = it },
+                        label = { Text("Nota (opcional)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = colors.surface,
+                            unfocusedContainerColor = colors.surface,
+                            disabledContainerColor = colors.surface,
+                            focusedBorderColor = colors.brand,
+                            unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+        )
+    }
+
     if (showLoanDatePicker) {
         val cal = Calendar.getInstance().apply { timeInMillis = loanDateEpochSec * 1000 }
         DatePickerDialog(
@@ -1016,17 +1394,17 @@ fun LoansScreen(
     }
 
     if (showHistory) {
-        val movements = state.loanMovements[historyLoanId] ?: emptyList()
-        val loadError = state.loanMovementsError[historyLoanId]
-        val sortedMovements = movements.sortedByDescending { it.occurredAtEpochSec }
+        val payments = state.paymentProjections[historyLoanId] ?: emptyList()
+        val loadError = state.paymentProjectionsError[historyLoanId]
+        val sortedPayments = payments
         val loanTypeLabel = if (state.selectedTab == "LENT") "ME DEBEN" else "YO DEBO"
-        
+
         AlertDialog(
             onDismissRequest = { showHistory = false },
-            title = { 
+            title = {
                 Column {
                     Text(
-                        text = "Historial de movimientos",
+                        text = "Historial de pagos",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -1069,6 +1447,22 @@ fun LoansScreen(
                         .heightIn(max = 400.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
+                    state.reversePaymentError?.let { error ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = colors.negative.copy(alpha = 0.12f)),
+                            shape = RoundedCornerShape(shapes.medium)
+                        ) {
+                            Text(
+                                text = error,
+                                color = colors.negative,
+                                modifier = Modifier.padding(spacing.m),
+                                style = typography.bodySmall
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(spacing.m))
+                    }
+
                     if (loadError != null) {
                         Box(
                             modifier = Modifier
@@ -1098,7 +1492,7 @@ fun LoansScreen(
                                 )
                             }
                         }
-                    } else if (sortedMovements.isEmpty()) {
+                    } else if (sortedPayments.isEmpty()) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1116,25 +1510,22 @@ fun LoansScreen(
                                     modifier = Modifier.size(48.dp)
                                 )
                                 Text(
-                                    text = "No hay movimientos registrados",
+                                    text = "No hay pagos registrados",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
                     } else {
-                        sortedMovements.forEach { movement ->
-                            MovementItem(
-                                movement = movement,
+                        sortedPayments.forEach { payment ->
+                            PaymentProjectionItem(
+                                payment = payment,
                                 currency = historyLoanCurrency,
-                                onEdit = {
-                                    movement.linkedTransactionId?.let { transactionId ->
-                                        onEditTransaction(transactionId)
-                                    } ?: run {
-                                        scope.launch {
-                                            snackbarHostState.showSnackbar("No se encontró la transacción asociada")
-                                        }
-                                    }
+                                isReversing = state.isReversingPayment,
+                                isReversingThis = state.reversingPaymentEventId == payment.sourceEventId,
+                                onReverse = { selected ->
+                                    viewModel.selectPaymentForReverse(historyLoanId, selected.sourceEventId)
+                                    paymentToReverse = selected
                                 }
                             )
                             Spacer(modifier = Modifier.height(8.dp))
@@ -1142,6 +1533,88 @@ fun LoansScreen(
                     }
                 }
             }
+        )
+    }
+
+    paymentToReverse?.let { pending ->
+        val reversingThis = state.isReversingPayment &&
+                state.reversingPaymentEventId == pending.sourceEventId
+        // Snapshot presente al abrir el modal: solo se cierra cuando llega uno nuevo.
+        val snapshotBaseline = remember(pending.sourceEventId) { state.reversedLoanSnapshot }
+        LaunchedEffect(state.reversedLoanSnapshot) {
+            if (state.reversedLoanSnapshot != null && state.reversedLoanSnapshot != snapshotBaseline) {
+                paymentToReverse = null
+            }
+        }
+        AlertDialog(
+            onDismissRequest = { if (!state.isReversingPayment) paymentToReverse = null },
+            title = { Text("Revertir pago") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.m)) {
+                    Text(
+                        "¿Revertir este pago de ${formatMoney(pending.amountCents, historyLoanCurrency)}?"
+                    )
+                    Text(
+                        "El monto volverá al saldo pendiente del préstamo.",
+                        style = typography.bodySmall,
+                        color = colors.onSurfaceVariant
+                    )
+                    state.reversePaymentError?.let { error ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = colors.negative.copy(alpha = 0.12f)),
+                            shape = RoundedCornerShape(shapes.medium)
+                        ) {
+                            Text(
+                                text = error,
+                                color = colors.negative,
+                                modifier = Modifier.padding(spacing.m),
+                                style = typography.bodySmall
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.reversePayment(
+                            loanId = historyLoanId,
+                            paymentEventId = pending.sourceEventId,
+                            reason = "Reversión desde historial",
+                            note = null
+                        )
+                    },
+                    enabled = !state.isReversingPayment
+                ) {
+                    if (reversingThis) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    } else {
+                        Text(
+                            text = "Revertir",
+                            color = MaterialTheme.colorScheme.error,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { paymentToReverse = null },
+                    enabled = !state.isReversingPayment
+                ) {
+                    Text(
+                        text = "Cancelar",
+                        color = colors.onSurfaceVariant,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            },
+            containerColor = colors.surface
         )
     }
 
@@ -1894,12 +2367,13 @@ private enum class LoanVisualState {
 
 @Composable
 private fun LoanCard(
-    loan: com.jcadenas.xpendz.data.local.entity.LoanEntity,
-    paidCents: Long,
+    loan: com.jcadenas.xpendz.domain.loan.projection.LoanSummaryProjection,
     isLent: Boolean,
     onRegisterPayment: () -> Unit,
     onViewHistory: () -> Unit = {},
-    onEditLoan: () -> Unit = {}
+    onEditLoan: () -> Unit = {},
+    onArchiveLoan: () -> Unit = {},
+    onTopUp: () -> Unit = {}
 ) {
     val colors = XpendzThemeTokens.colors
     val spacing = XpendzThemeTokens.spacing
@@ -1907,15 +2381,15 @@ private fun LoanCard(
     val elevation = XpendzThemeTokens.elevation
     val typography = XpendzThemeTokens.typography
 
-    val remainingCents = (loan.principalCents - paidCents).coerceAtLeast(0L)
+    val remainingCents = loan.pendingCents
     val remainingText = formatMoney(remainingCents, loan.currency)
 
-    val progress = if (loan.principalCents <= 0L) 0f else (paidCents.toFloat() / loan.principalCents.toFloat()).coerceIn(0f, 1f)
-    val percent = (progress * 100).toInt().coerceIn(0, 100)
+    val progress = loan.progressPercent / 100f
+    val percent = loan.progressPercent
 
     val visualState = when {
         remainingCents <= 0L -> LoanVisualState.Paid
-        paidCents > 0L -> LoanVisualState.Partial
+        loan.totalPaidCents > 0L -> LoanVisualState.Partial
         else -> LoanVisualState.Pending
     }
 
@@ -1947,7 +2421,7 @@ private fun LoanCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = loan.counterpartyName,
+                        text = loan.counterparty,
                         style = typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -2050,6 +2524,7 @@ private fun LoanCard(
                 }
 
                 var showMenu by remember { mutableStateOf(false) }
+                var showArchiveDialog by remember { mutableStateOf(false) }
                 Box(modifier = Modifier.wrapContentSize(Alignment.TopEnd)) {
                     IconButton(
                         onClick = { showMenu = true },
@@ -2076,6 +2551,21 @@ private fun LoanCard(
                             }
                         )
                         DropdownMenuItem(
+                            text = { Text("Agregar capital") },
+                            onClick = {
+                                showMenu = false
+                                onTopUp()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Archivar préstamo") },
+                            leadingIcon = { Icon(Icons.Default.Archive, contentDescription = null) },
+                            onClick = {
+                                showMenu = false
+                                showArchiveDialog = true
+                            }
+                        )
+                        DropdownMenuItem(
                             text = { Text(if (isLent) "+ Abono" else "+ Pago") },
                             onClick = {
                                 showMenu = false
@@ -2083,6 +2573,54 @@ private fun LoanCard(
                             }
                         )
                     }
+                }
+
+                if (showArchiveDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showArchiveDialog = false },
+                        icon = {
+                            Surface(
+                                shape = RoundedCornerShape(shapes.extraLarge),
+                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.65f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Archive,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                                    modifier = Modifier.padding(spacing.s)
+                                )
+                            }
+                        },
+                        title = { Text("Archivar préstamo") },
+                        text = {
+                            Text(
+                                "Este préstamo dejará de mostrarse en la lista activa.\n\nNo se eliminarán los pagos, movimientos, transacciones ni el historial financiero.\n\n¿Deseas continuar?"
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                showArchiveDialog = false
+                                onArchiveLoan()
+                            }) {
+                                Text(
+                                    text = "Archivar",
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showArchiveDialog = false }) {
+                                Text(
+                                    text = "Cancelar",
+                                    color = colors.onSurfaceVariant,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        },
+                        containerColor = colors.surface,
+                        shape = RoundedCornerShape(shapes.extraLarge)
+                    )
                 }
             }
         }
@@ -2103,10 +2641,12 @@ private fun formatAmount(amountCents: Long): String {
 }
 
 @Composable
-private fun MovementItem(
-    movement: com.jcadenas.xpendz.ui.model.LoanMovementUiModel,
+private fun PaymentProjectionItem(
+    payment: com.jcadenas.xpendz.domain.loan.projection.LoanPaymentProjection,
     currency: String,
-    onEdit: (() -> Unit)? = null
+    isReversing: Boolean,
+    isReversingThis: Boolean,
+    onReverse: (com.jcadenas.xpendz.domain.loan.projection.LoanPaymentProjection) -> Unit
 ) {
     val colors = XpendzThemeTokens.colors
     val spacing = XpendzThemeTokens.spacing
@@ -2114,75 +2654,38 @@ private fun MovementItem(
     val elevation = XpendzThemeTokens.elevation
     val typography = XpendzThemeTokens.typography
 
-    val typeColor = when (movement.movementType) {
-        "CREATION" -> Income
-        "TOPUP" -> Color(0xFFF4B400)
-        "PAYMENT_IN" -> Color(0xFF10B981)
-        "PAYMENT_OUT" -> Color(0xFF3B82F6)
-        "ADJUSTMENT" -> Color(0xFF9E9E9E)
-        "CLOSE" -> Color(0xFF8B5CF6)
-        else -> colors.onSurfaceVariant
+    val typeColor = when (payment.direction) {
+        com.jcadenas.xpendz.domain.loan.projection.LoanPaymentDirection.IN -> Color(0xFF10B981)
+        com.jcadenas.xpendz.domain.loan.projection.LoanPaymentDirection.OUT -> Color(0xFF3B82F6)
+        null -> colors.onSurfaceVariant
     }
 
-    val typeLabel = when (movement.movementType) {
-        "CREATION" -> "Creación"
-        "TOPUP" -> "Aumento"
-        "PAYMENT_IN" -> "Pago recibido"
-        "PAYMENT_OUT" -> "Pago realizado"
-        "ADJUSTMENT" -> "Corrección"
-        "CLOSE" -> "Cierre"
-        else -> movement.movementType
+    val typeLabel = when (payment.direction) {
+        com.jcadenas.xpendz.domain.loan.projection.LoanPaymentDirection.IN -> "Pago recibido"
+        com.jcadenas.xpendz.domain.loan.projection.LoanPaymentDirection.OUT -> "Pago realizado"
+        null -> "Pago"
     }
 
-    val typeSymbol = when (movement.movementType) {
-        "CREATION" -> "C"
-        "TOPUP" -> "+"
-        "PAYMENT_IN" -> "↓"
-        "PAYMENT_OUT" -> "↑"
-        "ADJUSTMENT" -> "≈"
-        "CLOSE" -> "✓"
-        else -> typeLabel.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+    val typeSymbol = when (payment.direction) {
+        com.jcadenas.xpendz.domain.loan.projection.LoanPaymentDirection.IN -> "↓"
+        com.jcadenas.xpendz.domain.loan.projection.LoanPaymentDirection.OUT -> "↑"
+        null -> "•"
     }
 
-    val isClickable = onEdit != null && movement.linkedTransactionId != null
-    var isPressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed && isClickable) 0.98f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "scale"
-    )
+    val dateFormat = remember {
+        java.text.SimpleDateFormat("dd MMM yyyy, HH:mm", java.util.Locale.getDefault())
+    }
+    val occurredAtFormatted = dateFormat.format(java.util.Date(payment.occurredAt * 1000))
+    val amountFormatted = formatMoney(payment.amountCents, currency)
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .scale(scale)
-            .then(
-                if (isClickable) {
-                    Modifier.clickable {
-                        onEdit?.invoke()
-                    }
-                } else {
-                    Modifier
-                }
-            ),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(shapes.extraLarge),
-        colors = CardDefaults.cardColors(
-            containerColor = colors.surface
-        ),
-        border = if (isClickable) {
-            BorderStroke(
-                elevation.level1,
-                colors.onSurfaceVariant.copy(alpha = 0.10f)
-            )
-        } else {
-            BorderStroke(
-                elevation.level1,
-                colors.onSurfaceVariant.copy(alpha = 0.05f)
-            )
-        }
+        colors = CardDefaults.cardColors(containerColor = colors.surface),
+        border = BorderStroke(
+            elevation.level1,
+            colors.onSurfaceVariant.copy(alpha = 0.05f)
+        )
     ) {
         Row(
             modifier = Modifier
@@ -2220,13 +2723,13 @@ private fun MovementItem(
                     color = colors.onSurface
                 )
                 Text(
-                    text = movement.occurredAtFormatted,
+                    text = occurredAtFormatted,
                     style = typography.bodySmall,
                     color = colors.onSurfaceVariant
                 )
-                if (!movement.note.isNullOrBlank()) {
+                if (!payment.note.isNullOrBlank()) {
                     Text(
-                        text = movement.note,
+                        text = payment.note,
                         style = typography.bodySmall,
                         color = colors.onSurfaceVariant,
                         maxLines = 1,
@@ -2235,24 +2738,36 @@ private fun MovementItem(
                 }
             }
 
-            // Amount and edit icon
+            // Amount and reverse action
             Column(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(spacing.xxs)
             ) {
                 Text(
-                    text = movement.amountFormatted,
+                    text = amountFormatted,
                     style = typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = typeColor
                 )
-                if (isClickable) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Editar transacción",
-                        tint = colors.brand.copy(alpha = 0.5f),
-                        modifier = Modifier.size(spacing.s)
-                    )
+                IconButton(
+                    onClick = { onReverse(payment) },
+                    enabled = !isReversing,
+                    modifier = Modifier.size(spacing.s + spacing.xxs)
+                ) {
+                    if (isReversingThis) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(spacing.s),
+                            strokeWidth = 2.dp,
+                            color = colors.negative
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Revertir pago",
+                            tint = if (isReversing) colors.negative.copy(alpha = 0.4f) else colors.negative,
+                            modifier = Modifier.size(spacing.s)
+                        )
+                    }
                 }
             }
         }

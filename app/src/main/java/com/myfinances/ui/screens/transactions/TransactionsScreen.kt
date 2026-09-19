@@ -38,6 +38,7 @@ import com.jcadenas.xpendz.ui.components.SyncSwipeRefresh
 import com.jcadenas.xpendz.ui.theme.Income
 import com.jcadenas.xpendz.ui.theme.Expense
 import com.jcadenas.xpendz.ui.theme.XpendzThemeTokens
+import com.jcadenas.xpendz.ui.transactions.LoanTransactionPolicy
 import com.jcadenas.xpendz.ui.viewmodel.SyncViewModel
 import com.jcadenas.xpendz.ui.viewmodel.TransactionsPeriodPreset
 import com.jcadenas.xpendz.ui.viewmodel.TransactionsViewModel
@@ -75,6 +76,7 @@ fun TransactionsScreen(
 
     val syncViewModel: SyncViewModel = hiltViewModel()
     val syncVersion by syncViewModel.syncVersion.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
         viewModel.applyInitialFilters(
@@ -93,7 +95,16 @@ fun TransactionsScreen(
         viewModel.loadTransactions()
     }
 
+    LaunchedEffect(state.error) {
+        val error = state.error
+        if (!error.isNullOrBlank()) {
+            snackbarHostState.showSnackbar(error)
+            viewModel.clearError()
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             CompactHeader(
                 title = {
@@ -1428,6 +1439,7 @@ private fun TransactionItem(
     val displayNote = remember(transaction.kind, transaction.note) {
         formatTransactionNote(transaction.kind, transaction.note)
     }
+    val loanProtected = remember(transaction.kind) { LoanTransactionPolicy.isLoanKind(transaction.kind) }
 
     val iconSpec = remember(transaction.categoryName, transaction.kind) {
         val name = transaction.categoryName.trim().lowercase()
@@ -1523,33 +1535,35 @@ private fun TransactionItem(
             }
 
             // Menu
-            Box {
-                IconButton(
-                    onClick = { showMenu = true },
-                    modifier = Modifier.size(spacing.xxl + spacing.xxs)
-                ) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "Opciones")
-                }
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Editar") },
-                        onClick = {
-                            showMenu = false
-                            onEdit()
-                        },
-                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = colors.onSurfaceVariant) }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Eliminar") },
-                        onClick = {
-                            showMenu = false
-                            onDelete()
-                        },
-                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = colors.onSurfaceVariant) }
-                    )
+            if (!loanProtected) {
+                Box {
+                    IconButton(
+                        onClick = { showMenu = true },
+                        modifier = Modifier.size(spacing.xxl + spacing.xxs)
+                    ) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Opciones")
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Editar") },
+                            onClick = {
+                                showMenu = false
+                                onEdit()
+                            },
+                            leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = colors.onSurfaceVariant) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Eliminar") },
+                            onClick = {
+                                showMenu = false
+                                onDelete()
+                            },
+                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = colors.onSurfaceVariant) }
+                        )
+                    }
                 }
             }
         }

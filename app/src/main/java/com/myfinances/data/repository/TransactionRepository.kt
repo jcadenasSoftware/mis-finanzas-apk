@@ -29,11 +29,8 @@ class TransactionRepository @Inject constructor(
     private val transactionDao: TransactionDao,
     private val accountDao: AccountDao,
     private val firestore: FirebaseFirestore,
-    private val deviceIdProvider: DeviceIdProvider,
-    private val loanPaymentRepositoryProvider: javax.inject.Provider<LoanPaymentRepository>,
-    private val loanRepositoryProvider: javax.inject.Provider<LoanRepository>,
-    private val loanMovementRepositoryProvider: javax.inject.Provider<LoanMovementRepository>
-) {
+    private val deviceIdProvider: DeviceIdProvider
+) : com.jcadenas.xpendz.infrastructure.loan.migration.ReversedLoanTransactionStore {
     private fun signedAmountDeltaCents(kind: String, amountCents: Long): Long {
         val k = kind.trim().uppercase()
         return when (k) {
@@ -186,7 +183,17 @@ class TransactionRepository @Inject constructor(
             updatedBy = deviceIdProvider.get()
         )
         transactionDao.insert(transaction)
-        syncToFirestore(userUid, transaction)
+        val published = syncToFirestore(userUid, transaction)
+        if (isLoanRepaymentTransaction(transaction.kind)) {
+            val label = if (published) "TRANSACTION_PUBLISHED" else "PUBLISH_FAILED"
+            val extras = "accountId=${transaction.accountId} categoryId=${transaction.categoryId} kind=${transaction.kind} amountCents=${transaction.amountCents} occurredAt=${transaction.occurredAtEpochSec}"
+            if (published) {
+                Log.d(
+                    "LoanPaymentTrace",
+                    "$label loanId=- paymentId=- transactionId=${transaction.id} operationId=- eventId=- updatedAt=${transaction.updatedAtEpochSec} updatedBy=${transaction.updatedBy ?: "-"} $extras"
+                )
+            }
+        }
         Log.d("BudgetAlert", "create() called: kind=$kind categoryId=$categoryId")
         if (kind.trim().uppercase() == "EXPENSE") {
             val helper = BudgetAlertHelper.instance
@@ -221,6 +228,7 @@ class TransactionRepository @Inject constructor(
         note: String?
     ): TransactionEntity? {
         val existing = transactionDao.getById(transactionId) ?: return null
+        require(!isLoanRepaymentTransaction(existing.kind)) { "Los pagos de préstamos deben modificarse desde Préstamos" }
 
         // Enforce non-negative balance by simulating: (current balance) + revert(old) + apply(new)
         // Balance is computed including the existing transaction.
@@ -252,32 +260,6 @@ class TransactionRepository @Inject constructor(
         transactionDao.update(updated)
         syncToFirestore(userUid, updated)
 
-        // Sincronizar con LoanPayment si es una transacción de préstamo
-        if (isLoanRepaymentTransaction(updated.kind)) {
-            val payment = loanPaymentRepositoryProvider.get().updateByTransaction(
-                transactionId = transactionId,
-                principalCents = amountCents,
-                occurredAtEpochSec = occurredAtEpochSec,
-                note = note
-            )
-            // Recalcular estado del préstamo si se actualizó el pago
-            if (payment != null) {
-                loanRepositoryProvider.get().recalculateLoanStatus(userUid, payment.loanId)
-            }
-        }
-
-        // Sincronizar con LoanMovement si existe un movimiento vinculado
-        val movement = loanMovementRepositoryProvider.get().updateByTransaction(
-            transactionId = transactionId,
-            amountCents = amountCents,
-            occurredAtEpochSec = occurredAtEpochSec,
-            note = note
-        )
-        // Recalcular estado del préstamo si se actualizó el movimiento
-        if (movement != null) {
-            loanRepositoryProvider.get().recalculateLoanStatus(userUid, movement.loanId)
-        }
-
         return updated
     }
 
@@ -289,25 +271,16 @@ class TransactionRepository @Inject constructor(
 
     suspend fun delete(userUid: String, transactionId: String) {
         val existing = transactionDao.getById(transactionId)
-        
+        require(existing == null || !isLoanRepaymentTransaction(existing.kind)) {
+            "Los pagos de préstamos deben eliminarse desde Préstamos"
+        }
         transactionDao.delete(transactionId)
         deleteFromFirestore(userUid, transactionId)
+    }
 
-        // Sincronizar con LoanPayment si es una transacción de préstamo
-        if (existing != null && isLoanRepaymentTransaction(existing.kind)) {
-            val payment = loanPaymentRepositoryProvider.get().deleteByTransaction(transactionId)
-            // Recalcular estado del préstamo si se eliminó el pago
-            if (payment != null) {
-                loanRepositoryProvider.get().recalculateLoanStatus(userUid, payment.loanId)
-            }
-        }
-
-        // Sincronizar con LoanMovement si existe un movimiento vinculado
-        val movement = loanMovementRepositoryProvider.get().deleteByTransaction(transactionId)
-        // Recalcular estado del préstamo si se eliminó el movimiento
-        if (movement != null) {
-            loanRepositoryProvider.get().recalculateLoanStatus(userUid, movement.loanId)
-        }
+    override suspend fun deleteFailedLoanTransaction(userUid: String, transactionId: String) {
+        transactionDao.delete(transactionId)
+        deleteFromFirestore(userUid, transactionId)
     }
 
     suspend fun deleteAllByUser(userUid: String) {
@@ -404,10 +377,11 @@ class TransactionRepository @Inject constructor(
                 }
             }
 
+            // Un doc remoto existe aunque no se pueda parsear: su id cuenta
+            // como presente para que la poda no borre la fila local.
+            val remoteIds = snapshot.documents.mapTo(HashSet()) { it.id }
+
             Log.d("TransactionRepository", "Parsed ${transactions.size} valid transactions")
-            if (transactions.isEmpty()) {
-                return
-            }
 
             var inserted = 0
             var updated = 0
@@ -451,22 +425,50 @@ class TransactionRepository @Inject constructor(
                 }
             }
 
-            Log.d("TransactionRepository", "Transactions upserted inserted=$inserted updated=$updated skipped=$skipped")
+            // Poda simétrica con Desktop: el snapshot remoto es autoritativo.
+            // Las escrituras locales pendientes aparecen en el snapshot del SDK,
+            // así que una fila ausente fue realmente eliminada en remoto (p. ej.
+            // una transacción LOAN_REPAYMENT_* de un pago revertido).
+            // Solo con datos de servidor: un snapshot de caché puede estar vacío
+            // o incompleto y no puede autorizar borrados.
+            var pruned = 0
+            if (snapshot.metadata.isFromCache) {
+                Log.d("TransactionRepository", "Transactions snapshot from cache; skipping prune")
+            } else for (local in transactionDao.getByUser(userUid)) {
+                if (local.id !in remoteIds) {
+                    try {
+                        transactionDao.delete(local.id)
+                        pruned++
+                    } catch (e: Exception) {
+                        Log.e("TransactionRepository", "Error pruning transaction ${local.id}", e)
+                    }
+                }
+            }
+
+            Log.d("TransactionRepository", "Transactions upserted inserted=$inserted updated=$updated skipped=$skipped pruned=$pruned")
         } catch (e: Exception) {
             Log.e("TransactionRepository", "Error syncing transactions from Firestore", e)
         }
     }
 
-    private suspend fun syncToFirestore(userUid: String, transaction: TransactionEntity) {
-        try {
+    private suspend fun syncToFirestore(userUid: String, transaction: TransactionEntity): Boolean {
+        return try {
             firestore.collection("users")
                 .document(userUid)
                 .collection("transactions")
                 .document(transaction.id)
                 .set(transaction, SetOptions.merge())
                 .await()
+            true
         } catch (e: Exception) {
-            // Log error
+            if (isLoanRepaymentTransaction(transaction.kind)) {
+                Log.e(
+                    "LoanPaymentTrace",
+                    "PUBLISH_FAILED stage=transaction loanId=- paymentId=- transactionId=${transaction.id} operationId=- eventId=- updatedAt=${transaction.updatedAtEpochSec} updatedBy=${transaction.updatedBy ?: "-"} accountId=${transaction.accountId} categoryId=${transaction.categoryId} kind=${transaction.kind} amountCents=${transaction.amountCents} occurredAt=${transaction.occurredAtEpochSec}",
+                    e
+                )
+            }
+            false
         }
     }
 

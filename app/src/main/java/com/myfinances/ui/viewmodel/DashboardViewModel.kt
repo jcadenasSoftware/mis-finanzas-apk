@@ -12,8 +12,6 @@ import com.jcadenas.xpendz.data.repository.BudgetRepository
 import com.jcadenas.xpendz.data.repository.CategoryRepository
 import com.jcadenas.xpendz.data.repository.ExchangeRateRepository
 import com.jcadenas.xpendz.data.repository.GoalRepository
-import com.jcadenas.xpendz.data.repository.LoanPaymentRepository
-import com.jcadenas.xpendz.data.repository.LoanRepository
 import com.jcadenas.xpendz.data.repository.TransactionRepository
 import com.jcadenas.xpendz.data.repository.TransferRepository
 import com.jcadenas.xpendz.data.repository.UserSettingsRepository
@@ -80,8 +78,6 @@ class DashboardViewModel @Inject constructor(
     private val transferRepository: TransferRepository,
     private val userSettingsRepository: UserSettingsRepository,
     private val exchangeRateRepository: ExchangeRateRepository,
-    private val loanRepository: LoanRepository,
-    private val loanPaymentRepository: LoanPaymentRepository,
     private val budgetRepository: BudgetRepository,
     private val goalRepository: GoalRepository
 ) : ViewModel() {

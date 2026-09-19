@@ -7,13 +7,16 @@ import com.jcadenas.xpendz.data.repository.AuthRepository
 import com.jcadenas.xpendz.data.repository.BudgetRepository
 import com.jcadenas.xpendz.data.repository.CategoryRepository
 import com.jcadenas.xpendz.data.repository.ExchangeRateRepository
-import com.jcadenas.xpendz.data.repository.LoanMovementRepository
 import com.jcadenas.xpendz.data.repository.GoalRepository
+import com.jcadenas.xpendz.data.repository.LoanAdminStateRepository
+import com.jcadenas.xpendz.data.repository.LoanMovementRepository
 import com.jcadenas.xpendz.data.repository.LoanPaymentRepository
 import com.jcadenas.xpendz.data.repository.LoanRepository
 import com.jcadenas.xpendz.data.repository.TransactionRepository
 import com.jcadenas.xpendz.data.repository.TransferRepository
 import com.jcadenas.xpendz.data.repository.UserSettingsRepository
+import com.jcadenas.xpendz.infrastructure.loan.migration.LegacyLoanMigration
+import com.jcadenas.xpendz.infrastructure.loan.migration.ReversedLoanPaymentReconciler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -49,14 +52,17 @@ class SyncViewModel @Inject constructor(
     private val budgetRepository: BudgetRepository,
     private val goalRepository: GoalRepository,
     private val loanRepository: LoanRepository,
+    private val loanAdminStateRepository: LoanAdminStateRepository,
     private val loanPaymentRepository: LoanPaymentRepository,
     private val loanMovementRepository: LoanMovementRepository,
     private val exchangeRateRepository: ExchangeRateRepository,
-    private val userSettingsRepository: UserSettingsRepository
+    private val userSettingsRepository: UserSettingsRepository,
+    private val legacyLoanMigration: LegacyLoanMigration,
+    private val reversedLoanPaymentReconciler: ReversedLoanPaymentReconciler
 ) : ViewModel() {
 
     companion object {
-        private const val TOTAL_SYNC_STEPS = 11
+        private const val TOTAL_SYNC_STEPS = 12
         private const val MIN_SYNC_INTERVAL_MS = 45_000L
     }
 
@@ -147,6 +153,7 @@ class SyncViewModel @Inject constructor(
                         },
                         async {
                             updateProgress(step = 7, message = "Sincronizando préstamos...")
+                            loanAdminStateRepository.syncPendingToFirestore(uid)
                             loanRepository.syncFromFirestore(uid)
                         },
                         async {
@@ -166,7 +173,12 @@ class SyncViewModel @Inject constructor(
                 loanMovementRepository.syncFromFirestore(uid)
 
                 ensureActiveSync()
-                updateProgress(step = 11, message = "Sincronización completada")
+                updateProgress(step = 11, message = "Reconstruyendo préstamos canónicos...")
+                reversedLoanPaymentReconciler.reconcile(uid)
+                legacyLoanMigration.migrate(uid)
+
+                ensureActiveSync()
+                updateProgress(step = 12, message = "Sincronización completada")
                 _syncVersion.value = _syncVersion.value + 1
             } catch (_: CancellationException) {
                 _status.value = "Sincronización cancelada"

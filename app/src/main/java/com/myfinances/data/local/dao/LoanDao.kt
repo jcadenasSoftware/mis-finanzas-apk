@@ -59,6 +59,12 @@ interface LoanDao {
           AND type = :type
           AND status = 'OPEN'
           AND TRIM(LOWER(counterparty_name)) = TRIM(LOWER(:counterpartyName))
+          AND NOT EXISTS (
+            SELECT 1 FROM loan_admin_state_v1 a
+            WHERE a.owner_id = loans.user_uid
+              AND a.loan_id = loans.id
+              AND a.archived = 1
+          )
         LIMIT 1
         """
     )

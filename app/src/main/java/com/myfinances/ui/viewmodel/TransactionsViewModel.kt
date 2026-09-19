@@ -3,6 +3,7 @@ package com.jcadenas.xpendz.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jcadenas.xpendz.data.local.dao.TransactionWithDetails
+import com.jcadenas.xpendz.ui.transactions.LoanTransactionPolicy
 import com.jcadenas.xpendz.data.local.entity.AccountEntity
 import com.jcadenas.xpendz.data.local.entity.CategoryEntity
 import com.jcadenas.xpendz.data.repository.AccountRepository
@@ -58,7 +59,8 @@ data class TransactionFormState(
     val selectedRootCategoryId: String? = null,
     val isLoading: Boolean = false,
     val isSaved: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val isLoanProtected: Boolean = false
 )
 
 @HiltViewModel
@@ -441,6 +443,7 @@ class TransactionsViewModel @Inject constructor(
                         val subCategories = if (rootId != null) {
                             categoryRepository.getChildren(uid, rootId)
                         } else emptyList()
+                        val loanProtected = LoanTransactionPolicy.isLoanKind(transaction.kind)
 
                         _formState.value = TransactionFormState(
                             id = transaction.id,
@@ -455,7 +458,9 @@ class TransactionsViewModel @Inject constructor(
                             rootCategories = rootCategories,
                             subCategories = subCategories,
                             selectedRootCategoryId = rootId,
-                            isLoading = false
+                            isLoading = false,
+                            error = if (loanProtected) LoanTransactionPolicy.protectedMessage() else null,
+                            isLoanProtected = loanProtected
                         )
                         return@launch
                     }
@@ -511,8 +516,8 @@ class TransactionsViewModel @Inject constructor(
     fun updateFormKind(kind: String) {
         val uid = userUid ?: return
         val current = _formState.value
-        // Prevenir cambio de kind en transacciones de préstamo
-        if (current.id != null && isLoanRepaymentTransaction(current.kind)) {
+        // Prevenir cambios en transacciones que pertenecen al módulo Loans.
+        if (current.isLoanProtected) {
             return
         }
         _formState.value = current.copy(kind = kind)
@@ -585,6 +590,13 @@ class TransactionsViewModel @Inject constructor(
         viewModelScope.launch {
             _formState.value = form.copy(isLoading = true)
             try {
+                if (LoanTransactionPolicy.isLoanKind(form.kind)) {
+                    _formState.value = form.copy(
+                        isLoading = false,
+                        error = LoanTransactionPolicy.protectedMessage()
+                    )
+                    return@launch
+                }
                 if (form.id != null) {
                     transactionRepository.update(
                         userUid = uid,
@@ -618,6 +630,11 @@ class TransactionsViewModel @Inject constructor(
         val uid = userUid ?: return
         viewModelScope.launch {
             try {
+                val transaction = transactionRepository.getById(transactionId)
+                if (transaction != null && LoanTransactionPolicy.isLoanKind(transaction.kind)) {
+                    _state.value = _state.value.copy(error = LoanTransactionPolicy.protectedMessage())
+                    return@launch
+                }
                 transactionRepository.delete(uid, transactionId)
                 loadTransactions()
             } catch (e: Exception) {
@@ -642,9 +659,4 @@ class TransactionsViewModel @Inject constructor(
         _formState.value = _formState.value.copy(error = null)
     }
 
-    private fun isLoanRepaymentTransaction(kind: String): Boolean {
-        val normalizedKind = kind.trim().uppercase()
-        return normalizedKind == "LOAN_REPAYMENT_PRINCIPAL_IN" || 
-               normalizedKind == "LOAN_REPAYMENT_PRINCIPAL_OUT"
-    }
 }

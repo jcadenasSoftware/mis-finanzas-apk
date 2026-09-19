@@ -18,7 +18,7 @@ class LoanMovementRepository @Inject constructor(
     private val loanMovementDao: LoanMovementDao,
     private val firestore: FirebaseFirestore,
     private val deviceIdProvider: DeviceIdProvider
-) {
+) : com.jcadenas.xpendz.infrastructure.loan.migration.ReversedLoanMovementStore {
     fun observeByLoan(userUid: String, loanId: String): Flow<List<LoanMovementEntity>> {
         return loanMovementDao.observeByLoan(userUid, loanId)
     }
@@ -78,14 +78,25 @@ class LoanMovementRepository @Inject constructor(
                 .get()
                 .await()
 
+            val remoteKeys = mutableSetOf<String>()
+            val failedLoanIds = mutableSetOf<String>()
             val movements = snapshot.documents.flatMap { loanDoc ->
                 val loanId = loanDoc.id
                 try {
-                    loanDoc.reference.collection("movements")
+                    val movementsSnapshot = loanDoc.reference.collection("movements")
                         .get()
                         .await()
+                    // Una subcolección servida desde caché puede estar
+                    // incompleta: sus filas locales no son podables.
+                    if (movementsSnapshot.metadata.isFromCache) {
+                        failedLoanIds.add(loanId)
+                    }
+                    movementsSnapshot
                         .documents
                         .mapNotNull { movementDoc ->
+                            // El doc existe en remoto aunque no se pueda
+                            // parsear: registrar su id evita podar la fila local.
+                            remoteKeys.add("$loanId/${movementDoc.id}")
                             try {
                                 val data = movementDoc.data ?: return@mapNotNull null
 
@@ -119,6 +130,11 @@ class LoanMovementRepository @Inject constructor(
                                 val updatedAt = anyLong("updatedAtEpochSec", "updated_at_epoch_sec") ?: createdAt
                                 val updatedBy = anyString("updatedBy", "updated_by")
 
+                                Log.d(
+                                    "LoanMovementRepository",
+                                    "Parsed loanMovement doc=${movementDoc.id} loanId=$loanId movementType=$movementType amountCents=$amountCents accountId=$accountId linkedTransactionId=$linkedTransactionId createdAt=$createdAt updatedAt=$updatedAt"
+                                )
+
                                 LoanMovementEntity(
                                     id = movementDoc.id,
                                     userUid = userUid,
@@ -140,6 +156,7 @@ class LoanMovementRepository @Inject constructor(
                         }
                 } catch (e: Exception) {
                     Log.e("LoanMovementRepository", "Error reading movements for loan=$loanId", e)
+                    failedLoanIds.add(loanId)
                     emptyList()
                 }
             }
@@ -151,6 +168,29 @@ class LoanMovementRepository @Inject constructor(
                 } else if (movement.updatedAtEpochSec > existing.updatedAtEpochSec) {
                     loanMovementDao.update(movement)
                 }
+            }
+
+            // Poda simétrica con Desktop: una fila local ausente en remoto fue
+            // revertida en otro dispositivo. Si la subcolección de un préstamo
+            // falló al leerse o vino de caché, sus filas locales se conservan
+            // (snapshot parcial). La lista de préstamos cacheada tampoco autoriza
+            // poda: puede omitir préstamos completos.
+            var pruned = 0
+            if (snapshot.metadata.isFromCache) {
+                Log.d("LoanMovementRepository", "Movements snapshot from cache; skipping prune")
+            } else for (local in loanMovementDao.getAllByUser(userUid)) {
+                if (local.loanId in failedLoanIds) continue
+                if ("${local.loanId}/${local.id}" !in remoteKeys) {
+                    try {
+                        loanMovementDao.delete(local.id)
+                        pruned++
+                    } catch (e: Exception) {
+                        Log.e("LoanMovementRepository", "Error pruning movement ${local.id}", e)
+                    }
+                }
+            }
+            if (pruned > 0) {
+                Log.d("LoanMovementRepository", "Pruned $pruned local loanMovements absent in remote")
             }
         } catch (e: Exception) {
             Log.e("LoanMovementRepository", "Error syncing loan movements", e)
@@ -228,7 +268,28 @@ class LoanMovementRepository @Inject constructor(
         return movement
     }
 
-    private suspend fun deleteFromFirestore(userUid: String, loanId: String, movementId: String) {
+    /**
+     * Elimina el movimiento de pago asociado a un pago revertido, localizado por
+     * transactionId vinculado o por firma (mismo criterio que el reconciliador).
+     */
+    override suspend fun deletePaymentBySignature(
+        userUid: String,
+        loanId: String,
+        accountId: String?,
+        amountCents: Long,
+        occurredAtEpochSec: Long,
+        linkedTransactionId: String?
+    ): LoanMovementEntity? {
+        val movement = linkedTransactionId
+            ?.let { loanMovementDao.getByLinkedTransactionId(it) }
+            ?: loanMovementDao.getPaymentBySignature(userUid, loanId, accountId, amountCents, occurredAtEpochSec)
+            ?: return null
+        loanMovementDao.delete(movement.id)
+        deleteFromFirestore(userUid, movement.loanId, movement.id)
+        return movement
+    }
+
+    suspend fun deleteFromFirestore(userUid: String, loanId: String, movementId: String) {
         try {
             firestore.collection("users")
                 .document(userUid)

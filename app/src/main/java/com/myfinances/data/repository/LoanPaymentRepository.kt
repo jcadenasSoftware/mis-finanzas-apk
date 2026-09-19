@@ -10,7 +10,6 @@ import com.jcadenas.xpendz.data.local.entity.LoanPaymentEntity
 import com.jcadenas.xpendz.sync.DeviceIdProvider
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.tasks.await
-import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,11 +19,9 @@ class LoanPaymentRepository @Inject constructor(
     private val loanDao: LoanDao,
     private val firestore: FirebaseFirestore,
     private val deviceIdProvider: DeviceIdProvider,
-    private val categoryRepository: CategoryRepository,
-    private val transactionRepository: TransactionRepository,
     private val loanMovementRepository: LoanMovementRepository,
     private val transactionDao: com.jcadenas.xpendz.data.local.dao.TransactionDao
-) {
+) : com.jcadenas.xpendz.infrastructure.loan.migration.ReversedLoanPaymentStore {
     fun observeByLoan(userUid: String, loanId: String): Flow<List<LoanPaymentEntity>> {
         return loanPaymentDao.observeByLoan(userUid, loanId)
     }
@@ -41,75 +38,7 @@ class LoanPaymentRepository @Inject constructor(
         occurredAtEpochSec: Long,
         note: String?
     ): LoanPaymentEntity {
-        require(accountId.isNotBlank()) { "accountId requerido" }
-
-        val loan = loanDao.getById(loanId) ?: error("Loan no encontrado: $loanId")
-        val (_, repaymentCategoryId) = categoryRepository.ensureSystemLoanCategories(userUid)
-
-        val now = System.currentTimeMillis() / 1000
-        val payment = LoanPaymentEntity(
-            id = UUID.randomUUID().toString(),
-            userUid = userUid,
-            loanId = loanId,
-            accountId = accountId,
-            principalCents = principalCents,
-            occurredAtEpochSec = occurredAtEpochSec,
-            note = note,
-            linkedTransactionId = null, // Se llenará después de crear la transacción
-            createdAtEpochSec = now,
-            updatedAtEpochSec = now,
-            updatedBy = deviceIdProvider.get()
-        )
-        loanPaymentDao.insert(payment)
-        syncToFirestore(userUid, payment)
-
-        val kind = when (loan.type) {
-            "LENT" -> "LOAN_REPAYMENT_PRINCIPAL_IN"
-            "BORROWED" -> "LOAN_REPAYMENT_PRINCIPAL_OUT"
-            else -> "LOAN_REPAYMENT_PRINCIPAL_IN"
-        }
-
-        val tx = transactionRepository.create(
-            userUid = userUid,
-            accountId = accountId,
-            categoryId = repaymentCategoryId,
-            kind = kind,
-            amountCents = principalCents,
-            occurredAtEpochSec = occurredAtEpochSec,
-            note = note ?: when (loan.type) {
-                "LENT" -> "Pago recibido de: ${loan.counterpartyName}"
-                "BORROWED" -> "Pago realizado a: ${loan.counterpartyName}"
-                else -> "Pago de préstamo: ${loan.counterpartyName}"
-            }
-        )
-
-        // Actualizar payment con linkedTransactionId
-        val updatedPayment = payment.copy(
-            linkedTransactionId = tx.id,
-            updatedAtEpochSec = now
-        )
-        loanPaymentDao.update(updatedPayment)
-        syncToFirestore(userUid, updatedPayment)
-
-        // Crear movimiento de pago en loan_movements (siguiendo lógica de Desktop)
-        val movementType = when (loan.type) {
-            "LENT" -> "PAYMENT_IN"
-            "BORROWED" -> "PAYMENT_OUT"
-            else -> "PAYMENT"
-        }
-
-        loanMovementRepository.create(
-            userUid = userUid,
-            loanId = loanId,
-            movementType = movementType,
-            amountCents = principalCents,
-            accountId = accountId,
-            linkedTransactionId = tx.id,
-            note = note,
-            occurredAtEpochSec = occurredAtEpochSec
-        )
-
-        return payment
+        error("Use LoanApplicationService.process(RegisterPaymentCommand)")
     }
 
     suspend fun deleteAllByUser(userUid: String) {
@@ -166,7 +95,36 @@ class LoanPaymentRepository @Inject constructor(
         return payment
     }
 
-    private suspend fun deleteFromFirestore(userUid: String, paymentId: String) {
+    /**
+     * Elimina el registro de transporte asociado a un pago revertido. La fila
+     * puede tener un id distinto al eventId del journal local (el doc remoto usa
+     * el eventId del dispositivo origen), por eso la localización se hace por
+     * transactionId vinculado o por la firma (loanId, accountId, monto, fecha)
+     * que usa el reconciliador.
+     */
+    override suspend fun deleteByPaymentSignature(
+        userUid: String,
+        loanId: String,
+        accountId: String?,
+        principalCents: Long,
+        occurredAtEpochSec: Long,
+        linkedTransactionId: String?
+    ): LoanPaymentEntity? {
+        val row = linkedTransactionId
+            ?.let { loanPaymentDao.getByLinkedTransactionId(it) }
+            ?: loanPaymentDao.getBySignature(userUid, loanId, accountId, principalCents, occurredAtEpochSec)
+            ?: return null
+        loanPaymentDao.delete(row.id)
+        deleteFromFirestore(userUid, row.id)
+        return row
+    }
+
+    /** Elimina solo la fila local; usado por la poda de pull (el doc remoto ya no existe). */
+    suspend fun deleteLocal(id: String) {
+        loanPaymentDao.delete(id)
+    }
+
+    override suspend fun deleteFromFirestore(userUid: String, paymentId: String) {
         try {
             firestore.collection("users")
                 .document(userUid)
@@ -176,6 +134,62 @@ class LoanPaymentRepository @Inject constructor(
                 .await()
         } catch (e: Exception) {
             Log.e("LoanPaymentRepository", "Error deleting payment from Firestore", e)
+        }
+    }
+
+    /**
+     * Publica el pago en la colección de transporte users/{uid}/loanPayments
+     * para que Desktop lo reconcilie en su journal canónico. El documento usa
+     * el eventId canónico del pago como id para mantener correspondencia
+     * determinista con el journal.
+     */
+    suspend fun publishPaymentToFirestore(
+        userUid: String,
+        paymentId: String,
+        loanId: String,
+        accountId: String,
+        principalCents: Long,
+        occurredAtEpochSec: Long,
+        linkedTransactionId: String?,
+        note: String?,
+        createdAtEpochSec: Long,
+        operationId: String? = null,
+        eventId: String? = null
+    ): Boolean {
+        return try {
+            val now = System.currentTimeMillis() / 1000
+            val updatedBy = deviceIdProvider.get()
+            val data = hashMapOf<String, Any>(
+                "id" to paymentId,
+                "userUid" to userUid,
+                "loanId" to loanId,
+                "accountId" to accountId,
+                "principalCents" to principalCents,
+                "occurredAtEpochSec" to occurredAtEpochSec,
+                "createdAtEpochSec" to createdAtEpochSec,
+                "updatedAtEpochSec" to now,
+                "updatedBy" to updatedBy
+            )
+            linkedTransactionId?.let { data["linkedTransactionId"] = it }
+            note?.let { data["note"] = it }
+            firestore.collection("users")
+                .document(userUid)
+                .collection("loanPayments")
+                .document(paymentId)
+                .set(data, SetOptions.merge())
+                .await()
+            Log.d(
+                "LoanPaymentTrace",
+                "LOAN_PAYMENT_PUBLISHED loanId=$loanId paymentId=$paymentId transactionId=${linkedTransactionId ?: "-"} operationId=${operationId ?: "-"} eventId=${eventId ?: paymentId} updatedAt=$now updatedBy=${updatedBy ?: "-"} accountId=$accountId principalCents=$principalCents occurredAt=$occurredAtEpochSec"
+            )
+            true
+        } catch (e: Exception) {
+            Log.e(
+                "LoanPaymentTrace",
+                "PUBLISH_FAILED stage=loanPayment loanId=$loanId paymentId=$paymentId transactionId=${linkedTransactionId ?: "-"} operationId=${operationId ?: "-"} eventId=${eventId ?: paymentId} updatedAt=- updatedBy=- accountId=$accountId principalCents=$principalCents occurredAt=$occurredAtEpochSec",
+                e
+            )
+            false
         }
     }
 
@@ -189,6 +203,9 @@ class LoanPaymentRepository @Inject constructor(
                 .get()
                 .await()
 
+            // Un doc remoto existe aunque su contenido no se pueda parsear: su
+            // id cuenta como presente para que la poda no borre la fila local.
+            val remoteIds = snapshot.documents.mapTo(HashSet()) { it.id }
             val payments = snapshot.documents.mapNotNull { doc ->
                 try {
                     val data = doc.data ?: return@mapNotNull null
@@ -221,6 +238,11 @@ class LoanPaymentRepository @Inject constructor(
                     val note = (data["note"] as? String)
                     val updatedBy = anyString("updatedBy", "updated_by")
                     val linkedTransactionId = anyString("linkedTransactionId", "linked_transaction_id")
+
+                    Log.d(
+                        "LoanPaymentRepository",
+                        "Parsed loanPayment doc=${doc.id} loanId=$loanId accountId=$accountId principalCents=$principalCents linkedTransactionId=$linkedTransactionId createdAt=$createdAt updatedAt=$updatedAt"
+                    )
 
                     LoanPaymentEntity(
                         id = doc.id,
@@ -264,7 +286,27 @@ class LoanPaymentRepository @Inject constructor(
                 }
             }
 
-            Log.d("LoanPaymentRepository", "LoanPayments inserted=$inserted updated=$updated skipped=$skipped")
+            // Poda simétrica con Desktop: el snapshot remoto es autoritativo.
+            // Una fila local ausente en remoto fue revertida en otro dispositivo;
+            // conservarla haría que el replay la reconstruyera ("pago resucitado").
+            // Solo con datos de servidor: un snapshot de caché puede estar vacío
+            // o incompleto y no puede autorizar borrados.
+            var pruned = 0
+            if (snapshot.metadata.isFromCache) {
+                Log.d("LoanPaymentRepository", "LoanPayments snapshot from cache; skipping prune")
+            } else for (local in loanPaymentDao.getByUser(userUid)) {
+                if (local.id !in remoteIds) {
+                    try {
+                        loanPaymentDao.delete(local.id)
+                        pruned++
+                        Log.d("LoanPaymentRepository", "Pruned local loanPayment id=${local.id} loanId=${local.loanId} (absent in remote)")
+                    } catch (e: Exception) {
+                        Log.e("LoanPaymentRepository", "Error pruning loanPayment ${local.id}", e)
+                    }
+                }
+            }
+
+            Log.d("LoanPaymentRepository", "LoanPayments inserted=$inserted updated=$updated skipped=$skipped pruned=$pruned")
         } catch (e: Exception) {
             Log.e("LoanPaymentRepository", "Error syncing loanPayments", e)
         }

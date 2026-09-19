@@ -12,10 +12,13 @@ import com.jcadenas.xpendz.data.local.dao.GoalDao
 import com.jcadenas.xpendz.data.local.dao.LoanDao
 import com.jcadenas.xpendz.data.local.dao.LoanMovementDao
 import com.jcadenas.xpendz.data.local.dao.LoanPaymentDao
+import com.jcadenas.xpendz.infrastructure.loan.admin.LoanAdminStateDao
 import com.jcadenas.xpendz.data.local.dao.TransactionDao
 import com.jcadenas.xpendz.data.local.dao.TransferDao
 import com.jcadenas.xpendz.data.local.dao.UserSettingsDao
 import com.jcadenas.xpendz.data.local.dao.UserDao
+import com.jcadenas.xpendz.infrastructure.loan.projection.room.LoanProjectionDao
+import com.jcadenas.xpendz.infrastructure.loan.room.CanonicalLoanDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -45,7 +48,12 @@ object DatabaseModule {
             AppDatabase.MIGRATION_8_9,
             AppDatabase.MIGRATION_9_10,
             AppDatabase.MIGRATION_10_11,
-            AppDatabase.MIGRATION_11_12
+            AppDatabase.MIGRATION_11_12,
+            AppDatabase.MIGRATION_12_13,
+            AppDatabase.MIGRATION_13_14,
+            AppDatabase.MIGRATION_14_15,
+            AppDatabase.MIGRATION_15_16,
+            AppDatabase.MIGRATION_16_17
         )
             .build()
     }
@@ -79,6 +87,15 @@ object DatabaseModule {
 
     @Provides
     fun provideLoanMovementDao(database: AppDatabase): LoanMovementDao = database.loanMovementDao()
+
+    @Provides
+    fun provideLoanAdminStateDao(database: AppDatabase): LoanAdminStateDao = database.loanAdminStateDao()
+
+    @Provides
+    fun provideCanonicalLoanDao(database: AppDatabase): CanonicalLoanDao = database.canonicalLoanDao()
+
+    @Provides
+    fun provideLoanProjectionDao(database: AppDatabase): LoanProjectionDao = database.loanProjectionDao()
 
     @Provides
     fun provideExchangeRateDao(database: AppDatabase): ExchangeRateDao = database.exchangeRateDao()

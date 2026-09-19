@@ -28,6 +28,14 @@ import com.jcadenas.xpendz.data.local.entity.TransactionEntity
 import com.jcadenas.xpendz.data.local.entity.TransferEntity
 import com.jcadenas.xpendz.data.local.entity.UserSettingsEntity
 import com.jcadenas.xpendz.data.local.entity.UserEntity
+import com.jcadenas.xpendz.infrastructure.loan.admin.LoanAdminStateDao
+import com.jcadenas.xpendz.infrastructure.loan.admin.LoanAdminStateEntity
+import com.jcadenas.xpendz.infrastructure.loan.model.CanonicalLoanEventEntity
+import com.jcadenas.xpendz.infrastructure.loan.model.CanonicalLoanSnapshotEntity
+import com.jcadenas.xpendz.infrastructure.loan.projection.model.LoanPaymentProjectionEntity
+import com.jcadenas.xpendz.infrastructure.loan.projection.model.LoanSummaryProjectionEntity
+import com.jcadenas.xpendz.infrastructure.loan.projection.room.LoanProjectionDao
+import com.jcadenas.xpendz.infrastructure.loan.room.CanonicalLoanDao
 
 @Database(
     entities = [
@@ -39,12 +47,17 @@ import com.jcadenas.xpendz.data.local.entity.UserEntity
         BudgetEntity::class,
         GoalEntity::class,
         LoanEntity::class,
+        LoanAdminStateEntity::class,
         LoanPaymentEntity::class,
         LoanMovementEntity::class,
         ExchangeRateEntity::class,
-        UserSettingsEntity::class
+        UserSettingsEntity::class,
+        CanonicalLoanEventEntity::class,
+        CanonicalLoanSnapshotEntity::class,
+        LoanPaymentProjectionEntity::class,
+        LoanSummaryProjectionEntity::class
     ],
-    version = 12,
+    version = 17,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -59,8 +72,11 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun loanDao(): LoanDao
     abstract fun loanPaymentDao(): LoanPaymentDao
     abstract fun loanMovementDao(): LoanMovementDao
+    abstract fun loanAdminStateDao(): LoanAdminStateDao
     abstract fun exchangeRateDao(): ExchangeRateDao
     abstract fun userSettingsDao(): UserSettingsDao
+    abstract fun canonicalLoanDao(): CanonicalLoanDao
+    abstract fun loanProjectionDao(): LoanProjectionDao
 
     companion object {
         val MIGRATION_1_2: Migration = object : Migration(1, 2) {
@@ -301,6 +317,165 @@ abstract class AppDatabase : RoomDatabase() {
                 } catch (_: Exception) {
                     // Index might already exist
                 }
+            }
+        }
+
+        val MIGRATION_12_13: Migration = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS loan_journal_v1 (
+                        event_id TEXT NOT NULL,
+                        operation_id TEXT NOT NULL,
+                        loan_id TEXT NOT NULL,
+                        owner_id TEXT NOT NULL,
+                        event_type TEXT NOT NULL,
+                        event_schema_version INTEGER NOT NULL,
+                        amount_cents INTEGER,
+                        account_id TEXT,
+                        transaction_id TEXT,
+                        note TEXT,
+                        occurred_at INTEGER NOT NULL,
+                        recorded_at INTEGER NOT NULL,
+                        actor_id TEXT,
+                        origin_id TEXT,
+                        payload_loan_type TEXT,
+                        payload_counterparty_name TEXT,
+                        payload_currency TEXT,
+                        payload_default_account_id TEXT,
+                        payload_notes TEXT,
+                        payload_legacy_direction TEXT,
+                        payload_legacy_source TEXT,
+                        payload_reason TEXT,
+                        payload_target_event_id TEXT,
+                        metadata_counterparty_present INTEGER NOT NULL,
+                        metadata_counterparty_value TEXT,
+                        metadata_account_present INTEGER NOT NULL,
+                        metadata_account_value TEXT,
+                        metadata_notes_present INTEGER NOT NULL,
+                        metadata_notes_value TEXT,
+                        PRIMARY KEY(event_id)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS index_loan_journal_v1_owner_operation " +
+                        "ON loan_journal_v1(owner_id, operation_id)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_loan_journal_v1_aggregate " +
+                        "ON loan_journal_v1(owner_id, loan_id, occurred_at, recorded_at, event_id)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_loan_journal_v1_event " +
+                        "ON loan_journal_v1(owner_id, event_id)"
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS loan_snapshots_v1 (
+                        loan_id TEXT NOT NULL,
+                        owner_id TEXT NOT NULL,
+                        loan_type TEXT NOT NULL,
+                        counterparty_name TEXT NOT NULL,
+                        currency TEXT NOT NULL,
+                        default_account_id TEXT,
+                        notes TEXT,
+                        principal_cents INTEGER NOT NULL,
+                        total_paid_cents INTEGER NOT NULL,
+                        net_balance_cents INTEGER NOT NULL,
+                        pending_cents INTEGER NOT NULL,
+                        overpaid_cents INTEGER NOT NULL,
+                        status TEXT NOT NULL,
+                        closed_at INTEGER,
+                        last_activity_at INTEGER NOT NULL,
+                        journal_event_count INTEGER NOT NULL,
+                        journal_fingerprint TEXT NOT NULL,
+                        reducer_version INTEGER NOT NULL,
+                        PRIMARY KEY(owner_id, loan_id)
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
+        val MIGRATION_14_15: Migration = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE loan_summary_projection_v1 ADD COLUMN default_account_id TEXT")
+                db.execSQL("ALTER TABLE loan_summary_projection_v1 ADD COLUMN notes TEXT")
+                db.execSQL("ALTER TABLE loan_summary_projection_v1 ADD COLUMN payment_count INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE loan_summary_projection_v1 ADD COLUMN last_payment_at INTEGER")
+                db.execSQL("ALTER TABLE loan_summary_projection_v1 ADD COLUMN progress_percent INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATION_15_16: Migration = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS loan_admin_state_v1 (
+                        loan_id TEXT NOT NULL,
+                        owner_id TEXT NOT NULL,
+                        archived INTEGER NOT NULL,
+                        archived_at_epoch_sec INTEGER,
+                        updated_at_epoch_sec INTEGER NOT NULL,
+                        updated_by TEXT,
+                        PRIMARY KEY(owner_id, loan_id)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_loan_admin_state_v1_owner_archived ON loan_admin_state_v1(owner_id, archived)")
+            }
+        }
+
+        val MIGRATION_16_17: Migration = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE loan_admin_state_v1 ADD COLUMN pending_sync INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATION_13_14: Migration = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS loan_payment_projection_v1 (
+                        source_event_id TEXT NOT NULL,
+                        operation_id TEXT NOT NULL,
+                        owner_id TEXT NOT NULL,
+                        loan_id TEXT NOT NULL,
+                        account_id TEXT,
+                        transaction_id TEXT,
+                        occurred_at INTEGER NOT NULL,
+                        amount_cents INTEGER NOT NULL,
+                        direction TEXT,
+                        note TEXT,
+                        PRIMARY KEY(source_event_id)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_loan_payment_projection_v1_aggregate " +
+                        "ON loan_payment_projection_v1(owner_id, loan_id, occurred_at)"
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS loan_summary_projection_v1 (
+                        loan_id TEXT NOT NULL,
+                        owner_id TEXT NOT NULL,
+                        counterparty TEXT NOT NULL,
+                        loan_type TEXT NOT NULL,
+                        currency TEXT NOT NULL,
+                        principal_cents INTEGER NOT NULL,
+                        total_paid_cents INTEGER NOT NULL,
+                        pending_cents INTEGER NOT NULL,
+                        overpaid_cents INTEGER NOT NULL,
+                        status TEXT NOT NULL,
+                        closed_at INTEGER,
+                        last_activity INTEGER NOT NULL,
+                        journal_fingerprint TEXT NOT NULL,
+                        PRIMARY KEY(owner_id, loan_id)
+                    )
+                    """.trimIndent()
+                )
             }
         }
     }
