@@ -1,5 +1,6 @@
 package com.jcadenas.xpendz.data.local.entity
 
+import android.util.Log
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -49,4 +50,16 @@ data class GoalEntity(
     val updatedAtEpochSec: Long,
     @ColumnInfo(name = "updated_by")
     val updatedBy: String? = null
-)
+) {
+    companion object {
+        const val STATUS_OPEN = "OPEN"
+        const val STATUS_CLOSED = "CLOSED"
+
+        fun normalizeStatus(raw: String?, goalId: String? = null): String {
+            if (raw.isNullOrBlank()) return STATUS_OPEN
+            if (raw == STATUS_OPEN || raw == STATUS_CLOSED) return raw
+            Log.w("GoalEntity", "Unknown goal status '$raw' id=${goalId ?: "?"}; treating as OPEN")
+            return STATUS_OPEN
+        }
+    }
+}

@@ -5,6 +5,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.firestore.Source
 import com.jcadenas.xpendz.data.local.dao.AccountDao
+import com.jcadenas.xpendz.data.local.dao.GoalDao
 import com.jcadenas.xpendz.data.local.entity.AccountEntity
 import com.jcadenas.xpendz.sync.DeviceIdProvider
 import kotlinx.coroutines.flow.Flow
@@ -16,6 +17,7 @@ import javax.inject.Singleton
 @Singleton
 class AccountRepository @Inject constructor(
     private val accountDao: AccountDao,
+    private val goalDao: GoalDao,
     private val firestore: FirebaseFirestore,
     private val deviceIdProvider: DeviceIdProvider
 ) {
@@ -121,7 +123,14 @@ class AccountRepository @Inject constructor(
         return updated
     }
 
+    suspend fun hasLinkedGoal(accountId: String): Boolean {
+        return goalDao.getByAccountId(accountId) != null
+    }
+
     suspend fun delete(userUid: String, accountId: String): Boolean {
+        if (goalDao.getByAccountId(accountId) != null) {
+            return false
+        }
         if (accountDao.hasMovements(userUid, accountId)) {
             return false
         }

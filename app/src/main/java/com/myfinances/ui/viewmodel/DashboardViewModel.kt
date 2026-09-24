@@ -402,9 +402,12 @@ class DashboardViewModel @Inject constructor(
             try {
                 val deleted = accountRepository.delete(uid, accountId)
                 if (!deleted) {
-                    _state.value = _state.value.copy(
-                        error = "No se puede eliminar la cuenta porque tiene movimientos o saldo asociado. Deja el saldo en cero y elimina/mueve sus movimientos para poder eliminarla."
-                    )
+                    val message = if (accountRepository.hasLinkedGoal(accountId)) {
+                        "No se puede eliminar la cuenta porque está asociada a una meta. Elimina o archiva la meta primero."
+                    } else {
+                        "No se puede eliminar la cuenta porque tiene movimientos o saldo asociado. Deja el saldo en cero y elimina/mueve sus movimientos para poder eliminarla."
+                    }
+                    _state.value = _state.value.copy(error = message)
                 } else {
                     loadAccountsWithBalances(uid)
                 }

@@ -2,6 +2,7 @@ package com.jcadenas.xpendz.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jcadenas.xpendz.data.local.GoalAchievementTracker
 import com.jcadenas.xpendz.data.local.entity.AccountEntity
 import com.jcadenas.xpendz.data.local.entity.CategoryEntity
 import com.jcadenas.xpendz.data.local.entity.GoalEntity
@@ -9,6 +10,8 @@ import com.jcadenas.xpendz.data.repository.BudgetRepository
 import com.jcadenas.xpendz.data.repository.AccountRepository
 import com.jcadenas.xpendz.data.repository.AuthRepository
 import com.jcadenas.xpendz.data.repository.CategoryRepository
+import com.jcadenas.xpendz.data.repository.GoalDeletionInfo
+import com.jcadenas.xpendz.data.repository.GoalDeletionOutcome
 import com.jcadenas.xpendz.data.repository.GoalRepository
 import com.jcadenas.xpendz.data.repository.TransactionRepository
 import com.jcadenas.xpendz.data.repository.TransferRepository
@@ -31,6 +34,8 @@ data class MonthlyBudgetItem(
 data class BudgetState(
     val isLoading: Boolean = false,
     val goals: List<GoalEntity> = emptyList(),
+    val archivedGoals: List<GoalEntity> = emptyList(),
+    val achievedGoal: GoalEntity? = null,
     val accounts: List<AccountEntity> = emptyList(),
     val accountBalancesCents: Map<String, Long> = emptyMap(),
     val goalAccountBalancesCents: Map<String, Long> = emptyMap(),
@@ -55,7 +60,8 @@ class BudgetViewModel @Inject constructor(
     private val goalRepository: GoalRepository,
     private val categoryRepository: CategoryRepository,
     private val budgetRepository: BudgetRepository,
-    private val transactionRepository: TransactionRepository
+    private val transactionRepository: TransactionRepository,
+    private val goalAchievementTracker: GoalAchievementTracker
 ) : ViewModel() {
 
     private companion object {
@@ -77,7 +83,11 @@ class BudgetViewModel @Inject constructor(
                 val goalsDeferred = async { goalRepository.getByUser(uid) }
 
                 val accounts = accountsDeferred.await()
-                val goals = goalsDeferred.await().filter { it.status != "DELETED" }
+                val allGoals = goalsDeferred.await().map {
+                    it.copy(status = GoalEntity.normalizeStatus(it.status, it.id))
+                }
+                val goals = allGoals.filter { it.status != GoalEntity.STATUS_CLOSED }
+                val archivedGoals = allGoals.filter { it.status == GoalEntity.STATUS_CLOSED }
 
                 val accountBalances = mutableMapOf<String, Long>()
                 for (a in accounts) {
@@ -85,8 +95,14 @@ class BudgetViewModel @Inject constructor(
                 }
 
                 val balances = mutableMapOf<String, Long>()
-                for (g in goals) {
-                    balances[g.id] = runCatching { accountRepository.computeBalance(uid, g.accountId) }.getOrDefault(0L)
+                var achievedGoal: GoalEntity? = null
+                for (g in allGoals) {
+                    val balance = runCatching { accountRepository.computeBalance(uid, g.accountId) }.getOrDefault(0L)
+                    balances[g.id] = balance
+                    val achieved = g.targetCents > 0 && balance >= g.targetCents
+                    if (goalAchievementTracker.onProgressEvaluated(g.id, achieved) && achievedGoal == null) {
+                        achievedGoal = g
+                    }
                 }
 
                 val existingMonth = _state.value.monthlyMonth
@@ -104,6 +120,8 @@ class BudgetViewModel @Inject constructor(
                 _state.value = _state.value.copy(
                     isLoading = false,
                     goals = goals,
+                    archivedGoals = archivedGoals,
+                    achievedGoal = achievedGoal ?: _state.value.achievedGoal,
                     accounts = accounts,
                     accountBalancesCents = accountBalances,
                     goalAccountBalancesCents = balances,
@@ -404,26 +422,107 @@ class BudgetViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             try {
-                val goalAccount = accountRepository.create(
-                    userUid = uid,
-                    name = name,
-                    type = "SAVINGS",
-                    currency = currency
-                )
-
-                goalRepository.create(
+                goalRepository.createWithAccount(
                     userUid = uid,
                     name = name,
                     currency = currency,
                     targetCents = targetCents,
-                    targetDateEpochSec = targetDateEpochSec,
-                    accountId = goalAccount.id
+                    targetDateEpochSec = targetDateEpochSec
                 )
 
                 refresh()
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isLoading = false, error = e.message)
             }
+        }
+    }
+
+    fun updateGoal(
+        goalId: String,
+        name: String,
+        targetCents: Long,
+        targetDateEpochSec: Long,
+        currency: String
+    ) {
+        val uid = userUid ?: return
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true, error = null)
+            try {
+                goalRepository.update(
+                    userUid = uid,
+                    goalId = goalId,
+                    name = name,
+                    currency = currency,
+                    targetCents = targetCents,
+                    targetDateEpochSec = targetDateEpochSec
+                )
+
+                refresh()
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(isLoading = false, error = goalErrorMessage(e))
+            }
+        }
+    }
+
+    fun closeGoal(goalId: String) {
+        val uid = userUid ?: return
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true, error = null)
+            try {
+                goalRepository.close(uid, goalId)
+                refresh()
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(isLoading = false, error = goalErrorMessage(e))
+            }
+        }
+    }
+
+    fun reopenGoal(goalId: String) {
+        val uid = userUid ?: return
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true, error = null)
+            try {
+                goalRepository.reopen(uid, goalId)
+                refresh()
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(isLoading = false, error = goalErrorMessage(e))
+            }
+        }
+    }
+
+    suspend fun goalDeletionInfo(goalId: String): GoalDeletionInfo? {
+        val uid = userUid ?: return null
+        return goalRepository.getDeletionInfo(uid, goalId)
+    }
+
+    fun deleteGoal(
+        goalId: String,
+        onOutcome: (GoalDeletionOutcome) -> Unit = {}
+    ) {
+        val uid = userUid ?: return
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true, error = null)
+            try {
+                val outcome = goalRepository.deleteGoal(uid, goalId)
+                refresh()
+                onOutcome(outcome)
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(isLoading = false, error = goalErrorMessage(e))
+            }
+        }
+    }
+
+    fun dismissGoalAchievement() {
+        _state.value = _state.value.copy(achievedGoal = null)
+    }
+
+    private fun goalErrorMessage(e: Exception): String {
+        return when (e.message) {
+            "goal_not_open" -> "La meta está archivada. Reábrela para poder operarla."
+            "goal_not_archived" -> "La meta no está archivada."
+            "goal_has_balance" -> "No se puede eliminar una meta que aún tiene dinero. Retira el saldo primero."
+            "Meta no encontrada" -> "Meta no encontrada"
+            else -> e.message ?: e.toString()
         }
     }
 
@@ -438,9 +537,10 @@ class BudgetViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             try {
-                val goal = _state.value.goals.firstOrNull { it.id == goalId } ?: goalRepository.getById(goalId)
-                if (goal == null) {
-                    _state.value = _state.value.copy(isLoading = false, error = "Meta no encontrada")
+                val goal = try {
+                    goalRepository.requireOpen(goalId)
+                } catch (e: Exception) {
+                    _state.value = _state.value.copy(isLoading = false, error = goalErrorMessage(e))
                     return@launch
                 }
 
@@ -471,9 +571,10 @@ class BudgetViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             try {
-                val goal = _state.value.goals.firstOrNull { it.id == goalId } ?: goalRepository.getById(goalId)
-                if (goal == null) {
-                    _state.value = _state.value.copy(isLoading = false, error = "Meta no encontrada")
+                val goal = try {
+                    goalRepository.requireOpen(goalId)
+                } catch (e: Exception) {
+                    _state.value = _state.value.copy(isLoading = false, error = goalErrorMessage(e))
                     return@launch
                 }
 

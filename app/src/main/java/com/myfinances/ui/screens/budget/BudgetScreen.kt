@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Warning
@@ -75,6 +76,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
@@ -95,6 +97,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.jcadenas.xpendz.data.local.entity.BudgetEntity
+import com.jcadenas.xpendz.data.local.entity.GoalEntity
+import com.jcadenas.xpendz.data.repository.GoalDeletionInfo
+import com.jcadenas.xpendz.data.repository.GoalDeletionOutcome
 import com.jcadenas.xpendz.ui.components.CompactHeader
 import com.jcadenas.xpendz.ui.components.HamburgerMenu
 import com.jcadenas.xpendz.ui.components.HamburgerMenuButton
@@ -107,6 +112,7 @@ import com.jcadenas.xpendz.ui.theme.XpendzThemeTokens
 import com.jcadenas.xpendz.ui.util.CountryCurrency
 import com.jcadenas.xpendz.ui.viewmodel.BudgetViewModel
 import com.jcadenas.xpendz.ui.viewmodel.SyncViewModel
+import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Currency
@@ -149,6 +155,13 @@ fun BudgetScreen(
     }
 
     var showCreateGoal by remember { mutableStateOf(false) }
+    var editGoal by remember { mutableStateOf<GoalEntity?>(null) }
+    var deleteGoalTarget by remember { mutableStateOf<GoalEntity?>(null) }
+    var deleteGoalInfo by remember { mutableStateOf<GoalDeletionInfo?>(null) }
+    var deleteBlockedGoal by remember { mutableStateOf<GoalEntity?>(null) }
+    var archivedOutcomeMessage by remember { mutableStateOf<String?>(null) }
+    var showArchivedSection by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     var showDeposit by remember { mutableStateOf(false) }
     var depositGoalId by remember { mutableStateOf("") }
     var showWithdraw by remember { mutableStateOf(false) }
@@ -561,6 +574,7 @@ fun BudgetScreen(
                             val savedCents = state.goalAccountBalancesCents[goal.id] ?: 0L
                             val remaining = (goal.targetCents - savedCents).coerceAtLeast(0L)
                             val progress = if (goal.targetCents <= 0) 0f else (savedCents.toFloat() / goal.targetCents.toFloat()).coerceIn(0f, 1f)
+                            val isCompleted = goal.targetCents > 0 && savedCents >= goal.targetCents
                             val now = System.currentTimeMillis() / 1000
                             val monthsLeft = viewModel.monthsUntil(goal.targetDateEpochSec, now)
                             val suggestedMonthly = if (remaining <= 0) 0L else (remaining / monthsLeft)
@@ -571,6 +585,7 @@ fun BudgetScreen(
                                 targetCents = goal.targetCents,
                                 remainingCents = remaining,
                                 progress = progress,
+                                isCompleted = isCompleted,
                                 targetDateEpochSec = goal.targetDateEpochSec,
                                 currencyFormat = currencyFormat,
                                 dateFormat = dateFormat,
@@ -583,8 +598,47 @@ fun BudgetScreen(
                                 onWithdraw = {
                                     withdrawGoalId = goal.id
                                     showWithdraw = true
+                                },
+                                onEdit = { editGoal = goal },
+                                onArchive = { viewModel.closeGoal(goal.id) },
+                                onDelete = {
+                                    scope.launch {
+                                        val info = viewModel.goalDeletionInfo(goal.id)
+                                        when {
+                                            info == null -> {}
+                                            info.balanceCents > 0L -> deleteBlockedGoal = goal
+                                            else -> {
+                                                deleteGoalTarget = goal
+                                                deleteGoalInfo = info
+                                            }
+                                        }
+                                    }
                                 }
                             )
+                        }
+
+                        if (state.archivedGoals.isNotEmpty()) {
+                            Text(
+                                text = "Archivadas (${state.archivedGoals.size}) ${if (showArchivedSection) "▾" else "▸"}",
+                                style = typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.onSurfaceVariant,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { showArchivedSection = !showArchivedSection }
+                                    .padding(vertical = spacing.xs)
+                            )
+
+                            if (showArchivedSection) {
+                                state.archivedGoals.forEach { archived ->
+                                    ArchivedGoalRow(
+                                        goal = archived,
+                                        savedCents = state.goalAccountBalancesCents[archived.id] ?: 0L,
+                                        currencyFormat = currencyFormat,
+                                        onReopen = { viewModel.reopenGoal(archived.id) }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -675,295 +729,135 @@ fun BudgetScreen(
     }
 
     if (showCreateGoal) {
-        var goalName by remember { mutableStateOf("") }
-        var goalAmountText by remember { mutableStateOf("") }
-        val deviceCountry = remember { Locale.getDefault().country }
-        val defaultCurrency = remember(deviceCountry) {
-            CountryCurrency.suggestedCurrency(deviceCountry)
-        }
-        var selectedCurrency by remember { mutableStateOf(defaultCurrency) }
-        var currencyExpanded by remember { mutableStateOf(false) }
-        var currencyQuery by remember { mutableStateOf("") }
-        val currencySearchFocusRequester = remember { FocusRequester() }
-        val keyboardController = LocalSoftwareKeyboardController.current
-
-        val displayLocale = remember { Locale("es", "ES") }
-        val allCurrencies = remember {
-            Currency.getAvailableCurrencies()
-                .asSequence()
-                .map { c ->
-                    val code = c.currencyCode
-                    val label = c.getDisplayName(displayLocale)
-                        .replaceFirstChar { it.titlecase(displayLocale) }
-                    code to label
-                }
-                .distinctBy { it.first }
-                .sortedBy { it.second }
-                .toList()
-        }
-        val suggestedCurrencies = remember(defaultCurrency, deviceCountry) {
-            val suggestedCodes = buildList {
-                add(defaultCurrency)
-                addAll(CountryCurrency.options.map { it.suggestedCurrency })
-                addAll(listOf("USD", "EUR"))
-            }.filter { it.isNotBlank() }.distinct()
-
-            val suggested = allCurrencies.filter { (code, _) -> suggestedCodes.contains(code) }
-            val preferred = suggested.firstOrNull { it.first == defaultCurrency }
-            val rest = suggested.filterNot { it.first == defaultCurrency }.sortedBy { it.second }
-            if (preferred == null) rest else listOf(preferred) + rest
-        }
-        val filteredCurrencies = remember(currencyQuery, suggestedCurrencies, allCurrencies) {
-            val q = currencyQuery.trim()
-            if (q.isBlank()) {
-                suggestedCurrencies
-            } else {
-                val byCurrency = allCurrencies.filter { (code, label) ->
-                    code.contains(q, ignoreCase = true) || label.contains(q, ignoreCase = true)
-                }
-
-                val matchedCountryCurrencies = CountryCurrency.options
-                    .asSequence()
-                    .filter { option -> option.displayName.contains(q, ignoreCase = true) }
-                    .map { it.suggestedCurrency }
-                    .filter { it.isNotBlank() }
-                    .distinct()
-                    .toList()
-
-                val byCountry = if (matchedCountryCurrencies.isEmpty()) {
-                    emptyList()
-                } else {
-                    allCurrencies.filter { (code, _) -> matchedCountryCurrencies.contains(code) }
-                }
-
-                (byCountry + byCurrency)
-                    .distinctBy { it.first }
-                    .sortedBy { it.second }
+        GoalFormDialog(
+            title = "Nueva meta",
+            subtitle = "Define un objetivo de ahorro.",
+            confirmLabel = "Crear",
+            isLoading = state.isLoading,
+            onDismiss = { showCreateGoal = false },
+            onConfirm = { name, targetCents, currency, targetDate ->
+                viewModel.createGoal(
+                    name = name,
+                    targetCents = targetCents,
+                    targetDateEpochSec = targetDate,
+                    currency = currency
+                )
+                showCreateGoal = false
             }
-        }
+        )
+    }
 
-        var targetDateEpochSec by remember { mutableStateOf(System.currentTimeMillis() / 1000) }
-        var showDatePicker by remember { mutableStateOf(false) }
+    editGoal?.let { goal ->
+        GoalFormDialog(
+            title = "Editar meta",
+            subtitle = "Actualiza el objetivo de ahorro.",
+            confirmLabel = "Guardar",
+            isLoading = state.isLoading,
+            initialName = goal.name,
+            initialTargetCents = goal.targetCents,
+            initialCurrency = goal.currency,
+            initialTargetDateEpochSec = goal.targetDateEpochSec,
+            onDismiss = { editGoal = null },
+            onConfirm = { name, targetCents, currency, targetDate ->
+                viewModel.updateGoal(
+                    goalId = goal.id,
+                    name = name,
+                    targetCents = targetCents,
+                    targetDateEpochSec = targetDate,
+                    currency = currency
+                )
+                editGoal = null
+            }
+        )
+    }
 
+    deleteBlockedGoal?.let { goal ->
         AlertDialog(
-            onDismissRequest = { showCreateGoal = false },
-            containerColor = colors.surface,
+            onDismissRequest = { deleteBlockedGoal = null },
+            title = { Text("No se puede eliminar") },
             text = {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                        .imePadding(),
-                    verticalArrangement = Arrangement.spacedBy(spacing.m)
-                ) {
-                    GoalDialogHeader(
-                        title = "Nueva meta",
-                        subtitle = "Define un objetivo de ahorro."
-                    )
-                    MoneyInputField(
-                        value = goalAmountText,
-                        onValueChange = { goalAmountText = it },
-                        label = { Text("Monto objetivo") },
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.AttachMoney,
-                                contentDescription = null,
-                                tint = colors.brand
-                            )
-                        },
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(64.dp),
-                        shape = MaterialTheme.shapes.extraLarge,
-                        variant = com.jcadenas.xpendz.ui.components.MoneyInputFieldVariant.OUTLINED,
-                        textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = colors.surfaceVariant.copy(alpha = 0.3f),
-                            unfocusedContainerColor = colors.surfaceVariant.copy(alpha = 0.3f),
-                            disabledContainerColor = colors.surfaceVariant.copy(alpha = 0.3f),
-                            focusedBorderColor = colors.brand,
-                            unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
-                        )
-                    )
-                    OutlinedTextField(
-                        value = goalName,
-                        onValueChange = { goalName = it },
-                        label = { Text("Nombre") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.extraLarge,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = colors.surface,
-                            unfocusedContainerColor = colors.surface,
-                            disabledContainerColor = colors.surface,
-                            focusedBorderColor = colors.brand,
-                            unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
-                        )
-                    )
-
-                    OutlinedTextField(
-                        value = allCurrencies.find { it.first == selectedCurrency }?.second ?: "",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Moneda") },
-                        placeholder = { Text("Selecciona moneda", color = colors.onSurfaceVariant.copy(alpha = 0.6f)) },
-                        trailingIcon = {
-                            IconButton(
-                                onClick = {
-                                    currencyExpanded = !currencyExpanded
-                                    if (!currencyExpanded) currencyQuery = ""
-                                }
-                            ) {
-                                Icon(Icons.Default.Savings, contentDescription = null, tint = colors.brand)
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.extraLarge,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = colors.surface,
-                            unfocusedContainerColor = colors.surface,
-                            disabledContainerColor = colors.surface,
-                            focusedBorderColor = colors.brand,
-                            unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
-                        )
-                    )
-
-                    if (currencyExpanded) {
-                        LaunchedEffect(Unit) {
-                            currencySearchFocusRequester.requestFocus()
-                            keyboardController?.show()
-                        }
-
-                        ElevatedCard(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.elevatedCardColors(containerColor = colors.surface)
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .imePadding()
-                            ) {
-                                OutlinedTextField(
-                                    value = currencyQuery,
-                                    onValueChange = { currencyQuery = it },
-                                    singleLine = true,
-                                    label = { Text("Buscar moneda o país") },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .focusRequester(currencySearchFocusRequester)
-                                        .padding(12.dp)
-                                )
-
-                                val showList = if (currencyQuery.isBlank()) {
-                                    filteredCurrencies.take(20)
-                                } else {
-                                    filteredCurrencies.take(50)
-                                }
-
-                                if (showList.isEmpty()) {
-                                    DropdownMenuItem(
-                                        text = { Text("Sin resultados") },
-                                        onClick = { }
-                                    )
-                                } else {
-                                    LazyColumn(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .heightIn(min = 180.dp, max = 260.dp),
-                                        contentPadding = PaddingValues(vertical = 8.dp)
-                                    ) {
-                                        items(showList) { (value, label) ->
-                                            DropdownMenuItem(
-                                                text = { Text("$label ($value)") },
-                                                onClick = {
-                                                    selectedCurrency = value
-                                                    currencyExpanded = false
-                                                    currencyQuery = ""
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    OutlinedTextField(
-                        value = dateFormat.format(Date(targetDateEpochSec * 1000)),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Fecha objetivo") },
-                        trailingIcon = {
-                            IconButton(onClick = { showDatePicker = true }) {
-                                Icon(Icons.Default.CalendarToday, contentDescription = null, tint = colors.brand)
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.extraLarge,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = colors.surface,
-                            unfocusedContainerColor = colors.surface,
-                            disabledContainerColor = colors.surface,
-                            focusedBorderColor = colors.brand,
-                            unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
-                        )
-                    )
+                Text("Primero retira todo el dinero.\n\nNo puedes eliminar una meta que aún tiene dinero.")
+            },
+            confirmButton = {
+                TextButton(onClick = { deleteBlockedGoal = null }) {
+                    Text("Entendido")
                 }
+            }
+        )
+    }
+
+    deleteGoalTarget?.let { goal ->
+        val hasHistory = deleteGoalInfo?.hasHistory == true
+        AlertDialog(
+            onDismissRequest = {
+                deleteGoalTarget = null
+                deleteGoalInfo = null
+            },
+            title = { Text(if (hasHistory) "Archivar meta" else "Eliminar meta") },
+            text = {
+                Text(
+                    if (hasHistory) {
+                        "Esta meta tiene historial financiero.\n\nPara conservar la integridad de reportes y estadísticas será archivada y dejará de aparecer entre las metas activas.\n\n¿Deseas continuar?"
+                    } else {
+                        "¿Eliminar la meta '${goal.name}'?\n\nEsta acción no se puede deshacer."
+                    }
+                )
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        val targetCents = MoneyInputFormatter.parseToCents(goalAmountText) ?: 0L
-                        if (goalName.isNotBlank() && targetCents > 0) {
-                            viewModel.createGoal(
-                                name = goalName.trim(),
-                                targetCents = targetCents,
-                                targetDateEpochSec = targetDateEpochSec,
-                                currency = selectedCurrency
-                            )
-                            showCreateGoal = false
+                        viewModel.deleteGoal(goal.id) { outcome ->
+                            if (outcome == GoalDeletionOutcome.ARCHIVED) {
+                                archivedOutcomeMessage =
+                                    "Esta meta tiene historial financiero. Para conservar la integridad de reportes y estadísticas ha sido archivada y dejará de aparecer entre las metas activas."
+                            }
                         }
+                        deleteGoalTarget = null
+                        deleteGoalInfo = null
                     },
-                    enabled = goalName.isNotBlank() && goalAmountText.isNotBlank() && !state.isLoading,
-                    shape = MaterialTheme.shapes.extraLarge,
                     colors = ButtonDefaults.buttonColors(containerColor = colors.brand)
                 ) {
-                    Text("Crear")
+                    Text(if (hasHistory) "Archivar" else "Eliminar")
                 }
             },
             dismissButton = {
-                FilledTonalButton(
-                    onClick = { showCreateGoal = false },
-                    shape = MaterialTheme.shapes.extraLarge
-                ) { Text("Cancelar") }
+                TextButton(onClick = {
+                    deleteGoalTarget = null
+                    deleteGoalInfo = null
+                }) {
+                    Text("Cancelar")
+                }
             }
         )
+    }
 
-        if (showDatePicker) {
-            val cal = Calendar.getInstance().apply { timeInMillis = targetDateEpochSec * 1000 }
-            DatePickerDialog(
-                context,
-                { _, year, month, day ->
-                    val c = Calendar.getInstance().apply {
-                        set(Calendar.YEAR, year)
-                        set(Calendar.MONTH, month)
-                        set(Calendar.DAY_OF_MONTH, day)
-                        set(Calendar.HOUR_OF_DAY, 0)
-                        set(Calendar.MINUTE, 0)
-                        set(Calendar.SECOND, 0)
-                        set(Calendar.MILLISECOND, 0)
-                    }
-                    targetDateEpochSec = c.timeInMillis / 1000
-                    showDatePicker = false
-                },
-                cal.get(Calendar.YEAR),
-                cal.get(Calendar.MONTH),
-                cal.get(Calendar.DAY_OF_MONTH)
-            ).apply {
-                setOnCancelListener { showDatePicker = false }
-            }.show()
-        }
+    archivedOutcomeMessage?.let { message ->
+        AlertDialog(
+            onDismissRequest = { archivedOutcomeMessage = null },
+            title = { Text("Meta archivada") },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(onClick = { archivedOutcomeMessage = null }) {
+                    Text("Entendido")
+                }
+            }
+        )
+    }
+
+    state.achievedGoal?.let { achieved ->
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissGoalAchievement() },
+            title = { Text("🎉 ¡Felicitaciones!") },
+            text = { Text("Has alcanzado tu meta '${achieved.name}'.") },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.dismissGoalAchievement() },
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.brand)
+                ) {
+                    Text("Celebrar")
+                }
+            }
+        )
     }
 
     if (showDeposit) {
@@ -1569,19 +1463,72 @@ private fun SummaryLine(
 }
 
 @Composable
+private fun ArchivedGoalRow(
+    goal: GoalEntity,
+    savedCents: Long,
+    currencyFormat: NumberFormat,
+    onReopen: () -> Unit
+) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val shapes = XpendzThemeTokens.shapes
+    val typography = XpendzThemeTokens.typography
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(shapes.extraLarge),
+        colors = CardDefaults.cardColors(containerColor = colors.surface)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = spacing.m, vertical = spacing.s),
+            horizontalArrangement = Arrangement.spacedBy(spacing.s),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = goal.name,
+                    style = typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "Guardado ${currencyFormat.format(savedCents / 100.0)} · Objetivo ${currencyFormat.format(goal.targetCents / 100.0)}",
+                    style = typography.bodySmall,
+                    color = colors.onSurfaceVariant
+                )
+            }
+            OutlinedButton(
+                onClick = onReopen,
+                shape = RoundedCornerShape(shapes.extraLarge)
+            ) {
+                Text("Reabrir")
+            }
+        }
+    }
+}
+
+@Composable
 private fun GoalModernCard(
     title: String,
     savedCents: Long,
     targetCents: Long,
     remainingCents: Long,
     progress: Float,
+    isCompleted: Boolean,
     targetDateEpochSec: Long,
     currencyFormat: NumberFormat,
     dateFormat: SimpleDateFormat,
     suggestedMonthlyCents: Long,
     monthsLeft: Int,
     onDeposit: () -> Unit,
-    onWithdraw: () -> Unit
+    onWithdraw: () -> Unit,
+    onEdit: () -> Unit,
+    onArchive: () -> Unit,
+    onDelete: () -> Unit
 ) {
     val colors = XpendzThemeTokens.colors
     val spacing = XpendzThemeTokens.spacing
@@ -1589,8 +1536,9 @@ private fun GoalModernCard(
     val elevation = XpendzThemeTokens.elevation
     val typography = XpendzThemeTokens.typography
 
+    var menuExpanded by remember { mutableStateOf(false) }
     val pct = (progress.coerceIn(0f, 1f) * 100).toInt()
-    val pctColor = goalProgressColor(progress)
+    val pctColor = if (isCompleted) Color(0xFF10B981) else goalProgressColor(progress)
     val remainingText = currencyFormat.format(remainingCents / 100.0)
     val targetText = currencyFormat.format(targetCents / 100.0)
     val savedText = currencyFormat.format(savedCents / 100.0)
@@ -1603,7 +1551,7 @@ private fun GoalModernCard(
     val suggestedDailyCents = remember(remainingCents, daysLeft) {
         if (remainingCents <= 0L) 0L else (remainingCents / daysLeft.toLong()).coerceAtLeast(0L)
     }
-    val (motivationalTitle, motivationalDescription) = getMotivationalMessage(progress)
+    val (motivationalTitle, motivationalDescription) = getMotivationalMessage(progress, isCompleted)
     val timeRemainingText = getTimeRemainingText(targetDateEpochSec)
 
     ElevatedCard(
@@ -1631,6 +1579,21 @@ private fun GoalModernCard(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
+                if (isCompleted) {
+                    Surface(
+                        color = pctColor.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(shapes.extraLarge)
+                    ) {
+                        Text(
+                            text = "Completada 🎉",
+                            modifier = Modifier.padding(horizontal = spacing.s, vertical = spacing.xxs),
+                            style = typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = pctColor
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(spacing.xs))
+                }
                 Spacer(modifier = Modifier.width(spacing.s))
                 Text(
                     text = "$pct%",
@@ -1638,6 +1601,42 @@ private fun GoalModernCard(
                     fontWeight = FontWeight.Bold,
                     color = pctColor
                 )
+                Box {
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Opciones de meta",
+                            tint = colors.onSurfaceVariant
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                        modifier = Modifier.background(colors.surface)
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Editar") },
+                            onClick = {
+                                menuExpanded = false
+                                onEdit()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Archivar") },
+                            onClick = {
+                                menuExpanded = false
+                                onArchive()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Eliminar") },
+                            onClick = {
+                                menuExpanded = false
+                                onDelete()
+                            }
+                        )
+                    }
+                }
             }
 
             Text(
@@ -1739,7 +1738,10 @@ private fun goalProgressColor(progress: Float): Color {
     }
 }
 
-private fun getMotivationalMessage(progress: Float): Pair<String, String> {
+private fun getMotivationalMessage(progress: Float, isCompleted: Boolean): Pair<String, String> {
+    if (isCompleted) {
+        return "🎉 ¡Meta alcanzada!" to "Has completado tu objetivo de ahorro. Celebra este logro."
+    }
     val pct = (progress * 100).toInt()
     return when {
         progress >= 0.9f -> {
@@ -1771,6 +1773,311 @@ private fun getTimeRemainingText(targetDateEpochSec: Long): String {
         monthsLeft >= 1 -> "$monthsLeft mes(es) restante(s)"
         daysLeft >= 1 -> "$daysLeft día(s) restante(s)"
         else -> "Último día"
+    }
+}
+
+@Composable
+private fun GoalFormDialog(
+    title: String,
+    subtitle: String,
+    confirmLabel: String,
+    isLoading: Boolean,
+    initialName: String = "",
+    initialTargetCents: Long = 0L,
+    initialCurrency: String? = null,
+    initialTargetDateEpochSec: Long = System.currentTimeMillis() / 1000,
+    onDismiss: () -> Unit,
+    onConfirm: (name: String, targetCents: Long, currency: String, targetDateEpochSec: Long) -> Unit
+) {
+    val colors = XpendzThemeTokens.colors
+    val spacing = XpendzThemeTokens.spacing
+    val context = LocalContext.current
+    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale("es")) }
+
+    var goalName by remember { mutableStateOf(initialName) }
+    var goalAmountText by remember {
+        mutableStateOf(if (initialTargetCents > 0) (initialTargetCents / 100.0).toString() else "")
+    }
+    val deviceCountry = remember { Locale.getDefault().country }
+    val defaultCurrency = remember(deviceCountry) {
+        CountryCurrency.suggestedCurrency(deviceCountry)
+    }
+    var selectedCurrency by remember { mutableStateOf(initialCurrency ?: defaultCurrency) }
+    var currencyExpanded by remember { mutableStateOf(false) }
+    var currencyQuery by remember { mutableStateOf("") }
+    val currencySearchFocusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    val displayLocale = remember { Locale("es", "ES") }
+    val allCurrencies = remember {
+        Currency.getAvailableCurrencies()
+            .asSequence()
+            .map { c ->
+                val code = c.currencyCode
+                val label = c.getDisplayName(displayLocale)
+                    .replaceFirstChar { it.titlecase(displayLocale) }
+                code to label
+            }
+            .distinctBy { it.first }
+            .sortedBy { it.second }
+            .toList()
+    }
+    val suggestedCurrencies = remember(defaultCurrency, deviceCountry) {
+        val suggestedCodes = buildList {
+            add(defaultCurrency)
+            addAll(CountryCurrency.options.map { it.suggestedCurrency })
+            addAll(listOf("USD", "EUR"))
+        }.filter { it.isNotBlank() }.distinct()
+
+        val suggested = allCurrencies.filter { (code, _) -> suggestedCodes.contains(code) }
+        val preferred = suggested.firstOrNull { it.first == defaultCurrency }
+        val rest = suggested.filterNot { it.first == defaultCurrency }.sortedBy { it.second }
+        if (preferred == null) rest else listOf(preferred) + rest
+    }
+    val filteredCurrencies = remember(currencyQuery, suggestedCurrencies, allCurrencies) {
+        val q = currencyQuery.trim()
+        if (q.isBlank()) {
+            suggestedCurrencies
+        } else {
+            val byCurrency = allCurrencies.filter { (code, label) ->
+                code.contains(q, ignoreCase = true) || label.contains(q, ignoreCase = true)
+            }
+
+            val matchedCountryCurrencies = CountryCurrency.options
+                .asSequence()
+                .filter { option -> option.displayName.contains(q, ignoreCase = true) }
+                .map { it.suggestedCurrency }
+                .filter { it.isNotBlank() }
+                .distinct()
+                .toList()
+
+            val byCountry = if (matchedCountryCurrencies.isEmpty()) {
+                emptyList()
+            } else {
+                allCurrencies.filter { (code, _) -> matchedCountryCurrencies.contains(code) }
+            }
+
+            (byCountry + byCurrency)
+                .distinctBy { it.first }
+                .sortedBy { it.second }
+        }
+    }
+
+    var targetDateEpochSec by remember { mutableStateOf(initialTargetDateEpochSec) }
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = colors.surface,
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .imePadding(),
+                verticalArrangement = Arrangement.spacedBy(spacing.m)
+            ) {
+                GoalDialogHeader(
+                    title = title,
+                    subtitle = subtitle
+                )
+                MoneyInputField(
+                    value = goalAmountText,
+                    onValueChange = { goalAmountText = it },
+                    label = { Text("Monto objetivo") },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.AttachMoney,
+                            contentDescription = null,
+                            tint = colors.brand
+                        )
+                    },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(64.dp),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    variant = com.jcadenas.xpendz.ui.components.MoneyInputFieldVariant.OUTLINED,
+                    textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = colors.surfaceVariant.copy(alpha = 0.3f),
+                        unfocusedContainerColor = colors.surfaceVariant.copy(alpha = 0.3f),
+                        disabledContainerColor = colors.surfaceVariant.copy(alpha = 0.3f),
+                        focusedBorderColor = colors.brand,
+                        unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
+                    )
+                )
+                OutlinedTextField(
+                    value = goalName,
+                    onValueChange = { goalName = it },
+                    label = { Text("Nombre") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = colors.surface,
+                        unfocusedContainerColor = colors.surface,
+                        disabledContainerColor = colors.surface,
+                        focusedBorderColor = colors.brand,
+                        unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
+                    )
+                )
+
+                OutlinedTextField(
+                    value = allCurrencies.find { it.first == selectedCurrency }?.second ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Moneda") },
+                    placeholder = { Text("Selecciona moneda", color = colors.onSurfaceVariant.copy(alpha = 0.6f)) },
+                    trailingIcon = {
+                        IconButton(
+                            onClick = {
+                                currencyExpanded = !currencyExpanded
+                                if (!currencyExpanded) currencyQuery = ""
+                            }
+                        ) {
+                            Icon(Icons.Default.Savings, contentDescription = null, tint = colors.brand)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = colors.surface,
+                        unfocusedContainerColor = colors.surface,
+                        disabledContainerColor = colors.surface,
+                        focusedBorderColor = colors.brand,
+                        unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
+                    )
+                )
+
+                if (currencyExpanded) {
+                    LaunchedEffect(Unit) {
+                        currencySearchFocusRequester.requestFocus()
+                        keyboardController?.show()
+                    }
+
+                    ElevatedCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.elevatedCardColors(containerColor = colors.surface)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .imePadding()
+                        ) {
+                            OutlinedTextField(
+                                value = currencyQuery,
+                                onValueChange = { currencyQuery = it },
+                                singleLine = true,
+                                label = { Text("Buscar moneda o país") },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .focusRequester(currencySearchFocusRequester)
+                                    .padding(12.dp)
+                            )
+
+                            val showList = if (currencyQuery.isBlank()) {
+                                filteredCurrencies.take(20)
+                            } else {
+                                filteredCurrencies.take(50)
+                            }
+
+                            if (showList.isEmpty()) {
+                                DropdownMenuItem(
+                                    text = { Text("Sin resultados") },
+                                    onClick = { }
+                                )
+                            } else {
+                                LazyColumn(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 180.dp, max = 260.dp),
+                                    contentPadding = PaddingValues(vertical = 8.dp)
+                                ) {
+                                    items(showList) { (value, label) ->
+                                        DropdownMenuItem(
+                                            text = { Text("$label ($value)") },
+                                            onClick = {
+                                                selectedCurrency = value
+                                                currencyExpanded = false
+                                                currencyQuery = ""
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = dateFormat.format(Date(targetDateEpochSec * 1000)),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Fecha objetivo") },
+                    trailingIcon = {
+                        IconButton(onClick = { showDatePicker = true }) {
+                            Icon(Icons.Default.CalendarToday, contentDescription = null, tint = colors.brand)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = colors.surface,
+                        unfocusedContainerColor = colors.surface,
+                        disabledContainerColor = colors.surface,
+                        focusedBorderColor = colors.brand,
+                        unfocusedBorderColor = colors.onSurfaceVariant.copy(alpha = 0.3f)
+                    )
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val targetCents = MoneyInputFormatter.parseToCents(goalAmountText) ?: 0L
+                    if (goalName.isNotBlank() && targetCents > 0) {
+                        onConfirm(goalName.trim(), targetCents, selectedCurrency, targetDateEpochSec)
+                    }
+                },
+                enabled = goalName.isNotBlank() && goalAmountText.isNotBlank() && !isLoading,
+                shape = MaterialTheme.shapes.extraLarge,
+                colors = ButtonDefaults.buttonColors(containerColor = colors.brand)
+            ) {
+                Text(confirmLabel)
+            }
+        },
+        dismissButton = {
+            FilledTonalButton(
+                onClick = onDismiss,
+                shape = MaterialTheme.shapes.extraLarge
+            ) { Text("Cancelar") }
+        }
+    )
+
+    if (showDatePicker) {
+        val cal = Calendar.getInstance().apply { timeInMillis = targetDateEpochSec * 1000 }
+        DatePickerDialog(
+            context,
+            { _, year, month, day ->
+                val c = Calendar.getInstance().apply {
+                    set(Calendar.YEAR, year)
+                    set(Calendar.MONTH, month)
+                    set(Calendar.DAY_OF_MONTH, day)
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                targetDateEpochSec = c.timeInMillis / 1000
+                showDatePicker = false
+            },
+            cal.get(Calendar.YEAR),
+            cal.get(Calendar.MONTH),
+            cal.get(Calendar.DAY_OF_MONTH)
+        ).apply {
+            setOnCancelListener { showDatePicker = false }
+        }.show()
     }
 }
 
