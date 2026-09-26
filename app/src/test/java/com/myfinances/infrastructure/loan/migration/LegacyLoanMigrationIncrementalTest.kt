@@ -156,6 +156,40 @@ class LegacyLoanMigrationIncrementalTest {
     }
 
     @Test
+    fun closedLoanWithResidualPendingReplayConverges() = runBlocking {
+        // Caso real observado: el transporte llega CLOSED con principal 2.8M,
+        // pero los movements reconstruyen principal 2.9M con 100k pendientes
+        // (el ADJUSTMENT legacy no se mapea a evento). El replay debe sintetizar
+        // el ajuste -100k y el CLOSE usando el estado recalculado; antes del fix
+        // evaluaba el pending previo al ajuste y fallaba REMOTE_STATE_UNRECONSTRUCTABLE.
+        seedLoan(principalCents = 2_800_000L, status = "CLOSED", counterparty = "Luisa", notes = null, updatedBy = REMOTE_DEVICE)
+        seedMovement(movementId = "mov-create", type = "CREATION", amountCents = 1_800_000L, transactionId = null, occurredAt = 1_000L)
+        seedMovement(movementId = "mov-topup-1", type = "TOPUP", amountCents = 600_000L, transactionId = null, occurredAt = 2_000L)
+        seedMovement(movementId = "mov-adj", type = "ADJUSTMENT", amountCents = -100_000L, transactionId = null, occurredAt = 2_500L)
+        seedMovement(movementId = "mov-pay-1", type = "PAYMENT_IN", amountCents = 1_000_000L, transactionId = null, occurredAt = 3_000L)
+        seedMovement(movementId = "mov-topup-2", type = "TOPUP", amountCents = 500_000L, transactionId = null, occurredAt = 4_000L)
+        seedMovement(movementId = "mov-pay-2", type = "PAYMENT_IN", amountCents = 1_800_000L, transactionId = null, occurredAt = 5_000L)
+
+        migration.migrate(OWNER_ID)
+        val stale = requireSummary()
+        assertEquals("OPEN", stale.status)
+        assertEquals(2_900_000L, stale.principalCents)
+        assertEquals(100_000L, stale.pendingCents)
+
+        migration.migrate(OWNER_ID)
+
+        val summary = requireSummary()
+        assertEquals("CLOSED", summary.status)
+        assertEquals(2_800_000L, summary.principalCents)
+        assertEquals(2_800_000L, summary.totalPaidCents)
+        assertEquals(0L, summary.pendingCents)
+        val journal = canonicalLoanDao.getJournal(OWNER_ID, LOAN_ID)
+        assertEquals(7, journal.size)
+        assertEquals(1, journal.count { it.eventType == "ADJUSTMENT" && it.amountCents == -100_000L })
+        assertEquals(1, journal.count { it.eventType == "CLOSE" })
+    }
+
+    @Test
     fun ignoresForeignLoanTransactionsOnSameAccount() = runBlocking {
         // Otros préstamos en la misma cuenta dejaron transacciones LOAN_* no
         // referenciadas: no deben entrar al timeline de este préstamo.

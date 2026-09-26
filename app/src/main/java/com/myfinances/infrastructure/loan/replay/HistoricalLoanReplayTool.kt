@@ -308,29 +308,30 @@ class HistoricalLoanReplayTool @Inject constructor(
     ): List<LegacyEvent>? {
         val out = timeline.toMutableList()
         var nextOccurredAt = maxOf(loan.updatedAtEpochSec, out.last().occurredAt + 1)
+        var current = state
 
-        if (state.principal != loan.principalCents) {
-            out += LegacyEvent.syntheticAdjustment(loan, loan.principalCents - state.principal, nextOccurredAt)
+        if (current.principal != loan.principalCents) {
+            out += LegacyEvent.syntheticAdjustment(loan, loan.principalCents - current.principal, nextOccurredAt)
             nextOccurredAt += 1
-            val recalculated = simulate(out) ?: return null
-            if (recalculated.principal != loan.principalCents) {
+            current = simulate(out) ?: return null
+            if (current.principal != loan.principalCents) {
                 return null
             }
         }
 
         val desiredStatus = loan.status?.uppercase(Locale.ROOT) ?: "OPEN"
         if (desiredStatus == "CLOSED") {
-            if (state.pending > 0L) {
+            if (current.pending > 0L) {
                 return null
             }
-            if (!state.closed) {
+            if (!current.closed) {
                 out += LegacyEvent.syntheticClose(loan, nextOccurredAt)
-                val recalculated = simulate(out) ?: return null
-                if (!recalculated.closed) {
+                current = simulate(out) ?: return null
+                if (!current.closed) {
                     return null
                 }
             }
-        } else if (state.closed) {
+        } else if (current.closed) {
             return null
         }
 
