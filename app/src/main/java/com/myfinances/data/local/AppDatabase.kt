@@ -57,7 +57,7 @@ import com.jcadenas.xpendz.infrastructure.loan.room.CanonicalLoanDao
         LoanPaymentProjectionEntity::class,
         LoanSummaryProjectionEntity::class
     ],
-    version = 17,
+    version = 18,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -430,6 +430,15 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_16_17: Migration = object : Migration(16, 17) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE loan_admin_state_v1 ADD COLUMN pending_sync INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATION_17_18: Migration = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_loan_payment_projection_v1_aggregate " +
+                        "ON loan_payment_projection_v1(owner_id, loan_id, occurred_at)"
+                )
             }
         }
 

@@ -2,10 +2,12 @@ package com.jcadenas.xpendz.infrastructure.loan.projection.model
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 
 @Entity(
     tableName = "loan_payment_projection_v1",
-    primaryKeys = ["source_event_id"]
+    primaryKeys = ["source_event_id"],
+    indices = [Index(value = ["owner_id", "loan_id", "occurred_at"], name = "index_loan_payment_projection_v1_aggregate")]
 )
 data class LoanPaymentProjectionEntity(
     @ColumnInfo(name = "source_event_id") val sourceEventId: String,
