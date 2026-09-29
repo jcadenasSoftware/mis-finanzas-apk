@@ -53,6 +53,7 @@ import com.jcadenas.xpendz.ui.screens.dashboard.DashboardScreen
 import com.jcadenas.xpendz.ui.screens.budget.BudgetScreen
 import com.jcadenas.xpendz.ui.screens.loans.LoansScreen
 import com.jcadenas.xpendz.ui.screens.login.LoginScreen
+import com.jcadenas.xpendz.ui.screens.obligations.ObligationsScreen
 import com.jcadenas.xpendz.ui.screens.onboarding.OnboardingScreen
 import com.jcadenas.xpendz.ui.screens.reports.ReportsScreen
 import com.jcadenas.xpendz.ui.screens.settings.BackupSettingsScreen
@@ -259,6 +260,9 @@ fun AppNavHost(
                 onNavigateToLoans = {
                     navController.navigate(NavRoutes.Loans.route)
                 },
+                onNavigateToObligations = {
+                    navController.navigate(NavRoutes.Obligations.route)
+                },
                 onNavigateToBudget = {
                     navController.navigate(NavRoutes.Budget.route)
                 },
@@ -290,6 +294,7 @@ fun AppNavHost(
                 onNavigateToCharts = { navController.navigate(NavRoutes.Charts.route) },
                 onNavigateToReports = { navController.navigate(NavRoutes.Reports.route) },
                 onNavigateToSettings = { navController.navigate(NavRoutes.Settings.route) },
+                onNavigateToObligations = { navController.navigate(NavRoutes.Obligations.route) },
                 onLogout = {
                     authViewModel.signOut()
                     navController.navigate(NavRoutes.Login.route) {
@@ -307,6 +312,7 @@ fun AppNavHost(
                 onNavigateToBudget = { navController.navigate(NavRoutes.Budget.route) },
                 onNavigateToReports = { navController.navigate(NavRoutes.Reports.route) },
                 onNavigateToSettings = { navController.navigate(NavRoutes.Settings.route) },
+                onNavigateToObligations = { navController.navigate(NavRoutes.Obligations.route) },
                 onLogout = {
                     authViewModel.signOut()
                     navController.navigate(NavRoutes.Login.route) {
@@ -315,6 +321,22 @@ fun AppNavHost(
                 },
                 onEditTransaction = { id ->
                     navController.navigate(NavRoutes.EditTransaction.createRoute(id))
+                }
+            )
+        }
+
+        composable(NavRoutes.Obligations.route) {
+            ObligationsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToCharts = { navController.navigate(NavRoutes.Charts.route) },
+                onNavigateToBudget = { navController.navigate(NavRoutes.Budget.route) },
+                onNavigateToReports = { navController.navigate(NavRoutes.Reports.route) },
+                onNavigateToSettings = { navController.navigate(NavRoutes.Settings.route) },
+                onLogout = {
+                    authViewModel.signOut()
+                    navController.navigate(NavRoutes.Login.route) {
+                        popUpTo(NavRoutes.Dashboard.route) { inclusive = true }
+                    }
                 }
             )
         }
@@ -343,6 +365,7 @@ fun AppNavHost(
                 onNavigateToBudget = { navController.navigate(NavRoutes.Budget.route) },
                 onNavigateToReports = { navController.navigate(NavRoutes.Reports.route) },
                 onNavigateToSettings = { navController.navigate(NavRoutes.Settings.route) },
+                onNavigateToObligations = { navController.navigate(NavRoutes.Obligations.route) },
                 onLogout = {
                     authViewModel.signOut()
                     navController.navigate(NavRoutes.Login.route) {
@@ -411,6 +434,7 @@ fun AppNavHost(
                 onNavigateToBudget = { navController.navigate(NavRoutes.Budget.route) },
                 onNavigateToReports = { navController.navigate(NavRoutes.Reports.route) },
                 onNavigateToSettings = { navController.navigate(NavRoutes.Settings.route) },
+                onNavigateToObligations = { navController.navigate(NavRoutes.Obligations.route) },
                 onLogout = {
                     authViewModel.signOut()
                     navController.navigate(NavRoutes.Login.route) {
@@ -428,6 +452,7 @@ fun AppNavHost(
                 onNavigateToBudget = { navController.navigate(NavRoutes.Budget.route) },
                 onNavigateToReports = { navController.navigate(NavRoutes.Reports.route) },
                 onNavigateToSettings = { navController.navigate(NavRoutes.Settings.route) },
+                onNavigateToObligations = { navController.navigate(NavRoutes.Obligations.route) },
                 onLogout = {
                     authViewModel.signOut()
                     navController.navigate(NavRoutes.Login.route) {
@@ -452,6 +477,7 @@ fun AppNavHost(
                 onNavigateToCharts = { navController.navigate(NavRoutes.Charts.route) },
                 onNavigateToBudget = { navController.navigate(NavRoutes.Budget.route) },
                 onNavigateToReports = { navController.navigate(NavRoutes.Reports.route) },
+                onNavigateToObligations = { navController.navigate(NavRoutes.Obligations.route) },
                 onLogout = {
                     authViewModel.signOut()
                     navController.navigate(NavRoutes.Login.route) {
@@ -497,6 +523,7 @@ fun AppNavHost(
                 onNavigateToCharts = { navController.navigate(NavRoutes.Charts.route) },
                 onNavigateToBudget = { navController.navigate(NavRoutes.Budget.route) },
                 onNavigateToSettings = { navController.navigate(NavRoutes.Settings.route) },
+                onNavigateToObligations = { navController.navigate(NavRoutes.Obligations.route) },
                 onLogout = {
                     authViewModel.signOut()
                     navController.navigate(NavRoutes.Login.route) {

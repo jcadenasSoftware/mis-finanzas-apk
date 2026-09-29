@@ -86,6 +86,7 @@ fun DashboardScreen(
     onNavigateToBudget: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToReports: () -> Unit,
+    onNavigateToObligations: () -> Unit,
     onBottomBarVisibilityChange: (Boolean) -> Unit,
     onLogout: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
@@ -304,6 +305,7 @@ fun DashboardScreen(
                             onNavigateToBudget = onNavigateToBudget,
                             onNavigateToReports = onNavigateToReports,
                             onNavigateToSettings = onNavigateToSettings,
+                            onNavigateToObligations = onNavigateToObligations,
                             onLogout = { showLogoutConfirmation = true },
                             currentScreen = "dashboard"
                         )

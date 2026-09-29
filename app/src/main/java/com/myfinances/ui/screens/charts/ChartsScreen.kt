@@ -73,6 +73,7 @@ fun ChartsScreen(
     onNavigateToBudget: () -> Unit,
     onNavigateToReports: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToObligations: () -> Unit,
     onLogout: () -> Unit,
     viewModel: ChartsViewModel = hiltViewModel()
 ) {
@@ -120,6 +121,7 @@ fun ChartsScreen(
                             onNavigateToBudget = onNavigateToBudget,
                             onNavigateToReports = onNavigateToReports,
                             onNavigateToSettings = onNavigateToSettings,
+                            onNavigateToObligations = onNavigateToObligations,
                             onLogout = onLogout,
                             currentScreen = "charts"
                         )

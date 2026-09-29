@@ -10,6 +10,7 @@ import com.jcadenas.xpendz.data.local.dao.CategorySpentTotal
 import com.jcadenas.xpendz.data.local.dao.HierarchyCategoryTotal
 import com.jcadenas.xpendz.data.local.dao.MonthlyCategoryDetailTotal
 import com.jcadenas.xpendz.data.local.dao.MonthlyCategoryTotal
+import com.jcadenas.xpendz.data.local.dao.ObligationSettlementDao
 import com.jcadenas.xpendz.data.local.dao.RootCategorySpentTotal
 import com.jcadenas.xpendz.data.local.dao.TransactionWithDetails
 import com.jcadenas.xpendz.data.local.entity.TransactionEntity
@@ -28,6 +29,7 @@ import javax.inject.Singleton
 class TransactionRepository @Inject constructor(
     private val transactionDao: TransactionDao,
     private val accountDao: AccountDao,
+    private val obligationSettlementDao: ObligationSettlementDao,
     private val firestore: FirebaseFirestore,
     private val deviceIdProvider: DeviceIdProvider
 ) : com.jcadenas.xpendz.infrastructure.loan.migration.ReversedLoanTransactionStore {
@@ -229,6 +231,9 @@ class TransactionRepository @Inject constructor(
     ): TransactionEntity? {
         val existing = transactionDao.getById(transactionId) ?: return null
         require(!isLoanRepaymentTransaction(existing.kind)) { "Los pagos de préstamos deben modificarse desde Préstamos" }
+        require(obligationSettlementDao.getByLinkedTransactionId(transactionId) == null) {
+            "Esta transacción pertenece a una obligación. Modifícala desde el módulo Cuentas por Cobrar/Pagar."
+        }
 
         // Enforce non-negative balance by simulating: (current balance) + revert(old) + apply(new)
         // Balance is computed including the existing transaction.
@@ -273,6 +278,9 @@ class TransactionRepository @Inject constructor(
         val existing = transactionDao.getById(transactionId)
         require(existing == null || !isLoanRepaymentTransaction(existing.kind)) {
             "Los pagos de préstamos deben eliminarse desde Préstamos"
+        }
+        require(obligationSettlementDao.getByLinkedTransactionId(transactionId) == null) {
+            "Esta transacción pertenece a una obligación. Elimínala desde el módulo Cuentas por Cobrar/Pagar."
         }
         transactionDao.delete(transactionId)
         deleteFromFirestore(userUid, transactionId)
@@ -436,6 +444,12 @@ class TransactionRepository @Inject constructor(
                 Log.d("TransactionRepository", "Transactions snapshot from cache; skipping prune")
             } else for (local in transactionDao.getByUser(userUid)) {
                 if (local.id !in remoteIds) {
+                    if (obligationSettlementDao.getByLinkedTransactionId(local.id) != null) {
+                        // Una transacción enlazada a un settlement solo se elimina
+                        // junto con su settlement dentro de este ciclo de sync.
+                        Log.d("TransactionRepository", "Skipping prune of obligation-linked transaction ${local.id}")
+                        continue
+                    }
                     try {
                         transactionDao.delete(local.id)
                         pruned++

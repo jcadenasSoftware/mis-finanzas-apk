@@ -8,6 +8,8 @@ import com.jcadenas.xpendz.data.local.entity.GoalEntity
 import com.jcadenas.xpendz.data.local.entity.LoanEntity
 import com.jcadenas.xpendz.data.local.entity.LoanMovementEntity
 import com.jcadenas.xpendz.data.local.entity.LoanPaymentEntity
+import com.jcadenas.xpendz.data.local.entity.ObligationEntity
+import com.jcadenas.xpendz.data.local.entity.ObligationSettlementEntity
 import com.jcadenas.xpendz.data.local.entity.TransactionEntity
 import com.jcadenas.xpendz.data.local.entity.TransferEntity
 import com.jcadenas.xpendz.data.local.entity.UserEntity
@@ -31,9 +33,11 @@ import kotlinx.serialization.Serializable
  * 7. TransferEntity (depende de User, Account)
  * 8. BudgetEntity (depende de User, Category)
  * 9. GoalEntity (depende de User, Account)
- * 10. LoanPaymentEntity (depende de User, Loan, Account)
- * 11. LoanMovementEntity (depende de User, Loan, Account)
- * 12. ExchangeRateEntity (depende de User)
+ * 10. ObligationEntity (depende de User, Category opcional)
+ * 11. ObligationSettlementEntity (depende de User, Obligation, Account, Transaction)
+ * 12. LoanPaymentEntity (depende de User, Loan, Account)
+ * 13. LoanMovementEntity (depende de User, Loan, Account)
+ * 14. ExchangeRateEntity (depende de User)
  *
  * @property metadata Metadatos del backup (versión, usuario, timestamp)
  * @property user Usuario raíz del backup
@@ -45,6 +49,8 @@ import kotlinx.serialization.Serializable
  * @property transfers Lista de transferencias entre cuentas
  * @property budgets Lista de presupuestos mensuales por categoría
  * @property goals Lista de metas de ahorro
+ * @property obligations Lista de cuentas por cobrar/pagar (obligaciones)
+ * @property obligationSettlements Lista de abonos de obligaciones
  * @property loanPayments Lista de pagos de préstamos
  * @property loanMovements Lista de movimientos de préstamos (intereses, ajustes)
  * @property exchangeRates Lista de tasas de cambio de moneda
@@ -115,6 +121,23 @@ data class BackupData(
      */
     val goals: List<GoalEntity> = emptyList(),
 
+    // ===== ENTIDADES DE OBLIGACIONES =====
+    /**
+     * Cuentas por cobrar/pagar (obligaciones financieras).
+     * Dependencias: UserEntity, CategoryEntity (obligationCategoryId opcional).
+     * Una obligación es una obligación, NO dinero: no implica Transactions.
+     */
+    val obligations: List<ObligationEntity> = emptyList(),
+
+    /**
+     * Abonos/liquidaciones de obligaciones.
+     * Dependencias: UserEntity, ObligationEntity, AccountEntity, TransactionEntity.
+     * linkedTransactionId es FK obligatoria y única: un settlement sin su
+     * Transaction correspondiente es una inconsistencia que debe rechazarse,
+     * nunca "repararse" fabricando una Transaction.
+     */
+    val obligationSettlements: List<ObligationSettlementEntity> = emptyList(),
+
     // ===== ENTIDADES HIJAS DE LOAN =====
     /**
      * Pagos de préstamos.
@@ -143,6 +166,6 @@ data class BackupData(
          * Cantidad total de entidades en BackupData.
          * Útil para validación y estadísticas.
          */
-        const val ENTITY_COUNT = 12
+        const val ENTITY_COUNT = 14
     }
 }

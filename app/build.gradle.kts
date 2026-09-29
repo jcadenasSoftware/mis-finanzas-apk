@@ -44,6 +44,11 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+    testOptions {
+        // Permite que Robolectric vea el manifest mergeado (ComponentDiscoveryService
+        // de Firebase) y los recursos en unit tests.
+        unitTests.isIncludeAndroidResources = true
+    }
     buildFeatures {
         compose = true
     }

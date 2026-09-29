@@ -32,30 +32,83 @@ class AppDatabaseMigrationTest {
     }
 
     @Test
-    fun migratesVersion12To18AndCreatesLoanPaymentProjectionIndex() {
-        val databaseName = trackDatabaseName("migration-12-18-${UUID.randomUUID()}.db")
+    fun migratesVersion12To19AndCreatesObligationTables() {
+        val databaseName = trackDatabaseName("migration-12-19-${UUID.randomUUID()}.db")
         createVersion12Database(databaseName)
 
         val database = openRoomDatabase(databaseName)
         try {
             val sqlite = database.openHelper.writableDatabase
-            assertEquals(18, readUserVersion(sqlite))
+            assertEquals(19, readUserVersion(sqlite))
             assertLoanPaymentProjectionAggregateIndex(sqlite)
+            assertObligationTables(sqlite)
         } finally {
             database.close()
         }
     }
 
     @Test
-    fun migratesVersion17To18AndPreservesLoanPaymentProjectionIndex() {
-        val databaseName = trackDatabaseName("migration-17-18-${UUID.randomUUID()}.db")
+    fun migratesVersion17To19AndPreservesLoanPaymentProjectionIndex() {
+        val databaseName = trackDatabaseName("migration-17-19-${UUID.randomUUID()}.db")
         createVersion17Database(databaseName)
 
         val database = openRoomDatabase(databaseName)
         try {
             val sqlite = database.openHelper.writableDatabase
-            assertEquals(18, readUserVersion(sqlite))
+            assertEquals(19, readUserVersion(sqlite))
             assertLoanPaymentProjectionAggregateIndex(sqlite)
+            assertObligationTables(sqlite)
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun migratesVersion18To19AndAddsStrictSettlementLinkIndex() {
+        val databaseName = trackDatabaseName("migration-18-19-${UUID.randomUUID()}.db")
+        createVersion18Database(databaseName)
+
+        val database = openRoomDatabase(databaseName)
+        try {
+            val sqlite = database.openHelper.writableDatabase
+            assertEquals(19, readUserVersion(sqlite))
+            assertObligationTables(sqlite)
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun migratesVersion18To19AndPreservesAllPreexistingRows() {
+        val databaseName = trackDatabaseName("migration-populated-${UUID.randomUUID()}.db")
+        createVersion18Database(databaseName)
+        seedPopulatedVersion18Database(databaseName)
+
+        val database = openRoomDatabase(databaseName)
+        try {
+            val sqlite = database.openHelper.writableDatabase
+            assertEquals(19, readUserVersion(sqlite))
+            assertObligationTables(sqlite)
+
+            assertRow(sqlite, "users", "uid = ?", arrayOf(SEED_USER_UID))
+            assertRow(sqlite, "accounts", "id = ? AND name = ? AND currency = ?", arrayOf(SEED_ACCOUNT_ID, "Banco", "USD"))
+            assertRow(sqlite, "categories", "id = ? AND name = ? AND kind = ?", arrayOf(SEED_CATEGORY_ID, "Ventas", "INCOME"))
+            assertRow(sqlite, "transactions", "id = ? AND account_id = ? AND amount_cents = ?", arrayOf(SEED_TRANSACTION_ID, SEED_ACCOUNT_ID, "250000"))
+            assertRow(sqlite, "transfers", "id = ? AND from_account_id = ? AND to_account_id = ?", arrayOf(SEED_TRANSFER_ID, SEED_ACCOUNT_ID, "acc-2"))
+            assertRow(sqlite, "budgets", "id = ? AND category_id = ? AND limit_cents = ?", arrayOf(SEED_BUDGET_ID, SEED_CATEGORY_ID, "900000"))
+            assertRow(sqlite, "goals", "id = ? AND name = ? AND target_cents = ?", arrayOf(SEED_GOAL_ID, "Viaje", "5000000"))
+            assertRow(sqlite, "loans", "id = ? AND counterparty_name = ? AND principal_cents = ?", arrayOf(SEED_LOAN_ID, "Ana", "800000"))
+            assertRow(sqlite, "loan_payments", "id = ? AND loan_id = ? AND principal_cents = ? AND linked_transaction_id = ?", arrayOf(SEED_LOAN_PAYMENT_ID, SEED_LOAN_ID, "100000", SEED_TRANSACTION_ID))
+            assertRow(sqlite, "loan_movements", "id = ? AND loan_id = ? AND amount_cents = ?", arrayOf(SEED_LOAN_MOVEMENT_ID, SEED_LOAN_ID, "800000"))
+            assertRow(sqlite, "loan_journal_v1", "event_id = ? AND loan_id = ? AND event_type = ?", arrayOf(SEED_JOURNAL_EVENT_ID, SEED_LOAN_ID, "LOAN_CREATED"))
+            assertRow(sqlite, "loan_snapshots_v1", "loan_id = ? AND owner_id = ? AND principal_cents = ?", arrayOf(SEED_LOAN_ID, SEED_USER_UID, "800000"))
+            assertRow(sqlite, "loan_summary_projection_v1", "loan_id = ? AND owner_id = ? AND status = ?", arrayOf(SEED_LOAN_ID, SEED_USER_UID, "OPEN"))
+            assertRow(sqlite, "loan_admin_state_v1", "loan_id = ? AND owner_id = ? AND archived = ?", arrayOf(SEED_LOAN_ID, SEED_USER_UID, "0"))
+            assertRow(sqlite, "exchange_rates", "id = ? AND from_currency = ? AND to_currency = ?", arrayOf(SEED_RATE_ID, "USD", "COP"))
+            assertRow(sqlite, "user_settings", "user_uid = ? AND base_currency = ?", arrayOf(SEED_USER_UID, "COP"))
+
+            assertCount(sqlite, "obligations", 0)
+            assertCount(sqlite, "obligation_settlements", 0)
         } finally {
             database.close()
         }
@@ -87,7 +140,8 @@ class AppDatabaseMigrationTest {
         AppDatabase.MIGRATION_14_15,
         AppDatabase.MIGRATION_15_16,
         AppDatabase.MIGRATION_16_17,
-        AppDatabase.MIGRATION_17_18
+        AppDatabase.MIGRATION_17_18,
+        AppDatabase.MIGRATION_18_19
     ).build()
 
     private fun createVersion12Database(databaseName: String) {
@@ -98,6 +152,13 @@ class AppDatabaseMigrationTest {
 
     private fun createVersion17Database(databaseName: String) {
         createDatabase(databaseName, 17) { db ->
+            VERSION_12_SQL.forEach(db::execSQL)
+            VERSION_13_TO_17_SQL.forEach(db::execSQL)
+        }
+    }
+
+    private fun createVersion18Database(databaseName: String) {
+        createDatabase(databaseName, 18) { db ->
             VERSION_12_SQL.forEach(db::execSQL)
             VERSION_13_TO_17_SQL.forEach(db::execSQL)
         }
@@ -149,14 +210,115 @@ class AppDatabaseMigrationTest {
         )
     }
 
+    private fun assertObligationTables(db: SupportSQLiteDatabase) {
+        assertIndexColumns(
+            db = db,
+            table = "obligations",
+            indexName = "index_obligations_obligation_category_id",
+            expectedColumns = listOf("obligation_category_id")
+        )
+        assertIndexColumns(
+            db = db,
+            table = "obligation_settlements",
+            indexName = "index_obligation_settlements_linked_transaction_id",
+            expectedColumns = listOf("linked_transaction_id"),
+            expectedUnique = true
+        )
+    }
+
+    private fun assertIndexColumns(
+        db: SupportSQLiteDatabase,
+        table: String,
+        indexName: String,
+        expectedColumns: List<String>,
+        expectedUnique: Boolean = false
+    ) {
+        val indices = mutableMapOf<String, Boolean>()
+        db.query("PRAGMA index_list(`$table`)").use { cursor ->
+            val nameIndex = cursor.getColumnIndexOrThrow("name")
+            val uniqueIndex = cursor.getColumnIndexOrThrow("unique")
+            while (cursor.moveToNext()) {
+                indices[cursor.getString(nameIndex)] = cursor.getInt(uniqueIndex) == 1
+            }
+        }
+        assertTrue(indices.containsKey(indexName))
+        assertEquals(expectedUnique, indices[indexName])
+
+        val columns = mutableListOf<Pair<Int, String>>()
+        db.query("PRAGMA index_info(`$indexName`)").use { cursor ->
+            val seqnoIndex = cursor.getColumnIndexOrThrow("seqno")
+            val nameIndex = cursor.getColumnIndexOrThrow("name")
+            while (cursor.moveToNext()) {
+                columns += cursor.getInt(seqnoIndex) to cursor.getString(nameIndex)
+            }
+        }
+        assertEquals(expectedColumns, columns.sortedBy { it.first }.map { it.second })
+    }
+
     private fun readUserVersion(db: SupportSQLiteDatabase): Int =
         db.query("PRAGMA user_version").use { cursor ->
             cursor.moveToFirst()
             cursor.getInt(0)
         }
 
+    private fun seedPopulatedVersion18Database(databaseName: String) {
+        val databaseFile = context.getDatabasePath(databaseName)
+        val db = SQLiteDatabase.openOrCreateDatabase(databaseFile, null)
+        db.execSQL("PRAGMA foreign_keys=ON")
+        db.beginTransaction()
+        try {
+            db.execSQL("INSERT INTO users VALUES ('$SEED_USER_UID','hist@x.dev',1,1)")
+            db.execSQL("INSERT INTO accounts VALUES ('$SEED_ACCOUNT_ID','$SEED_USER_UID','Banco','BANK','USD',NULL,NULL,1,1,NULL)")
+            db.execSQL("INSERT INTO accounts VALUES ('acc-2','$SEED_USER_UID','Caja','CASH','USD',NULL,NULL,1,1,NULL)")
+            db.execSQL("INSERT INTO categories VALUES ('$SEED_CATEGORY_ID','$SEED_USER_UID','Ventas','INCOME',NULL,NULL,1,1,NULL)")
+            db.execSQL("INSERT INTO transactions VALUES ('$SEED_TRANSACTION_ID','$SEED_USER_UID','$SEED_ACCOUNT_ID','$SEED_CATEGORY_ID','INCOME',250000,100,NULL,1,1,NULL)")
+            db.execSQL("INSERT INTO transfers VALUES ('$SEED_TRANSFER_ID','$SEED_USER_UID','$SEED_ACCOUNT_ID','acc-2',50000,100,NULL,1,1,NULL)")
+            db.execSQL("INSERT INTO budgets VALUES ('$SEED_BUDGET_ID','$SEED_USER_UID','2026-09','$SEED_CATEGORY_ID','USD',900000,1,1,NULL)")
+            db.execSQL("INSERT INTO goals VALUES ('$SEED_GOAL_ID','$SEED_USER_UID','Viaje','USD',5000000,200,'$SEED_ACCOUNT_ID','ACTIVE',1,1,NULL)")
+            db.execSQL("INSERT INTO loans VALUES ('$SEED_LOAN_ID','$SEED_USER_UID','LENT','Ana','$SEED_ACCOUNT_ID','USD',800000,'OPEN',NULL,1,1,NULL)")
+            db.execSQL("INSERT INTO loan_payments VALUES ('$SEED_LOAN_PAYMENT_ID','$SEED_USER_UID','$SEED_LOAN_ID','$SEED_ACCOUNT_ID',100000,100,NULL,'$SEED_TRANSACTION_ID',1,1,NULL)")
+            db.execSQL("INSERT INTO loan_movements VALUES ('$SEED_LOAN_MOVEMENT_ID','$SEED_USER_UID','$SEED_LOAN_ID','PRINCIPAL_DISBURSEMENT',800000,'$SEED_ACCOUNT_ID','$SEED_TRANSACTION_ID',NULL,100,1,1,NULL)")
+            db.execSQL("INSERT INTO loan_journal_v1 (event_id, operation_id, loan_id, owner_id, event_type, event_schema_version, amount_cents, account_id, transaction_id, note, occurred_at, recorded_at, actor_id, origin_id, payload_loan_type, payload_counterparty_name, payload_currency, payload_default_account_id, payload_notes, payload_legacy_direction, payload_legacy_source, payload_reason, payload_target_event_id, metadata_counterparty_present, metadata_counterparty_value, metadata_account_present, metadata_account_value, metadata_notes_present, metadata_notes_value) VALUES ('$SEED_JOURNAL_EVENT_ID','op-1','$SEED_LOAN_ID','$SEED_USER_UID','LOAN_CREATED',1,800000,'$SEED_ACCOUNT_ID',NULL,NULL,100,100,NULL,NULL,'LENT','Ana','USD','$SEED_ACCOUNT_ID',NULL,NULL,NULL,NULL,NULL,1,'Ana',1,'$SEED_ACCOUNT_ID',0,NULL)")
+            db.execSQL("INSERT INTO loan_snapshots_v1 VALUES ('$SEED_LOAN_ID','$SEED_USER_UID','LENT','Ana','USD','$SEED_ACCOUNT_ID',NULL,800000,100000,-700000,700000,0,'OPEN',NULL,100,1,'fp',1)")
+            db.execSQL("INSERT INTO loan_summary_projection_v1 (loan_id, owner_id, counterparty, loan_type, currency, principal_cents, total_paid_cents, pending_cents, overpaid_cents, status, closed_at, last_activity, journal_fingerprint, default_account_id, notes, payment_count, last_payment_at, progress_percent) VALUES ('$SEED_LOAN_ID','$SEED_USER_UID','Ana','LENT','USD',800000,100000,700000,0,'OPEN',NULL,100,'fp','$SEED_ACCOUNT_ID',NULL,1,100,12)")
+            db.execSQL("INSERT INTO loan_admin_state_v1 VALUES ('$SEED_LOAN_ID','$SEED_USER_UID',0,NULL,1,NULL,0)")
+            db.execSQL("INSERT INTO exchange_rates VALUES ('$SEED_RATE_ID','$SEED_USER_UID','USD','COP',4200.0,1,NULL)")
+            db.execSQL("INSERT INTO user_settings VALUES ('$SEED_USER_UID','CO','COP',1,NULL)")
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+            db.close()
+        }
+    }
+
+    private fun assertRow(db: SupportSQLiteDatabase, table: String, where: String, args: Array<String>) {
+        db.query("SELECT COUNT(*) FROM `$table` WHERE $where", args).use { cursor ->
+            cursor.moveToFirst()
+            assertEquals("missing row in $table where $where", 1, cursor.getInt(0))
+        }
+    }
+
+    private fun assertCount(db: SupportSQLiteDatabase, table: String, expected: Int) {
+        db.query("SELECT COUNT(*) FROM `$table`").use { cursor ->
+            cursor.moveToFirst()
+            assertEquals(expected, cursor.getInt(0))
+        }
+    }
+
     companion object {
         private const val INDEX_NAME = "index_loan_payment_projection_v1_aggregate"
+        private const val SEED_USER_UID = "uid-hist-1"
+        private const val SEED_ACCOUNT_ID = "acc-1"
+        private const val SEED_CATEGORY_ID = "cat-1"
+        private const val SEED_TRANSACTION_ID = "tx-1"
+        private const val SEED_TRANSFER_ID = "tr-1"
+        private const val SEED_BUDGET_ID = "bud-1"
+        private const val SEED_GOAL_ID = "goal-1"
+        private const val SEED_LOAN_ID = "loan-1"
+        private const val SEED_LOAN_PAYMENT_ID = "pay-1"
+        private const val SEED_LOAN_MOVEMENT_ID = "mov-1"
+        private const val SEED_JOURNAL_EVENT_ID = "evt-1"
+        private const val SEED_RATE_ID = "rate-1"
 
         private val VERSION_12_SQL = listOf(
             "CREATE TABLE IF NOT EXISTS `users` (`uid` TEXT NOT NULL, `email` TEXT NOT NULL, `created_at_epoch_sec` INTEGER NOT NULL, `updated_at_epoch_sec` INTEGER NOT NULL, PRIMARY KEY(`uid`))",

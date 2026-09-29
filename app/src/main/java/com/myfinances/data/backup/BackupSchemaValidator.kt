@@ -41,6 +41,8 @@ class BackupSchemaValidator {
         validateCategoryParentIds(backupData)
         validateAccountReferences(backupData)
         validateLinkedTransactionReferences(backupData)
+        validateObligationCategoryReferences(backupData)
+        validateSettlementIntegrity(backupData)
     }
 
     /**
@@ -97,6 +99,8 @@ class BackupSchemaValidator {
             "transfers" to backupData.transfers,
             "budgets" to backupData.budgets,
             "goals" to backupData.goals,
+            "obligations" to backupData.obligations,
+            "obligationSettlements" to backupData.obligationSettlements,
             "loanPayments" to backupData.loanPayments,
             "loanMovements" to backupData.loanMovements,
             "exchangeRates" to backupData.exchangeRates
@@ -196,6 +200,84 @@ class BackupSchemaValidator {
                         "(no existe en la lista de transacciones)"
                     )
                 }
+            }
+        }
+    }
+
+    /**
+     * Valida que los obligationCategoryId opcionales referencien categorías válidas.
+     *
+     * ObligationEntity.obligationCategoryId es una FK opcional (RESTRICT).
+     * Si no es null, debe referenciar una categoría en la lista.
+     *
+     * @param backupData Datos de backup a validar
+     * @throws SchemaValidationException si algún obligationCategoryId es inválido
+     */
+    private fun validateObligationCategoryReferences(backupData: BackupData) {
+        val categoryIds = backupData.categories.map { it.id }.toSet()
+
+        backupData.obligations.forEach { obligation ->
+            obligation.obligationCategoryId?.let { categoryId ->
+                if (categoryId !in categoryIds) {
+                    throw SchemaValidationException(
+                        "Obligación '${obligation.id}' tiene obligationCategoryId inválido: '$categoryId' " +
+                        "(no existe en la lista de categorías)"
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Valida la cadena de integridad Obligation → Settlement → Transaction.
+     *
+     * Regla estricta del módulo: un ObligationSettlement exige que existan en
+     * el mismo backup su Obligation padre, su Account y la Transaction enlazada
+     * por linkedTransactionId. Un settlement cuya Transaction enlazada no está
+     * en el backup es una inconsistencia de integridad: se detecta, se reporta
+     * y se rechaza la restauración. Nunca se "repara" fabricando la Transaction
+     * ni se descarta silenciosamente el settlement.
+     *
+     * Además, linkedTransactionId es única: dos settlements no pueden reclamar
+     * la misma Transaction.
+     *
+     * @param backupData Datos de backup a validar
+     * @throws SchemaValidationException ante cualquier inconsistencia
+     */
+    private fun validateSettlementIntegrity(backupData: BackupData) {
+        val obligationIds = backupData.obligations.map { it.id }.toSet()
+        val accountIds = backupData.accounts.map { it.id }.toSet()
+        val transactionIds = backupData.transactions.map { it.id }.toSet()
+        val claimedTransactionIds = mutableSetOf<String>()
+
+        backupData.obligationSettlements.forEach { settlement ->
+            if (settlement.obligationId !in obligationIds) {
+                throw SchemaValidationException(
+                    "Settlement '${settlement.id}' referencia obligación inexistente: " +
+                    "'${settlement.obligationId}' (no existe en la lista de obligaciones)"
+                )
+            }
+
+            if (settlement.accountId !in accountIds) {
+                throw SchemaValidationException(
+                    "Settlement '${settlement.id}' tiene accountId inválido: '${settlement.accountId}' " +
+                    "(no existe en la lista de cuentas)"
+                )
+            }
+
+            if (settlement.linkedTransactionId !in transactionIds) {
+                throw SchemaValidationException(
+                    "Settlement '${settlement.id}' tiene linkedTransactionId sin Transaction en el backup: " +
+                    "'${settlement.linkedTransactionId}'. La restauración se rechaza: el backup no puede " +
+                    "fabricar una transacción que no existe."
+                )
+            }
+
+            if (!claimedTransactionIds.add(settlement.linkedTransactionId)) {
+                throw SchemaValidationException(
+                    "Settlement '${settlement.id}' reclama linkedTransactionId '${settlement.linkedTransactionId}' " +
+                    "ya asignado a otro settlement del backup (violación de unicidad)"
+                )
             }
         }
     }

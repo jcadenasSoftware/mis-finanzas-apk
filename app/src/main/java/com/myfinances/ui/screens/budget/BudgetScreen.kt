@@ -127,6 +127,7 @@ fun BudgetScreen(
     onNavigateToCharts: () -> Unit,
     onNavigateToReports: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToObligations: () -> Unit,
     onLogout: () -> Unit,
     initialTab: String = "",
     viewModel: BudgetViewModel = hiltViewModel()
@@ -306,6 +307,7 @@ fun BudgetScreen(
                             onNavigateToBudget = { },
                             onNavigateToReports = onNavigateToReports,
                             onNavigateToSettings = onNavigateToSettings,
+                            onNavigateToObligations = onNavigateToObligations,
                             onLogout = onLogout,
                             currentScreen = "budget"
                         )

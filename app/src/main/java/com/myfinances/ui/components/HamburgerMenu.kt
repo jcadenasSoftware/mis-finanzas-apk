@@ -3,6 +3,7 @@ package com.jcadenas.xpendz.ui.components
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.FactCheck
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Settings
@@ -41,6 +42,7 @@ fun HamburgerMenu(
     onNavigateToBudget: () -> Unit,
     onNavigateToReports: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToObligations: () -> Unit,
     onLogout: () -> Unit,
     currentScreen: String = "",
     modifier: Modifier = Modifier
@@ -167,6 +169,47 @@ fun HamburgerMenu(
                 if (!isBudgetActive) onNavigateToBudget()
             },
             modifier = if (isBudgetActive) {
+                Modifier.background(
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f),
+                    RoundedCornerShape(8.dp)
+                )
+            } else Modifier
+        )
+
+        val isObligationsActive = currentScreen == "obligations"
+        DropdownMenuItem(
+            text = {
+                Text(
+                    "Obligaciones",
+                    color = if (isObligationsActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                )
+            },
+            leadingIcon = {
+                Row {
+                    if (isObligationsActive) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .width(4.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.primary,
+                                    RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)
+                                )
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    Icon(
+                        Icons.Default.FactCheck,
+                        contentDescription = null,
+                        tint = if (isObligationsActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            },
+            onClick = {
+                onDismissRequest()
+                if (!isObligationsActive) onNavigateToObligations()
+            },
+            modifier = if (isObligationsActive) {
                 Modifier.background(
                     MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f),
                     RoundedCornerShape(8.dp)

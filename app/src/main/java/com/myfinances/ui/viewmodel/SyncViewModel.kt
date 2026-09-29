@@ -12,6 +12,8 @@ import com.jcadenas.xpendz.data.repository.LoanAdminStateRepository
 import com.jcadenas.xpendz.data.repository.LoanMovementRepository
 import com.jcadenas.xpendz.data.repository.LoanPaymentRepository
 import com.jcadenas.xpendz.data.repository.LoanRepository
+import com.jcadenas.xpendz.data.repository.ObligationRepository
+import com.jcadenas.xpendz.data.repository.ObligationSettlementRepository
 import com.jcadenas.xpendz.data.repository.TransactionRepository
 import com.jcadenas.xpendz.data.repository.TransferRepository
 import com.jcadenas.xpendz.data.repository.UserSettingsRepository
@@ -57,12 +59,14 @@ class SyncViewModel @Inject constructor(
     private val loanMovementRepository: LoanMovementRepository,
     private val exchangeRateRepository: ExchangeRateRepository,
     private val userSettingsRepository: UserSettingsRepository,
+    private val obligationRepository: ObligationRepository,
+    private val obligationSettlementRepository: ObligationSettlementRepository,
     private val legacyLoanMigration: LegacyLoanMigration,
     private val reversedLoanPaymentReconciler: ReversedLoanPaymentReconciler
 ) : ViewModel() {
 
     companion object {
-        private const val TOTAL_SYNC_STEPS = 12
+        private const val TOTAL_SYNC_STEPS = 14
         private const val MIN_SYNC_INTERVAL_MS = 45_000L
     }
 
@@ -165,20 +169,28 @@ class SyncViewModel @Inject constructor(
                 }
 
                 ensureActiveSync()
-                updateProgress(step = 9, message = "Sincronizando pagos de préstamos...")
+                updateProgress(step = 9, message = "Sincronizando cuentas por cobrar/pagar...")
+                obligationRepository.syncFromFirestore(uid)
+
+                ensureActiveSync()
+                updateProgress(step = 10, message = "Sincronizando pagos de obligaciones...")
+                obligationSettlementRepository.syncFromFirestore(uid)
+
+                ensureActiveSync()
+                updateProgress(step = 11, message = "Sincronizando pagos de préstamos...")
                 loanPaymentRepository.syncFromFirestore(uid)
 
                 ensureActiveSync()
-                updateProgress(step = 10, message = "Sincronizando movimientos de préstamos...")
+                updateProgress(step = 12, message = "Sincronizando movimientos de préstamos...")
                 loanMovementRepository.syncFromFirestore(uid)
 
                 ensureActiveSync()
-                updateProgress(step = 11, message = "Reconstruyendo préstamos canónicos...")
+                updateProgress(step = 13, message = "Reconstruyendo préstamos canónicos...")
                 reversedLoanPaymentReconciler.reconcile(uid)
                 legacyLoanMigration.migrate(uid)
 
                 ensureActiveSync()
-                updateProgress(step = 12, message = "Sincronización completada")
+                updateProgress(step = 14, message = "Sincronización completada")
                 _syncVersion.value = _syncVersion.value + 1
             } catch (_: CancellationException) {
                 _status.value = "Sincronización cancelada"

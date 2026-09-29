@@ -22,6 +22,7 @@ sealed class NavRoutes(val route: String) {
     object Categories : NavRoutes("categories")
     object Charts : NavRoutes("charts")
     object Loans : NavRoutes("loans")
+    object Obligations : NavRoutes("obligations")
     object Budget : NavRoutes("budget?tab={tab}") {
         fun createRoute(tab: String? = null): String {
             val t = tab ?: ""

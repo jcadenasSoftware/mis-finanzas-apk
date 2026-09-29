@@ -52,7 +52,7 @@ class BackupServiceImpl @Inject constructor(
             val backupData = dataExporter.export(userUid)
             Log.d(
                 "Backup",
-                "exportBackup: dataExported user=${backupData.user.uid}, categories=${backupData.categories.size}, accounts=${backupData.accounts.size}, loans=${backupData.loans.size}, transactions=${backupData.transactions.size}, transfers=${backupData.transfers.size}, budgets=${backupData.budgets.size}, goals=${backupData.goals.size}, loanPayments=${backupData.loanPayments.size}, loanMovements=${backupData.loanMovements.size}, exchangeRates=${backupData.exchangeRates.size}"
+                "exportBackup: dataExported user=${backupData.user.uid}, categories=${backupData.categories.size}, accounts=${backupData.accounts.size}, loans=${backupData.loans.size}, transactions=${backupData.transactions.size}, transfers=${backupData.transfers.size}, budgets=${backupData.budgets.size}, goals=${backupData.goals.size}, obligations=${backupData.obligations.size}, obligationSettlements=${backupData.obligationSettlements.size}, loanPayments=${backupData.loanPayments.size}, loanMovements=${backupData.loanMovements.size}, exchangeRates=${backupData.exchangeRates.size}"
             )
 
             // 2. Serializar BackupData a JSON
@@ -138,7 +138,7 @@ class BackupServiceImpl @Inject constructor(
             val backupData = jsonSerializer.deserialize(jsonString)
             Log.d(
                 "Backup",
-                "importBackup: dataImported user=${backupData.user.uid}, categories=${backupData.categories.size}, accounts=${backupData.accounts.size}, loans=${backupData.loans.size}, transactions=${backupData.transactions.size}, transfers=${backupData.transfers.size}, budgets=${backupData.budgets.size}, goals=${backupData.goals.size}, loanPayments=${backupData.loanPayments.size}, loanMovements=${backupData.loanMovements.size}, exchangeRates=${backupData.exchangeRates.size}"
+                "importBackup: dataImported user=${backupData.user.uid}, categories=${backupData.categories.size}, accounts=${backupData.accounts.size}, loans=${backupData.loans.size}, transactions=${backupData.transactions.size}, transfers=${backupData.transfers.size}, budgets=${backupData.budgets.size}, goals=${backupData.goals.size}, obligations=${backupData.obligations.size}, obligationSettlements=${backupData.obligationSettlements.size}, loanPayments=${backupData.loanPayments.size}, loanMovements=${backupData.loanMovements.size}, exchangeRates=${backupData.exchangeRates.size}"
             )
 
             // 8. Restaurar datos en Room

@@ -4,11 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jcadenas.xpendz.data.local.dao.TransactionWithDetails
 import com.jcadenas.xpendz.ui.transactions.LoanTransactionPolicy
+import com.jcadenas.xpendz.ui.transactions.ObligationTransactionPolicy
 import com.jcadenas.xpendz.data.local.entity.AccountEntity
 import com.jcadenas.xpendz.data.local.entity.CategoryEntity
 import com.jcadenas.xpendz.data.repository.AccountRepository
 import com.jcadenas.xpendz.data.repository.AuthRepository
 import com.jcadenas.xpendz.data.repository.CategoryRepository
+import com.jcadenas.xpendz.data.repository.ObligationSettlementRepository
 import com.jcadenas.xpendz.data.repository.TransactionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,6 +42,7 @@ data class TransactionsState(
     val totalIncomeCents: Long = 0L,
     val totalExpenseCents: Long = 0L,
     val balanceCents: Long = 0L,
+    val obligationLinkedTransactionIds: Set<String> = emptySet(),
     val isLoading: Boolean = false,
     val error: String? = null
 )
@@ -68,7 +71,8 @@ class TransactionsViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val transactionRepository: TransactionRepository,
     private val accountRepository: AccountRepository,
-    private val categoryRepository: CategoryRepository
+    private val categoryRepository: CategoryRepository,
+    private val obligationSettlementRepository: ObligationSettlementRepository
 ) : ViewModel() {
 
     private suspend fun resolveCategoryFilterIds(
@@ -126,8 +130,12 @@ class TransactionsViewModel @Inject constructor(
     private val _formState = MutableStateFlow(TransactionFormState())
     val formState: StateFlow<TransactionFormState> = _formState.asStateFlow()
 
+    // Seam de prueba: permite fijar el uid sin Firebase. En producción es null
+    // y el uid siempre proviene de AuthRepository.
+    internal var userUidOverride: String? = null
+
     private val userUid: String?
-        get() = authRepository.currentUser?.uid
+        get() = userUidOverride ?: authRepository.currentUser?.uid
 
     init {
         loadTransactions()
@@ -255,6 +263,8 @@ class TransactionsViewModel @Inject constructor(
 
                 val filtered = applyLocalSearch(transactions, s.searchQuery)
                 val (inc, exp, bal) = computeTotals(filtered)
+                val obligationLinkedIds = obligationSettlementRepository.getByUser(uid)
+                    .mapTo(HashSet()) { it.linkedTransactionId }
 
                 _state.value = _state.value.copy(
                     transactions = filtered,
@@ -264,6 +274,7 @@ class TransactionsViewModel @Inject constructor(
                     totalIncomeCents = inc,
                     totalExpenseCents = exp,
                     balanceCents = bal,
+                    obligationLinkedTransactionIds = obligationLinkedIds,
                     isLoading = false
                 )
             } catch (e: Exception) {
@@ -413,12 +424,15 @@ class TransactionsViewModel @Inject constructor(
                 val months = computeAvailableMonths(monthsSource)
                 val filtered = applyLocalSearch(transactions, _state.value.searchQuery)
                 val (inc, exp, bal) = computeTotals(filtered)
+                val obligationLinkedIds = obligationSettlementRepository.getByUser(uid)
+                    .mapTo(HashSet()) { it.linkedTransactionId }
                 _state.value = _state.value.copy(
                     transactions = filtered,
                     availableMonthsYearMonth = months,
                     totalIncomeCents = inc,
                     totalExpenseCents = exp,
                     balanceCents = bal,
+                    obligationLinkedTransactionIds = obligationLinkedIds,
                     isLoading = false
                 )
             } catch (e: Exception) {
@@ -444,6 +458,14 @@ class TransactionsViewModel @Inject constructor(
                             categoryRepository.getChildren(uid, rootId)
                         } else emptyList()
                         val loanProtected = LoanTransactionPolicy.isLoanKind(transaction.kind)
+                        val obligationProtected = obligationSettlementRepository
+                            .getByLinkedTransactionId(transaction.id) != null
+                        val txProtected = loanProtected || obligationProtected
+                        val protectedMessage = when {
+                            obligationProtected -> ObligationTransactionPolicy.protectedMessage()
+                            loanProtected -> LoanTransactionPolicy.protectedMessage()
+                            else -> null
+                        }
 
                         _formState.value = TransactionFormState(
                             id = transaction.id,
@@ -459,8 +481,8 @@ class TransactionsViewModel @Inject constructor(
                             subCategories = subCategories,
                             selectedRootCategoryId = rootId,
                             isLoading = false,
-                            error = if (loanProtected) LoanTransactionPolicy.protectedMessage() else null,
-                            isLoanProtected = loanProtected
+                            error = protectedMessage,
+                            isLoanProtected = txProtected
                         )
                         return@launch
                     }
@@ -597,6 +619,13 @@ class TransactionsViewModel @Inject constructor(
                     )
                     return@launch
                 }
+                if (form.id != null && obligationSettlementRepository.getByLinkedTransactionId(form.id) != null) {
+                    _formState.value = form.copy(
+                        isLoading = false,
+                        error = ObligationTransactionPolicy.protectedMessage()
+                    )
+                    return@launch
+                }
                 if (form.id != null) {
                     transactionRepository.update(
                         userUid = uid,
@@ -633,6 +662,10 @@ class TransactionsViewModel @Inject constructor(
                 val transaction = transactionRepository.getById(transactionId)
                 if (transaction != null && LoanTransactionPolicy.isLoanKind(transaction.kind)) {
                     _state.value = _state.value.copy(error = LoanTransactionPolicy.protectedMessage())
+                    return@launch
+                }
+                if (obligationSettlementRepository.getByLinkedTransactionId(transactionId) != null) {
+                    _state.value = _state.value.copy(error = ObligationTransactionPolicy.protectedMessage())
                     return@launch
                 }
                 transactionRepository.delete(uid, transactionId)

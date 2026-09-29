@@ -3,7 +3,11 @@ package com.jcadenas.xpendz.di
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.jcadenas.xpendz.data.repository.FirestoreGoalRemoteStore
+import com.jcadenas.xpendz.data.repository.FirestoreObligationRemoteStore
+import com.jcadenas.xpendz.data.repository.FirestoreObligationSettlementRemoteStore
 import com.jcadenas.xpendz.data.repository.GoalRemoteStore
+import com.jcadenas.xpendz.data.repository.ObligationRemoteStore
+import com.jcadenas.xpendz.data.repository.ObligationSettlementRemoteStore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -25,4 +29,12 @@ object FirebaseModule {
     @Provides
     @Singleton
     fun provideGoalRemoteStore(store: FirestoreGoalRemoteStore): GoalRemoteStore = store
+
+    @Provides
+    @Singleton
+    fun provideObligationRemoteStore(store: FirestoreObligationRemoteStore): ObligationRemoteStore = store
+
+    @Provides
+    @Singleton
+    fun provideObligationSettlementRemoteStore(store: FirestoreObligationSettlementRemoteStore): ObligationSettlementRemoteStore = store
 }

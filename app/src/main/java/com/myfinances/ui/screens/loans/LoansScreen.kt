@@ -127,6 +127,7 @@ fun LoansScreen(
     onNavigateToBudget: () -> Unit,
     onNavigateToReports: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToObligations: () -> Unit,
     onLogout: () -> Unit,
     onEditTransaction: (String) -> Unit = {},
     viewModel: LoansViewModel = hiltViewModel()
@@ -222,6 +223,7 @@ fun LoansScreen(
                             onNavigateToBudget = onNavigateToBudget,
                             onNavigateToReports = onNavigateToReports,
                             onNavigateToSettings = onNavigateToSettings,
+                            onNavigateToObligations = onNavigateToObligations,
                             onLogout = onLogout,
                             currentScreen = "loans"
                         )

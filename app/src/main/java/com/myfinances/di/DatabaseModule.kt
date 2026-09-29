@@ -12,6 +12,8 @@ import com.jcadenas.xpendz.data.local.dao.GoalDao
 import com.jcadenas.xpendz.data.local.dao.LoanDao
 import com.jcadenas.xpendz.data.local.dao.LoanMovementDao
 import com.jcadenas.xpendz.data.local.dao.LoanPaymentDao
+import com.jcadenas.xpendz.data.local.dao.ObligationDao
+import com.jcadenas.xpendz.data.local.dao.ObligationSettlementDao
 import com.jcadenas.xpendz.infrastructure.loan.admin.LoanAdminStateDao
 import com.jcadenas.xpendz.data.local.dao.TransactionDao
 import com.jcadenas.xpendz.data.local.dao.TransferDao
@@ -54,7 +56,8 @@ object DatabaseModule {
             AppDatabase.MIGRATION_14_15,
             AppDatabase.MIGRATION_15_16,
             AppDatabase.MIGRATION_16_17,
-            AppDatabase.MIGRATION_17_18
+            AppDatabase.MIGRATION_17_18,
+            AppDatabase.MIGRATION_18_19
         )
             .build()
     }
@@ -88,6 +91,12 @@ object DatabaseModule {
 
     @Provides
     fun provideLoanMovementDao(database: AppDatabase): LoanMovementDao = database.loanMovementDao()
+
+    @Provides
+    fun provideObligationDao(database: AppDatabase): ObligationDao = database.obligationDao()
+
+    @Provides
+    fun provideObligationSettlementDao(database: AppDatabase): ObligationSettlementDao = database.obligationSettlementDao()
 
     @Provides
     fun provideLoanAdminStateDao(database: AppDatabase): LoanAdminStateDao = database.loanAdminStateDao()

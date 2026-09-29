@@ -51,6 +51,7 @@ fun CategoriesScreen(
     onNavigateToBudget: () -> Unit,
     onNavigateToReports: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToObligations: () -> Unit,
     onLogout: () -> Unit,
     viewModel: CategoriesViewModel = hiltViewModel()
 ) {
@@ -131,6 +132,7 @@ fun CategoriesScreen(
                             onNavigateToBudget = onNavigateToBudget,
                             onNavigateToReports = onNavigateToReports,
                             onNavigateToSettings = onNavigateToSettings,
+                            onNavigateToObligations = onNavigateToObligations,
                             onLogout = onLogout,
                             currentScreen = "categories"
                         )

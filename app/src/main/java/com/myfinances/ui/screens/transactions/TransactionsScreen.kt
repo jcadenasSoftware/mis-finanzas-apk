@@ -57,6 +57,7 @@ fun TransactionsScreen(
     onNavigateToBudget: () -> Unit,
     onNavigateToReports: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToObligations: () -> Unit,
     onLogout: () -> Unit,
     initialAccountId: String? = null,
     initialCategoryId: String? = null,
@@ -129,6 +130,7 @@ fun TransactionsScreen(
                             onNavigateToBudget = onNavigateToBudget,
                             onNavigateToReports = onNavigateToReports,
                             onNavigateToSettings = onNavigateToSettings,
+                            onNavigateToObligations = onNavigateToObligations,
                             onLogout = onLogout,
                             currentScreen = "transactions"
                         )
@@ -253,6 +255,7 @@ fun TransactionsScreen(
                                         }
                                         TransactionItem(
                                             transaction = transaction,
+                                            obligationLinked = transaction.id in state.obligationLinkedTransactionIds,
                                             onEdit = { onEditTransaction(transaction.id) },
                                             onDelete = { viewModel.deleteTransaction(transaction.id) }
                                         )
@@ -1417,6 +1420,7 @@ private fun FilterChipsRow(
 @Composable
 private fun TransactionItem(
     transaction: TransactionWithDetails,
+    obligationLinked: Boolean,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -1440,6 +1444,7 @@ private fun TransactionItem(
         formatTransactionNote(transaction.kind, transaction.note)
     }
     val loanProtected = remember(transaction.kind) { LoanTransactionPolicy.isLoanKind(transaction.kind) }
+    val txProtected = loanProtected || obligationLinked
 
     val iconSpec = remember(transaction.categoryName, transaction.kind) {
         val name = transaction.categoryName.trim().lowercase()
@@ -1518,6 +1523,21 @@ private fun TransactionItem(
                         maxLines = 2
                     )
                 }
+                if (obligationLinked) {
+                    Spacer(modifier = Modifier.height(spacing.xxs / 2))
+                    Surface(
+                        color = Color(0xFFD97706).copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(spacing.xxs + spacing.xxs / 2)
+                    ) {
+                        Text(
+                            text = "Obligación",
+                            style = typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFD97706),
+                            modifier = Modifier.padding(horizontal = spacing.xs, vertical = spacing.xxs / 2)
+                        )
+                    }
+                }
             }
 
             Column(horizontalAlignment = Alignment.End) {
@@ -1535,7 +1555,7 @@ private fun TransactionItem(
             }
 
             // Menu
-            if (!loanProtected) {
+            if (!txProtected) {
                 Box {
                     IconButton(
                         onClick = { showMenu = true },

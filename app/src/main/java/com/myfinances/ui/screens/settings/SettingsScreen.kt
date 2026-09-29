@@ -62,6 +62,7 @@ fun SettingsScreen(
     onNavigateToCharts: () -> Unit,
     onNavigateToBudget: () -> Unit,
     onNavigateToReports: () -> Unit,
+    onNavigateToObligations: () -> Unit,
     onLogout: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
     syncViewModel: SyncViewModel = hiltViewModel()
@@ -127,6 +128,7 @@ fun SettingsScreen(
                             onNavigateToBudget = onNavigateToBudget,
                             onNavigateToReports = onNavigateToReports,
                             onNavigateToSettings = { },
+                            onNavigateToObligations = onNavigateToObligations,
                             onLogout = onLogout,
                             currentScreen = "settings"
                         )

@@ -66,6 +66,7 @@ fun ReportsScreen(
     onNavigateToCharts: () -> Unit,
     onNavigateToBudget: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToObligations: () -> Unit,
     onLogout: () -> Unit,
     viewModel: PrivacyAndDataViewModel = hiltViewModel()
 ) {
@@ -109,6 +110,7 @@ fun ReportsScreen(
                             onNavigateToBudget = onNavigateToBudget,
                             onNavigateToReports = { },
                             onNavigateToSettings = onNavigateToSettings,
+                            onNavigateToObligations = onNavigateToObligations,
                             onLogout = onLogout,
                             currentScreen = "reports"
                         )

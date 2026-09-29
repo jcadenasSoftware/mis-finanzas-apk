@@ -11,6 +11,8 @@ import com.jcadenas.xpendz.data.local.dao.GoalDao
 import com.jcadenas.xpendz.data.local.dao.LoanDao
 import com.jcadenas.xpendz.data.local.dao.LoanMovementDao
 import com.jcadenas.xpendz.data.local.dao.LoanPaymentDao
+import com.jcadenas.xpendz.data.local.dao.ObligationDao
+import com.jcadenas.xpendz.data.local.dao.ObligationSettlementDao
 import com.jcadenas.xpendz.data.local.dao.TransactionDao
 import com.jcadenas.xpendz.data.local.dao.TransferDao
 import com.jcadenas.xpendz.data.local.dao.UserDao
@@ -43,6 +45,8 @@ class RoomDataImporter @Inject constructor(
     private val transferDao: TransferDao,
     private val budgetDao: BudgetDao,
     private val goalDao: GoalDao,
+    private val obligationDao: ObligationDao,
+    private val obligationSettlementDao: ObligationSettlementDao,
     private val loanPaymentDao: LoanPaymentDao,
     private val loanMovementDao: LoanMovementDao,
     private val exchangeRateDao: ExchangeRateDao,
@@ -180,6 +184,12 @@ class RoomDataImporter @Inject constructor(
      */
     private suspend fun deleteUserData(userUid: String) {
         exchangeRateDao.deleteAllByUser(userUid)
+        // ObligationSettlementEntity depende de Obligation/Account/Transaction
+        // con RESTRICT: se elimina antes que cualquiera de sus padres.
+        obligationSettlementDao.deleteAllByUser(userUid)
+        // ObligationEntity depende de Category (RESTRICT) y User: se elimina
+        // antes de categorías y cuentas. Los settlements ya fueron borrados.
+        obligationDao.deleteAllByUser(userUid)
         loanMovementDao.deleteAllByUser(userUid)
         loanPaymentDao.deleteAllByUser(userUid)
         loanDao.deleteAllByUser(userUid)
@@ -243,6 +253,23 @@ class RoomDataImporter @Inject constructor(
         if (backupData.transactions.isNotEmpty()) {
             val transactionsMapped = backupData.transactions.map { it.copy(userUid = userUid) }
             transactionDao.insertAll(transactionsMapped)
+        }
+
+        // 6b. ObligationEntity (mapear userUid al userUid actual)
+        // Dependencias ya insertadas: User, Category. Las obligaciones no
+        // generan Transactions: se insertan como estado puro.
+        if (backupData.obligations.isNotEmpty()) {
+            val obligationsMapped = backupData.obligations.map { it.copy(userUid = userUid) }
+            obligationDao.insertAll(obligationsMapped)
+        }
+
+        // 6c. ObligationSettlementEntity (mapear userUid al userUid actual)
+        // Dependencias ya insertadas: Obligation, Account, Transaction.
+        // linkedTransactionId se inserta tal cual: la validación previa
+        // garantizó que la Transaction enlazada existe en este mismo backup.
+        if (backupData.obligationSettlements.isNotEmpty()) {
+            val settlementsMapped = backupData.obligationSettlements.map { it.copy(userUid = userUid) }
+            obligationSettlementDao.insertAll(settlementsMapped)
         }
 
         // 7. TransferEntity (mapear userUid al userUid actual)

@@ -12,6 +12,8 @@ import com.jcadenas.xpendz.data.local.dao.GoalDao
 import com.jcadenas.xpendz.data.local.dao.LoanDao
 import com.jcadenas.xpendz.data.local.dao.LoanMovementDao
 import com.jcadenas.xpendz.data.local.dao.LoanPaymentDao
+import com.jcadenas.xpendz.data.local.dao.ObligationDao
+import com.jcadenas.xpendz.data.local.dao.ObligationSettlementDao
 import com.jcadenas.xpendz.data.local.dao.TransactionDao
 import com.jcadenas.xpendz.data.local.dao.TransferDao
 import com.jcadenas.xpendz.data.local.dao.UserSettingsDao
@@ -24,6 +26,8 @@ import com.jcadenas.xpendz.data.local.entity.GoalEntity
 import com.jcadenas.xpendz.data.local.entity.LoanEntity
 import com.jcadenas.xpendz.data.local.entity.LoanMovementEntity
 import com.jcadenas.xpendz.data.local.entity.LoanPaymentEntity
+import com.jcadenas.xpendz.data.local.entity.ObligationEntity
+import com.jcadenas.xpendz.data.local.entity.ObligationSettlementEntity
 import com.jcadenas.xpendz.data.local.entity.TransactionEntity
 import com.jcadenas.xpendz.data.local.entity.TransferEntity
 import com.jcadenas.xpendz.data.local.entity.UserSettingsEntity
@@ -50,6 +54,8 @@ import com.jcadenas.xpendz.infrastructure.loan.room.CanonicalLoanDao
         LoanAdminStateEntity::class,
         LoanPaymentEntity::class,
         LoanMovementEntity::class,
+        ObligationEntity::class,
+        ObligationSettlementEntity::class,
         ExchangeRateEntity::class,
         UserSettingsEntity::class,
         CanonicalLoanEventEntity::class,
@@ -57,7 +63,7 @@ import com.jcadenas.xpendz.infrastructure.loan.room.CanonicalLoanDao
         LoanPaymentProjectionEntity::class,
         LoanSummaryProjectionEntity::class
     ],
-    version = 18,
+    version = 19,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -72,6 +78,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun loanDao(): LoanDao
     abstract fun loanPaymentDao(): LoanPaymentDao
     abstract fun loanMovementDao(): LoanMovementDao
+    abstract fun obligationDao(): ObligationDao
+    abstract fun obligationSettlementDao(): ObligationSettlementDao
     abstract fun loanAdminStateDao(): LoanAdminStateDao
     abstract fun exchangeRateDao(): ExchangeRateDao
     abstract fun userSettingsDao(): UserSettingsDao
@@ -439,6 +447,70 @@ abstract class AppDatabase : RoomDatabase() {
                     "CREATE INDEX IF NOT EXISTS index_loan_payment_projection_v1_aggregate " +
                         "ON loan_payment_projection_v1(owner_id, loan_id, occurred_at)"
                 )
+            }
+        }
+
+        val MIGRATION_18_19: Migration = object : Migration(18, 19) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS obligations (
+                        id TEXT NOT NULL,
+                        user_uid TEXT NOT NULL,
+                        type TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        counterparty_name TEXT NOT NULL,
+                        notes TEXT,
+                        reference TEXT,
+                        obligation_category_id TEXT,
+                        currency TEXT NOT NULL,
+                        original_amount_cents INTEGER NOT NULL,
+                        issued_at_epoch_sec INTEGER NOT NULL,
+                        due_at_epoch_sec INTEGER,
+                        cancelled_at_epoch_sec INTEGER,
+                        created_at_epoch_sec INTEGER NOT NULL,
+                        updated_at_epoch_sec INTEGER NOT NULL,
+                        updated_by TEXT,
+                        PRIMARY KEY(id),
+                        FOREIGN KEY(user_uid) REFERENCES users(uid) ON DELETE CASCADE,
+                        FOREIGN KEY(obligation_category_id) REFERENCES categories(id) ON DELETE RESTRICT
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_obligations_user_uid ON obligations(user_uid)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_obligations_type ON obligations(type)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_obligations_obligation_category_id ON obligations(obligation_category_id)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_obligations_issued_at_epoch_sec ON obligations(issued_at_epoch_sec)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_obligations_due_at_epoch_sec ON obligations(due_at_epoch_sec)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_obligations_updated_at_epoch_sec ON obligations(updated_at_epoch_sec)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS obligation_settlements (
+                        id TEXT NOT NULL,
+                        user_uid TEXT NOT NULL,
+                        obligation_id TEXT NOT NULL,
+                        account_id TEXT NOT NULL,
+                        amount_cents INTEGER NOT NULL,
+                        occurred_at_epoch_sec INTEGER NOT NULL,
+                        linked_transaction_id TEXT NOT NULL,
+                        note TEXT,
+                        created_at_epoch_sec INTEGER NOT NULL,
+                        updated_at_epoch_sec INTEGER NOT NULL,
+                        updated_by TEXT,
+                        PRIMARY KEY(id),
+                        FOREIGN KEY(user_uid) REFERENCES users(uid) ON DELETE CASCADE,
+                        FOREIGN KEY(obligation_id) REFERENCES obligations(id) ON DELETE CASCADE,
+                        FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE RESTRICT,
+                        FOREIGN KEY(linked_transaction_id) REFERENCES transactions(id) ON DELETE RESTRICT
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_obligation_settlements_user_uid ON obligation_settlements(user_uid)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_obligation_settlements_obligation_id ON obligation_settlements(obligation_id)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_obligation_settlements_account_id ON obligation_settlements(account_id)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_obligation_settlements_occurred_at_epoch_sec ON obligation_settlements(occurred_at_epoch_sec)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_obligation_settlements_linked_transaction_id ON obligation_settlements(linked_transaction_id)")
             }
         }
 

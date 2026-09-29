@@ -9,6 +9,8 @@ import com.jcadenas.xpendz.data.local.dao.GoalDao
 import com.jcadenas.xpendz.data.local.dao.LoanDao
 import com.jcadenas.xpendz.data.local.dao.LoanMovementDao
 import com.jcadenas.xpendz.data.local.dao.LoanPaymentDao
+import com.jcadenas.xpendz.data.local.dao.ObligationDao
+import com.jcadenas.xpendz.data.local.dao.ObligationSettlementDao
 import com.jcadenas.xpendz.data.local.dao.TransactionDao
 import com.jcadenas.xpendz.data.local.dao.TransferDao
 import com.jcadenas.xpendz.data.local.dao.UserDao
@@ -21,6 +23,8 @@ import com.jcadenas.xpendz.data.local.entity.GoalEntity
 import com.jcadenas.xpendz.data.local.entity.LoanEntity
 import com.jcadenas.xpendz.data.local.entity.LoanMovementEntity
 import com.jcadenas.xpendz.data.local.entity.LoanPaymentEntity
+import com.jcadenas.xpendz.data.local.entity.ObligationEntity
+import com.jcadenas.xpendz.data.local.entity.ObligationSettlementEntity
 import com.jcadenas.xpendz.data.local.entity.TransactionEntity
 import com.jcadenas.xpendz.data.local.entity.TransferEntity
 import com.jcadenas.xpendz.data.local.entity.UserEntity
@@ -51,6 +55,8 @@ class RoomDataExporter @Inject constructor(
     private val transferDao: TransferDao,
     private val budgetDao: BudgetDao,
     private val goalDao: GoalDao,
+    private val obligationDao: ObligationDao,
+    private val obligationSettlementDao: ObligationSettlementDao,
     private val loanPaymentDao: LoanPaymentDao,
     private val loanMovementDao: LoanMovementDao,
     private val exchangeRateDao: ExchangeRateDao,
@@ -115,6 +121,17 @@ class RoomDataExporter @Inject constructor(
             // 9. Consultar GoalEntity (todas)
             val goals: List<GoalEntity> = goalDao.getByUser(userUid)
 
+            // 9b. Consultar ObligationEntity (todas). Las obligaciones son
+            // obligaciones, NO dinero: se exportan como estado, sin derivar
+            // ninguna Transaction.
+            val obligations: List<ObligationEntity> = obligationDao.getByUser(userUid)
+
+            // 9c. Consultar ObligationSettlementEntity (todas). Cada settlement
+            // lleva su linkedTransactionId estable; la Transaction enlazada ya
+            // fue exportada en el paso 6 y es parte de la misma cadena.
+            val obligationSettlements: List<ObligationSettlementEntity> =
+                obligationSettlementDao.getByUser(userUid)
+
             // 10. Consultar LoanPaymentEntity (todas)
             val loanPayments: List<LoanPaymentEntity> = loanPaymentDao.getByUser(userUid)
 
@@ -176,6 +193,8 @@ class RoomDataExporter @Inject constructor(
                 transfers = transfers,
                 budgets = budgets,
                 goals = goals,
+                obligations = obligations,
+                obligationSettlements = obligationSettlements,
                 loanPayments = loanPayments,
                 loanMovements = loanMovements,
                 exchangeRates = exchangeRates
