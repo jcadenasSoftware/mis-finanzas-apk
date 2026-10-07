@@ -95,6 +95,10 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth.ktx)
     implementation(libs.firebase.firestore.ktx)
+    // gRPC API expuesta al compile classpath: NameResolverProvider SPI
+    // (failover de IPs googleapis para el canal de Firestore). La versión
+    // coincide con la que firestore ya trae en runtime (1.62.2).
+    implementation("io.grpc:grpc-api:1.62.2")
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)

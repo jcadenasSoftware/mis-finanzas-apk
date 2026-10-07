@@ -37,6 +37,10 @@
 -keep class com.jcadenas.xpendz.data.local.entity.** { *; }
 -keepclassmembers class com.jcadenas.xpendz.data.local.entity.** { *; }
 
+# Conectividad googleapis — el NameResolverProvider se carga por
+# ServiceLoader (META-INF/services), no por referencia directa.
+-keep class * extends io.grpc.NameResolverProvider { *; }
+
 # Remove verbose/debug/info logs in release builds.
 # Log.w and Log.e are preserved for production diagnostics and Crashlytics compatibility.
 -assumenosideeffects class android.util.Log {

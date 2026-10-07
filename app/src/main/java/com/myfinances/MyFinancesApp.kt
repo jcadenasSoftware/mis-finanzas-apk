@@ -6,6 +6,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.jcadenas.xpendz.data.local.AppDatabase
 import com.jcadenas.xpendz.diagnostics.AppIdentityLogger
+import com.jcadenas.xpendz.infrastructure.connectivity.GoogleApisConnectivityShield
 import com.jcadenas.xpendz.work.BudgetAlertHelper
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
@@ -27,6 +28,9 @@ class XpendzApp : Application(), Configuration.Provider {
     override fun onCreate() {
         Log.e("XPENDZ_STARTUP", "***** APPLICATION onCreate *****")
         super.onCreate()
+        // Failover googleapis (pool IP hermano) — proxy loopback + resolver
+        // gRPC. Instalar antes de cualquier llamada de red Firebase.
+        GoogleApisConnectivityShield.install()
         // TEMP DIAGNOSTIC
         AppIdentityLogger.logApplicationIdentity(this)
         try {
