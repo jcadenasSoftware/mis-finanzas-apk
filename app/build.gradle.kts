@@ -31,8 +31,8 @@ android {
         applicationId = "com.jcadenas.xpendz"
         minSdk = 26
         targetSdk = 36
-        versionCode = 15
-        versionName = "1.0.05"
+        versionCode = 16
+        versionName = "1.0.06"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
