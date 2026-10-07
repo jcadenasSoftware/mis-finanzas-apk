@@ -3,14 +3,16 @@ package com.jcadenas.xpendz.ui.obligations
 import com.jcadenas.xpendz.application.obligation.ObligationResolvedStatus
 import com.jcadenas.xpendz.application.obligation.ResolvedObligationState
 import com.jcadenas.xpendz.data.local.entity.ObligationEntity
-import com.jcadenas.xpendz.ui.screens.obligations.splitObligationsByCancellation
+import com.jcadenas.xpendz.ui.screens.obligations.partitionObligationsByStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Sección "Canceladas" — mismo patrón que Metas → Archivadas:
- * CANCELADA sale de la lista activa y aparece bajo "Canceladas (N)".
+ * Partición operativa de la pantalla Obligaciones (paridad Desktop v1.0.06):
+ * PENDIENTE/PARCIAL/VENCIDA → "Activas"; PAGADA → "Pagadas (N)";
+ * CANCELADA → "Canceladas (N)". Pagadas y canceladas salen del listado
+ * operativo pero permanecen accesibles en secciones contraíbles.
  */
 class ObligationCancelledSectionTest {
 
@@ -36,8 +38,8 @@ class ObligationCancelledSectionTest {
         obligationId = id,
         status = status,
         originalAmountCents = 100_000L,
-        totalSettledCents = 0L,
-        pendingAmountCents = 100_000L,
+        totalSettledCents = if (status == ObligationResolvedStatus.PAGADA) 100_000L else 0L,
+        pendingAmountCents = if (status == ObligationResolvedStatus.PAGADA) 0L else 100_000L,
         dueAtEpochSec = null,
         cancelledAtEpochSec = if (status == ObligationResolvedStatus.CANCELADA) 2L else null
     )
@@ -59,33 +61,44 @@ class ObligationCancelledSectionTest {
     )
 
     @Test
-    fun cancelledLeavesActiveListAndJoinsCancelledSection() {
-        val (active, cancelled) = splitObligationsByCancellation(obligations, states)
+    fun pendingPartialAndOverdueStayInActiveList() {
+        val (active, _, _) = partitionObligationsByStatus(obligations, states)
         assertEquals(
-            setOf("pendiente", "parcial", "vencida", "pagada"),
+            setOf("pendiente", "parcial", "vencida"),
             active.map { it.id }.toSet()
         )
+    }
+
+    @Test
+    fun paidLeavesActiveListAndJoinsPaidSection() {
+        val (active, paid, _) = partitionObligationsByStatus(obligations, states)
+        assertTrue("pagada" !in active.map { it.id })
+        assertEquals(listOf("pagada"), paid.map { it.id })
+    }
+
+    @Test
+    fun cancelledLeavesActiveListAndJoinsCancelledSection() {
+        val (active, _, cancelled) = partitionObligationsByStatus(obligations, states)
+        assertTrue("cancelada" !in active.map { it.id })
         assertEquals(listOf("cancelada"), cancelled.map { it.id })
     }
 
     @Test
-    fun cancelledCounterMatchesSectionSize() {
-        val (_, cancelled) = splitObligationsByCancellation(obligations, states)
-        assertEquals(1, cancelled.size)
-    }
-
-    @Test
     fun unresolvedStateStaysInActiveList() {
-        val (active, cancelled) = splitObligationsByCancellation(obligations, emptyMap())
+        val (active, paid, cancelled) = partitionObligationsByStatus(obligations, emptyMap())
         assertEquals(5, active.size)
+        assertTrue(paid.isEmpty())
         assertTrue(cancelled.isEmpty())
     }
 
     @Test
-    fun allCancelledLeavesEmptyActiveList() {
-        val all = states.keys.associateWith { state(it, ObligationResolvedStatus.CANCELADA) }
-        val (active, cancelled) = splitObligationsByCancellation(obligations, all)
+    fun allPaidOrCancelledLeavesEmptyActiveList() {
+        val all = states.keys.associateWith {
+            state(it, ObligationResolvedStatus.PAGADA)
+        }
+        val (active, paid, cancelled) = partitionObligationsByStatus(obligations, all)
         assertTrue(active.isEmpty())
-        assertEquals(5, cancelled.size)
+        assertEquals(5, paid.size)
+        assertTrue(cancelled.isEmpty())
     }
 }

@@ -244,7 +244,7 @@ fun ObligationsScreen(
             Spacer(modifier = Modifier.height(spacing.s))
 
             val filtered = state.obligations.filter { it.type == state.selectedTab }
-            val (active, cancelled) = splitObligationsByCancellation(filtered, state.resolvedStates)
+            val (active, paid, cancelled) = partitionObligationsByStatus(filtered, state.resolvedStates)
             when {
                 state.isLoading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -275,6 +275,7 @@ fun ObligationsScreen(
                     }
                 }
                 else -> {
+                    var paidExpanded by remember { mutableStateOf(false) }
                     var cancelledExpanded by remember { mutableStateOf(false) }
                     LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(spacing.xs),
@@ -289,6 +290,16 @@ fun ObligationsScreen(
                                 modifier = Modifier.padding(vertical = spacing.xxs)
                             )
                         }
+                        if (active.isEmpty()) {
+                            item(key = "empty-active") {
+                                Text(
+                                    text = "Sin obligaciones activas",
+                                    style = typography.bodySmall,
+                                    color = colors.onSurfaceVariant.copy(alpha = 0.6f),
+                                    modifier = Modifier.padding(vertical = spacing.xxs)
+                                )
+                            }
+                        }
                         items(active, key = { it.id }) { obligation ->
                             ObligationCard(
                                 obligation = obligation,
@@ -296,8 +307,32 @@ fun ObligationsScreen(
                                 onClick = { viewModel.openDetail(obligation.id) }
                             )
                         }
-                        // Sección "Canceladas" — mismo patrón que Metas → Archivadas:
-                        // contraída por defecto, expandible, detalle accesible.
+                        // Secciones "Pagadas" / "Canceladas" — mismo patrón que
+                        // Metas → Archivadas: contraídas por defecto, expandibles,
+                        // detalle accesible. (Paridad con Desktop v1.0.06.)
+                        if (paid.isNotEmpty()) {
+                            item(key = "header-paid") {
+                                Text(
+                                    text = "Pagadas (${paid.size}) ${if (paidExpanded) "▾" else "▸"}",
+                                    style = typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { paidExpanded = !paidExpanded }
+                                        .padding(vertical = spacing.xs)
+                                )
+                            }
+                            if (paidExpanded) {
+                                items(paid, key = { "paid-${it.id}" }) { obligation ->
+                                    ObligationCard(
+                                        obligation = obligation,
+                                        resolved = state.resolvedStates[obligation.id],
+                                        onClick = { viewModel.openDetail(obligation.id) }
+                                    )
+                                }
+                            }
+                        }
                         if (cancelled.isNotEmpty()) {
                             item(key = "header-cancelled") {
                                 Text(
@@ -1365,20 +1400,21 @@ private fun obligationFieldColors() = OutlinedTextFieldDefaults.colors(
 //  (mismo concepto que Nueva transacción: raíces compatibles con el
 //  kind del movimiento; subcategorías compatibles de la raíz elegida).
 // ══════════════════════════════════════════════════════════════════
-internal fun splitObligationsByCancellation(
+internal fun partitionObligationsByStatus(
     obligations: List<ObligationEntity>,
     resolvedStates: Map<String, ResolvedObligationState>
-): Pair<List<ObligationEntity>, List<ObligationEntity>> {
+): Triple<List<ObligationEntity>, List<ObligationEntity>, List<ObligationEntity>> {
     val active = mutableListOf<ObligationEntity>()
+    val paid = mutableListOf<ObligationEntity>()
     val cancelled = mutableListOf<ObligationEntity>()
     for (obligation in obligations) {
-        if (resolvedStates[obligation.id]?.status == ObligationResolvedStatus.CANCELADA) {
-            cancelled.add(obligation)
-        } else {
-            active.add(obligation)
+        when (resolvedStates[obligation.id]?.status) {
+            ObligationResolvedStatus.CANCELADA -> cancelled.add(obligation)
+            ObligationResolvedStatus.PAGADA -> paid.add(obligation)
+            else -> active.add(obligation)
         }
     }
-    return active to cancelled
+    return Triple(active, paid, cancelled)
 }
 
 internal fun settlementCompatibleRoots(
